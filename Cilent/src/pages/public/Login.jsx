@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { authAPI } from '../../utils/authAPI';
+import api from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 
 const initialSignIn = {
@@ -66,8 +66,8 @@ const Login = () => {
     setErrors({});
 
     try {
-      const response = await authAPI.login({ identifier: signIn.identifier, password: signIn.password });
-      const { token, user } = response.data.data;
+      const response = await api.post('/auth/login', { identifier: signIn.identifier, password: signIn.password });
+      const { token, user } = response.data;
       localStorage.setItem('protech_token', token);
       localStorage.setItem('protech_user', JSON.stringify(user));
       login(token, user);
@@ -99,7 +99,7 @@ const Login = () => {
     }
 
     try {
-      const response = await authAPI.register({
+      await api.post('/auth/register', {
         username: register.username,
         full_name: register.full_name,
         email: register.email,
