@@ -1,7 +1,6 @@
 // src/App.jsx
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './hooks/useAuth';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import Landing from './pages/public/Landing';
@@ -9,6 +8,7 @@ import Login from './pages/public/Login';
 import ForgotPassword from './pages/public/ForgotPassword';
 import VerifyOTP from './pages/public/VerifyOTP';
 import ResetSuccess from './pages/public/ResetSuccess';
+import PaymentVerify from './pages/public/PaymentVerify';
 import LandlordDashboard from './pages/landlord/LandlordDashboard';
 import Properties from './pages/landlord/Properties';
 import Rooms from './pages/landlord/Rooms';
@@ -37,47 +37,44 @@ const AuthRedirect = () => {
 
 const App = () => {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="min-h-screen bg-background text-text-dark">
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/verify-otp" element={<VerifyOTP />} />
-            <Route path="/reset-success" element={<ResetSuccess />} />
+    <div className="min-h-screen bg-background text-text-dark">
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/verify-otp" element={<VerifyOTP />} />
+        <Route path="/reset-success" element={<ResetSuccess />} />
+        <Route path="/payment/verify" element={<PaymentVerify />} />
 
-            <Route path="/landlord/*" element={<ProtectedRoute allowedRoles={['landlord']} />}> 
-              <Route path="dashboard" element={<LandlordDashboard />} />
-              <Route path="properties" element={<Properties />} />
-              <Route path="rooms" element={<Rooms />} />
-              <Route path="approvals" element={<TenantApprovals />} />
-              <Route path="payments" element={<LandlordPayments />} />
-              <Route path="announcements" element={<Announcements />} />
-              <Route path="notifications" element={<LandlordNotifications />} />
-              <Route path="profile" element={<LandlordProfile />} />
-            </Route>
+        <Route path="/landlord/*" element={<ProtectedRoute allowedRoles={['landlord']} />}> 
+          <Route path="dashboard" element={<LandlordDashboard />} />
+          <Route path="properties" element={<Properties />} />
+          <Route path="rooms" element={<Rooms />} />
+          <Route path="approvals" element={<TenantApprovals />} />
+          <Route path="payments" element={<LandlordPayments />} />
+          <Route path="announcements" element={<Announcements />} />
+          <Route path="notifications" element={<LandlordNotifications />} />
+          <Route path="profile" element={<LandlordProfile />} />
+        </Route>
 
-            <Route path="/tenant/*" element={<ProtectedRoute allowedRoles={['tenant']} />}> 
-              <Route path="dashboard" element={<TenantDashboard />} />
-              <Route path="pay" element={<PayRent />} />
-              <Route path="history" element={<PaymentHistory />} />
-              <Route path="announcements" element={<TenantAnnouncements />} />
-              <Route path="notifications" element={<TenantNotifications />} />
-              <Route path="profile" element={<TenantProfile />} />
-            </Route>
+        <Route path="/tenant/*" element={<ProtectedRoute allowedRoles={['tenant']} />}> 
+          <Route path="dashboard" element={<TenantDashboard />} />
+          <Route path="pay" element={<PayRent />} />
+          <Route path="history" element={<PaymentHistory />} />
+          <Route path="announcements" element={<TenantAnnouncements />} />
+          <Route path="notifications" element={<TenantNotifications />} />
+          <Route path="profile" element={<TenantProfile />} />
+        </Route>
 
-            <Route path="/admin/*" element={<ProtectedRoute allowedRoles={['admin']} />}> 
-              <Route path="dashboard" element={<AdminDashboard />} />
-            </Route>
+        <Route path="/admin/*" element={<ProtectedRoute allowedRoles={['admin']} />}> 
+          <Route path="dashboard" element={<AdminDashboard />} />
+        </Route>
 
-            <Route path="/dashboard" element={<AuthRedirect />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-          <Toaster position="top-right" />
-        </div>
-      </Router>
-    </AuthProvider>
+        <Route path="/dashboard" element={<AuthRedirect />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <Toaster position="top-right" />
+    </div>
   );
 };
 

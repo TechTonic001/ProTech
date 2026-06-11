@@ -134,22 +134,20 @@ const initiatePayment = async (req, res, next) => {
 
 const paystackWebhook = async (req, res, next) => {
   try {
-    // Verify HMAC signature
     const signature = req.headers['x-paystack-signature'];
-    const raw = req.body && Object.keys(req.body).length ? JSON.stringify(req.body) : req.rawBody || req._rawBody || '';
+    const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : req.rawBody || JSON.stringify(req.body || {});
     const hash = crypto
       .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
-      .update(raw)
+      .update(rawBody)
       .digest('hex');
 
     if (hash !== signature) {
       return res.status(400).json({ error: 'Invalid signature' });
     }
 
-    const event = req.body;
+    const event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
 
-    // Only process charge.success events
-    if (event.event !== 'charge.success') {
+    if (!event || event.event !== 'charge.success') {
       return res.status(200).json({ message: 'Event ignored' });
     }
 
@@ -268,9 +266,37 @@ const getPaymentHistory = async (req, res, next) => {
   }
 };
 
+const verifyPayment = async (req, res, next) => {
+  try {
+    const { reference } = req.params;
+    const userId = req.user.user_id;
+
+    const connection = await pool.getConnection();
+    const [payments] = await connection.query(
+      'SELECT * FROM payments WHERE paystack_ref = ? AND tenant_id = ?',
+      [reference, userId]
+    );
+    connection.release();
+
+    if (payments.length === 0) {
+      return res.status(404).json({
+        message: 'Payment not found',
+      });
+    }
+
+    return res.status(200).json({
+      message: 'Payment retrieved successfully',
+      data: payments[0],
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createLandlordSubaccount,
   initiatePayment,
   paystackWebhook,
   getPaymentHistory,
+  verifyPayment,
 };

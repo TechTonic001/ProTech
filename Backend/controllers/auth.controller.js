@@ -46,28 +46,20 @@ const register = async (req, res, next) => {
     connection.release();
 
     if (is_approved === 0) {
-      // Tenant created but not approved — do not issue token yet
       return res.status(201).json({
         message: 'Account created. Pending landlord approval.',
         data: { user_id, is_approved: 0, email },
       });
     }
 
-    // For approved accounts (landlord), issue token
-    const token = jwt.sign(
-      { user_id, email, username, role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
-
     return res.status(201).json({
-      message: 'User registered successfully',
+      message: 'Account created successfully. Please sign in.',
       data: {
         user_id,
         username,
         email,
         role,
-        token,
+        is_approved,
       },
     });
   } catch (error) {
@@ -117,12 +109,14 @@ const login = async (req, res, next) => {
     return res.status(200).json({
       message: 'Login successful',
       data: {
-        user_id: user.user_id,
-        username: user.username,
-        email: user.email,
-        full_name: user.full_name,
-        role: user.role,
         token,
+        user: {
+          user_id: user.user_id,
+          username: user.username,
+          email: user.email,
+          full_name: user.full_name,
+          role: user.role,
+        },
       },
     });
   } catch (error) {
@@ -188,9 +182,11 @@ const forgotPassword = async (req, res, next) => {
 
 const resetPassword = async (req, res, next) => {
   try {
-    const { email, otp_code, new_password } = req.body;
+    const { email, otp_code, otp, new_password, password } = req.body;
+    const otpValue = otp_code || otp;
+    const newPassword = new_password || password;
 
-    if (!email || !otp_code || !new_password) {
+    if (!email || !otpValue || !newPassword) {
       return res.status(400).json({ error: 'Email, OTP code, and new password are required' });
     }
 

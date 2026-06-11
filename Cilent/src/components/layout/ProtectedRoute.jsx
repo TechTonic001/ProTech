@@ -13,6 +13,9 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
   }
 
   if (!allowedRoles.includes(user.role)) {
+    if (user.role === 'landlord') return <Navigate to="/landlord/dashboard" replace />;
+    if (user.role === 'tenant') return <Navigate to="/tenant/dashboard" replace />;
+    if (user.role === 'admin') return <Navigate to="/admin/dashboard" replace />;
     return <Navigate to="/" replace />;
   }
 

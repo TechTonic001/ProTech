@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import api from '../../utils/api';
+import { authAPI } from '../../utils/authAPI';
 
 const VerifyOTP = () => {
   const [email, setEmail] = useState('');
@@ -15,7 +15,7 @@ const VerifyOTP = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post('/auth/verify-otp', { email, otp, password: newPassword });
+      await authAPI.verifyOTP({ email, otp, password: newPassword });
       toast.success('Password reset complete');
       navigate('/reset-success');
     } catch (error) {

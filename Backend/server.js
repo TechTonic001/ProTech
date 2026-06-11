@@ -22,8 +22,11 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 // Mount Paystack webhook with raw body parser specifically
-const paymentController = require('./controllers/payment.controller');
-app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), paymentController.paystackWebhook);
+app.use(
+  '/api/payments/webhook',
+  express.raw({ type: 'application/json' }),
+  require('./routes/payment.webhook.routes')
+);
 
 // Parse JSON for all other routes
 app.use(express.json());
