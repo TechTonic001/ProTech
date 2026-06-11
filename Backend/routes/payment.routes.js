@@ -14,11 +14,6 @@ const router = express.Router();
 
 router.post('/subaccount', verifyToken, requireRole('landlord'), createLandlordSubaccount);
 router.post('/initiate', verifyToken, requireRole('tenant'), initiatePayment);
-router.post(
-  '/webhook',
-  express.raw({ type: 'application/json', verify: rawBodyMiddleware }),
-  paystackWebhook
-);
 router.get('/history', verifyToken, getPaymentHistory);
 
 module.exports = router;

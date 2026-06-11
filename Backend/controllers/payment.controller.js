@@ -136,9 +136,10 @@ const paystackWebhook = async (req, res, next) => {
   try {
     // Verify HMAC signature
     const signature = req.headers['x-paystack-signature'];
+    const raw = req.body && Object.keys(req.body).length ? JSON.stringify(req.body) : req.rawBody || req._rawBody || '';
     const hash = crypto
       .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
-      .update(req.rawBody)
+      .update(raw)
       .digest('hex');
 
     if (hash !== signature) {

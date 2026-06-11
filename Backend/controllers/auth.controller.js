@@ -14,15 +14,18 @@ const register = async (req, res, next) => {
 
     const connection = await pool.getConnection();
 
-    // Check if email or username already exists
-    const [existingUsers] = await connection.query(
-      'SELECT user_id FROM users WHERE email = ? OR username = ?',
-      [email, username]
-    );
-
-    if (existingUsers.length > 0) {
+    // Check email uniqueness
+    const [emailCheck] = await connection.query('SELECT user_id FROM users WHERE email = ?', [email]);
+    if (emailCheck.length > 0) {
       connection.release();
-      return res.status(400).json({ error: 'Email or username already exists' });
+      return res.status(400).json({ error: 'Email is already registered.' });
+    }
+
+    // Check username uniqueness
+    const [usernameCheck] = await connection.query('SELECT user_id FROM users WHERE username = ?', [username]);
+    if (usernameCheck.length > 0) {
+      connection.release();
+      return res.status(400).json({ error: 'Username is already taken.' });
     }
 
     // Hash password
@@ -38,9 +41,19 @@ const register = async (req, res, next) => {
       [username, full_name, email, phone_number, password_hash, role, is_approved]
     );
 
+    const user_id = result.insertId;
+
     connection.release();
 
-    const user_id = result.insertId;
+    if (is_approved === 0) {
+      // Tenant created but not approved — do not issue token yet
+      return res.status(201).json({
+        message: 'Account created. Pending landlord approval.',
+        data: { user_id, is_approved: 0, email },
+      });
+    }
+
+    // For approved accounts (landlord), issue token
     const token = jwt.sign(
       { user_id, email, username, role },
       process.env.JWT_SECRET,
@@ -75,6 +88,7 @@ const login = async (req, res, next) => {
       'SELECT * FROM users WHERE email = ? OR username = ?',
       [identifier, identifier]
     );
+
     connection.release();
 
     if (users.length === 0) {
@@ -83,9 +97,9 @@ const login = async (req, res, next) => {
 
     const user = users[0];
 
-    // Check if tenant is approved
+    // If tenant is not approved, return 403 with clear message
     if (user.role === 'tenant' && !user.is_approved) {
-      return res.status(403).json({ error: 'Your account has not been approved yet' });
+      return res.status(403).json({ error: 'Your account is pending landlord approval. Check your email.' });
     }
 
     // Verify password
@@ -111,6 +125,23 @@ const login = async (req, res, next) => {
         token,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const profile = async (req, res, next) => {
+  try {
+    const userId = req.user?.user_id;
+    if (!userId) return res.status(400).json({ error: 'Unable to resolve user' });
+
+    const connection = await pool.getConnection();
+    const [users] = await connection.query('SELECT user_id, username, full_name, email, phone_number, role, is_approved FROM users WHERE user_id = ?', [userId]);
+    connection.release();
+
+    if (users.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    return res.status(200).json({ user: users[0] });
   } catch (error) {
     next(error);
   }
@@ -213,4 +244,5 @@ module.exports = {
   login,
   forgotPassword,
   resetPassword,
+  profile,
 };

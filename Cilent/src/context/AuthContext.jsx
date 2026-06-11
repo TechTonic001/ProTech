@@ -1,21 +1,42 @@
 // src/context/AuthContext.jsx
 import { createContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 
 export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  const logout = () => {
+    localStorage.removeItem('protech_token');
+    localStorage.removeItem('protech_user');
+    setToken(null);
+    setUser(null);
+    navigate('/login');
+  };
 
   const loadUser = async () => {
+    const storedToken = localStorage.getItem('protech_token');
+    if (!storedToken) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await api.get('/auth/me');
+      setToken(storedToken);
+      const response = await api.get('/auth/profile');
       if (response?.data?.user) {
         setUser(response.data.user);
+        localStorage.setItem('protech_user', JSON.stringify(response.data.user));
+      } else {
+        logout();
       }
     } catch (error) {
-      setUser(null);
+      logout();
     } finally {
       setLoading(false);
     }
@@ -23,10 +44,11 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     loadUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, loadUser }}>
+    <AuthContext.Provider value={{ user, setUser, token, setToken, loading, loadUser, logout }}>
       {children}
     </AuthContext.Provider>
   );
