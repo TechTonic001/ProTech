@@ -26,7 +26,7 @@ const Landing = () => {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
-              <span className="text-2xl">🏠</span>
+              {/* <span className="text-2xl">🏠</span> */}
               <span className="text-xl font-extrabold text-slate-900">ProTech</span>
               <span className="ml-1 text-[10px] font-bold bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded-full">PWA</span>
             </Link>
@@ -41,7 +41,7 @@ const Landing = () => {
             {/* Desktop Buttons */}
             <div className="hidden lg:flex items-center gap-3">
               <button onClick={() => navigate('/login?role=landlord')} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold border-2 border-slate-800 text-slate-800 rounded-xl hover:bg-slate-800 hover:text-white transition">
-                🏠 Landlord Login
+                 Landlord Login
               </button>
               <button onClick={() => navigate('/login?role=tenant')} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition">
                 👤 Tenant Login
@@ -80,9 +80,9 @@ const Landing = () => {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 grid lg:grid-cols-2 gap-12 items-center">
           {/* Left — Text */}
           <div className="space-y-8">
-            <div className="flex items-center gap-3 border-l-4 border-amber-400 pl-4">
+            {/* <div className="flex items-center gap-3 border-l-4 border-amber-400 pl-4">
               <span className="text-amber-400 text-sm font-semibold">🏠  Nigeria's #1 Student Hostel Management Platform</span>
-            </div>
+            </div> */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight">
               Manage Your Rental<br />Properties <span className="text-amber-400">Smarter.</span>
             </h1>
@@ -337,7 +337,6 @@ const Landing = () => {
             <div className="space-y-4 text-sm text-slate-600 leading-relaxed">
               <p>ProTech is a final-year capstone project developed by Amoo Halleluyah as part of the National Innovation Diploma (NID 2) programme at SQI College of ICT, Ogbomoso, Oyo State, Nigeria.</p>
               <p>The system was designed to solve real operational problems observed in student hostel management across Ogbomoso — where most landlords still rely on paper records and informal bank transfers for rent collection.</p>
-              <p className="font-medium text-slate-700">Supervised by Ms. Oduleke O. Janet, Mr. Blessing O. Adegboyega, and Mr. Ayodeji.</p>
             </div>
             <div className="flex flex-wrap gap-3 mt-8">
               {[
