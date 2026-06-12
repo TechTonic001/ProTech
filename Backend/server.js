@@ -46,8 +46,13 @@ app.use('/api/room', require('./routes/room.routes'));
 app.get('/api/health', (req, res) => res.status(200).json({ status: 'UP', app: 'ProTech' }));
 app.get('/', (req, res) => res.status(200).json({ message: 'Welcome to the ProTech API!', status: 'Running smoothly 🚀' }));
 
-const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Only listen when running locally (not on Vercel)
+if (process.env.VERCEL !== '1') {
+  const PORT = process.env.PORT || 5001;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
 
+// Export the Express app for Vercel's serverless runtime
+module.exports = app;

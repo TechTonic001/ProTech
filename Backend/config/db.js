@@ -11,23 +11,29 @@ const pool = mysql.createPool({
   password: DB_PASSWORD,
   database: process.env.DB_NAME || 'protech_db',
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 5,
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelayMs: 0,
+  // Cloud MySQL providers require SSL – accept their CA automatically
+  ssl: process.env.DB_HOST && process.env.DB_HOST !== 'localhost'
+    ? { rejectUnauthorized: true }
+    : undefined,
 });
 
-// Immediately test the connection and log success/failure
+// Test connection but do NOT crash the process on Vercel (serverless cold-start)
 (async () => {
   try {
     const connection = await pool.getConnection();
     await connection.ping();
     connection.release();
-    console.log(`🟩 SUCCESS: Connected to MySQL (${process.env.DB_NAME || 'protech_db'}) on XAMPP successfully!`);
+    console.log(`🟩 SUCCESS: Connected to MySQL (${process.env.DB_NAME || 'protech_db'}) successfully!`);
   } catch (error) {
     console.log('🟥 ERROR: Database connection failed!', error.message);
-    // Do not exit here if you prefer to let the server start; exit to fail fast
-    process.exit(1);
+    // Only hard-exit locally; on Vercel let the function return a proper error
+    if (process.env.VERCEL !== '1') {
+      process.exit(1);
+    }
   }
 })();
 
