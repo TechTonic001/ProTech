@@ -46,6 +46,11 @@ app.use('/api/room', require('./routes/room.routes'));
 app.get('/api/health', (req, res) => res.status(200).json({ status: 'UP', app: 'ProTech' }));
 app.get('/', (req, res) => res.status(200).json({ message: 'Welcome to the ProTech API!', status: 'Running smoothly 🚀' }));
 
+// Catch-all: any route not matched above gets a proper JSON 404
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not Found', message: `Route ${req.method} ${req.originalUrl} does not exist.` });
+});
+
 // Only listen when running locally (not on Vercel)
 if (process.env.VERCEL !== '1') {
   const PORT = process.env.PORT || 5001;
