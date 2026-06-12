@@ -13,7 +13,4 @@ export default defineConfig({
       },
     },
   },
-  define: {
-    'import.meta.env.VITE_API_BASE_URL': JSON.stringify('http://localhost:5001/api'),
-  },
 });
