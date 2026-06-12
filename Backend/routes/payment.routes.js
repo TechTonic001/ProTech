@@ -6,6 +6,7 @@ const {
   createLandlordSubaccount,
   initiatePayment,
   getPaymentHistory,
+  getReceipt,
   verifyPayment,
 } = require('../controllers/payment.controller');
 
@@ -14,6 +15,7 @@ const router = express.Router();
 router.post('/subaccount', verifyToken, requireRole('landlord'), createLandlordSubaccount);
 router.post('/initiate', verifyToken, requireRole('tenant'), initiatePayment);
 router.get('/history', verifyToken, getPaymentHistory);
+router.get('/receipt/:reference', verifyToken, getReceipt);
 router.get('/verify/:reference', verifyToken, verifyPayment);
 
 module.exports = router;

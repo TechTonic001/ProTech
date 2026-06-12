@@ -6,10 +6,20 @@ const { sendOTPEmail, sendPasswordChangedEmail } = require('../utils/email');
 
 const register = async (req, res, next) => {
   try {
-    const { username, full_name, email, phone_number, password, role } = req.body;
+    const { username, full_name, email, phone_number, password, role, hostel_name, hostel_address } = req.body;
 
     if (!username || !full_name || !email || !phone_number || !password || !role) {
       return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    // Hostel validation — landlords only
+    if (role === 'landlord') {
+      if (!hostel_name || hostel_name.trim() === '') {
+        return res.status(400).json({ error: 'Hostel name is required for landlords.' });
+      }
+      if (!hostel_address || hostel_address.trim() === '') {
+        return res.status(400).json({ error: 'Hostel address is required for landlords.' });
+      }
     }
 
     const connection = await pool.getConnection();
@@ -35,10 +45,14 @@ const register = async (req, res, next) => {
     // Determine approval status based on role
     const is_approved = role === 'landlord' ? 1 : 0;
 
-    // Insert user
+    // Insert user with hostel columns
     const [result] = await connection.query(
-      'INSERT INTO users (username, full_name, email, phone_number, password_hash, role, is_approved) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [username, full_name, email, phone_number, password_hash, role, is_approved]
+      'INSERT INTO users (username, full_name, email, phone_number, password_hash, role, is_approved, hostel_name, hostel_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        username, full_name, email, phone_number, password_hash, role, is_approved,
+        role === 'landlord' ? hostel_name : null,
+        role === 'landlord' ? hostel_address : null,
+      ]
     );
 
     const user_id = result.insertId;
@@ -60,6 +74,7 @@ const register = async (req, res, next) => {
         email,
         role,
         is_approved,
+        hostel_name: role === 'landlord' ? hostel_name : null,
       },
     });
   } catch (error) {
@@ -130,12 +145,67 @@ const profile = async (req, res, next) => {
     if (!userId) return res.status(400).json({ error: 'Unable to resolve user' });
 
     const connection = await pool.getConnection();
-    const [users] = await connection.query('SELECT user_id, username, full_name, email, phone_number, role, is_approved FROM users WHERE user_id = ?', [userId]);
+    const [users] = await connection.query(
+      'SELECT user_id, username, full_name, email, phone_number, role, is_approved, hostel_name, hostel_address FROM users WHERE user_id = ?',
+      [userId]
+    );
     connection.release();
 
     if (users.length === 0) return res.status(404).json({ error: 'User not found' });
 
     return res.status(200).json({ user: users[0] });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateProfile = async (req, res, next) => {
+  try {
+    const userId = req.user?.user_id;
+    if (!userId) return res.status(400).json({ error: 'Unable to resolve user' });
+
+    const { full_name, phone_number, hostel_name, hostel_address } = req.body;
+
+    const connection = await pool.getConnection();
+
+    // Get current user to check role
+    const [users] = await connection.query('SELECT role FROM users WHERE user_id = ?', [userId]);
+    if (users.length === 0) {
+      connection.release();
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userRole = users[0].role;
+
+    // Build dynamic update
+    const fields = [];
+    const values = [];
+
+    if (full_name !== undefined) { fields.push('full_name = ?'); values.push(full_name); }
+    if (phone_number !== undefined) { fields.push('phone_number = ?'); values.push(phone_number); }
+
+    // Only allow hostel fields for landlords
+    if (userRole === 'landlord') {
+      if (hostel_name !== undefined) { fields.push('hostel_name = ?'); values.push(hostel_name); }
+      if (hostel_address !== undefined) { fields.push('hostel_address = ?'); values.push(hostel_address); }
+    }
+
+    if (fields.length === 0) {
+      connection.release();
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    values.push(userId);
+    await connection.query(`UPDATE users SET ${fields.join(', ')} WHERE user_id = ?`, values);
+
+    // Return updated user
+    const [updated] = await connection.query(
+      'SELECT user_id, username, full_name, email, phone_number, role, is_approved, hostel_name, hostel_address FROM users WHERE user_id = ?',
+      [userId]
+    );
+    connection.release();
+
+    return res.status(200).json({ message: 'Profile updated successfully', user: updated[0] });
   } catch (error) {
     next(error);
   }
@@ -241,4 +311,5 @@ module.exports = {
   forgotPassword,
   resetPassword,
   profile,
+  updateProfile,
 };

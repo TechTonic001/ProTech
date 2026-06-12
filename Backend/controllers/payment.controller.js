@@ -169,7 +169,7 @@ const paystackWebhook = async (req, res, next) => {
 
     // Get lease and landlord details
     const [leases] = await connection.query(
-      'SELECT l.*, u.subaccount_code, t.email as tenant_email, t.full_name as tenant_name FROM leases l JOIN users u ON l.landlord_id = u.user_id JOIN users t ON l.tenant_id = t.user_id WHERE l.lease_id = ?',
+      'SELECT l.*, u.subaccount_code, u.hostel_name, t.email as tenant_email, t.full_name as tenant_name FROM leases l JOIN users u ON l.landlord_id = u.user_id JOIN users t ON l.tenant_id = t.user_id WHERE l.lease_id = ?',
       [lease_id]
     );
 
@@ -236,19 +236,28 @@ const getPaymentHistory = async (req, res, next) => {
   try {
     const connection = await pool.getConnection();
 
-    let query = `SELECT p.*, l.rent_amount, r.room_number, pr.property_name, u.full_name as other_user_name
-                 FROM payments p
-                 JOIN leases l ON p.lease_id = l.lease_id
-                 JOIN rooms r ON l.room_id = r.room_id
-                 JOIN properties pr ON r.property_id = pr.property_id
-                 JOIN users u ON (
-                   CASE WHEN ? = 'tenant' THEN p.landlord_id = u.user_id ELSE p.tenant_id = u.user_id END
-                 )
-                 WHERE (? = 'tenant' AND p.tenant_id = ?) OR (? != 'tenant' AND p.landlord_id = ?)
-                 ORDER BY p.payment_date DESC`;
+    let query = `
+      SELECT
+        p.*,
+        l.rent_amount,
+        r.room_number,
+        r.room_type,
+        pr.property_name,
+        u_tenant.full_name AS tenant_name,
+        u_tenant.username AS tenant_username,
+        u_tenant.email AS tenant_email,
+        u_landlord.hostel_name,
+        u_landlord.hostel_address
+      FROM payments p
+      JOIN leases l ON p.lease_id = l.lease_id
+      JOIN rooms r ON l.room_id = r.room_id
+      JOIN properties pr ON r.property_id = pr.property_id
+      JOIN users u_tenant ON p.tenant_id = u_tenant.user_id
+      JOIN users u_landlord ON p.landlord_id = u_landlord.user_id
+      WHERE (? = 'tenant' AND p.tenant_id = ?) OR (? != 'tenant' AND p.landlord_id = ?)
+      ORDER BY p.payment_date DESC`;
 
     const [payments] = await connection.query(query, [
-      req.user.role,
       req.user.role,
       req.user.user_id,
       req.user.role,
@@ -260,6 +269,48 @@ const getPaymentHistory = async (req, res, next) => {
     return res.status(200).json({
       message: 'Payment history retrieved successfully',
       data: payments,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getReceipt = async (req, res, next) => {
+  try {
+    const { reference } = req.params;
+    const userId = req.user.user_id;
+
+    const connection = await pool.getConnection();
+    const [rows] = await connection.query(
+      `SELECT
+        p.*,
+        l.rent_amount,
+        r.room_number,
+        r.room_type,
+        pr.property_name,
+        u_tenant.full_name AS tenant_name,
+        u_tenant.username AS tenant_username,
+        u_tenant.email AS tenant_email,
+        u_landlord.hostel_name,
+        u_landlord.hostel_address
+      FROM payments p
+      JOIN leases l ON p.lease_id = l.lease_id
+      JOIN rooms r ON l.room_id = r.room_id
+      JOIN properties pr ON r.property_id = pr.property_id
+      JOIN users u_tenant ON p.tenant_id = u_tenant.user_id
+      JOIN users u_landlord ON p.landlord_id = u_landlord.user_id
+      WHERE p.paystack_ref = ? AND (p.tenant_id = ? OR p.landlord_id = ?)`,
+      [reference, userId, userId]
+    );
+    connection.release();
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Receipt not found' });
+    }
+
+    return res.status(200).json({
+      message: 'Receipt retrieved successfully',
+      data: rows[0],
     });
   } catch (error) {
     next(error);
@@ -298,5 +349,6 @@ module.exports = {
   initiatePayment,
   paystackWebhook,
   getPaymentHistory,
+  getReceipt,
   verifyPayment,
 };

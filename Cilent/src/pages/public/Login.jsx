@@ -1,6 +1,6 @@
 // src/pages/public/Login.jsx
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
@@ -18,12 +18,16 @@ const initialRegister = {
   password: '',
   confirm_password: '',
   role: '',
+  hostel_name: '',
+  hostel_address: '',
 };
 
 const Login = () => {
-  const [mode, setMode] = useState('signin');
+  const [searchParams] = useSearchParams();
+  const roleParam = searchParams.get('role');
+  const [mode, setMode] = useState(roleParam ? 'register' : 'signin');
   const [signIn, setSignIn] = useState(initialSignIn);
-  const [register, setRegister] = useState(initialRegister);
+  const [register, setRegister] = useState({ ...initialRegister, role: roleParam === 'landlord' || roleParam === 'tenant' ? roleParam : '' });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [infoBanner, setInfoBanner] = useState('');
@@ -54,6 +58,16 @@ const Login = () => {
     else if (register.confirm_password !== register.password) nextErrors.confirm_password = 'Passwords do not match';
 
     if (!register.role) nextErrors.role = 'Choose landlord or tenant';
+
+    // Landlord-only hostel validation
+    if (register.role === 'landlord') {
+      if (!register.hostel_name || register.hostel_name.trim() === '') {
+        nextErrors.hostel_name = 'Please enter the name of your hostel';
+      }
+      if (!register.hostel_address || register.hostel_address.trim() === '') {
+        nextErrors.hostel_address = 'Please enter the address of your hostel';
+      }
+    }
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -99,14 +113,22 @@ const Login = () => {
     }
 
     try {
-      await api.post('/auth/register', {
+      const payload = {
         username: register.username,
         full_name: register.full_name,
         email: register.email,
         phone_number: register.phone_number,
         password: register.password,
         role: register.role,
-      });
+      };
+
+      // Include hostel fields for landlords
+      if (register.role === 'landlord') {
+        payload.hostel_name = register.hostel_name;
+        payload.hostel_address = register.hostel_address;
+      }
+
+      await api.post('/auth/register', payload);
 
       if (register.role === 'landlord') {
         toast.success('Account created! Please sign in.');
@@ -127,6 +149,10 @@ const Login = () => {
         setErrors({ email: errMsg });
       } else if (lower.includes('username is already taken')) {
         setErrors({ username: errMsg });
+      } else if (lower.includes('hostel name')) {
+        setErrors({ hostel_name: errMsg });
+      } else if (lower.includes('hostel address')) {
+        setErrors({ hostel_address: errMsg });
       } else {
         toast.error(errMsg);
       }
@@ -134,6 +160,9 @@ const Login = () => {
       setLoading(false);
     }
   };
+
+  const inputClass = (field) =>
+    `mt-2 w-full rounded-2xl border px-4 py-3 bg-slate-950 text-white outline-none focus:border-blue-400 ${errors[field] ? 'border-red-500' : 'border-slate-700'}`;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4 py-10">
@@ -212,80 +241,32 @@ const Login = () => {
           <form onSubmit={handleRegisterSubmit} className="space-y-5">
             <div>
               <label className="block text-sm text-slate-300">Username</label>
-              <input
-                type="text"
-                value={register.username}
-                onChange={(e) => setRegister({ ...register, username: e.target.value })}
-                required
-                className={`mt-2 w-full rounded-2xl border px-4 py-3 bg-slate-950 text-white outline-none focus:border-blue-400 ${
-                  errors.username ? 'border-red-500' : 'border-slate-700'
-                }`}
-              />
+              <input type="text" value={register.username} onChange={(e) => setRegister({ ...register, username: e.target.value })} required className={inputClass('username')} />
               {errors.username ? <p className="mt-2 text-sm text-red-400">{errors.username}</p> : null}
             </div>
             <div>
               <label className="block text-sm text-slate-300">Full Name</label>
-              <input
-                type="text"
-                value={register.full_name}
-                onChange={(e) => setRegister({ ...register, full_name: e.target.value })}
-                required
-                className={`mt-2 w-full rounded-2xl border px-4 py-3 bg-slate-950 text-white outline-none focus:border-blue-400 ${
-                  errors.full_name ? 'border-red-500' : 'border-slate-700'
-                }`}
-              />
+              <input type="text" value={register.full_name} onChange={(e) => setRegister({ ...register, full_name: e.target.value })} required className={inputClass('full_name')} />
               {errors.full_name ? <p className="mt-2 text-sm text-red-400">{errors.full_name}</p> : null}
             </div>
             <div>
               <label className="block text-sm text-slate-300">Email</label>
-              <input
-                type="email"
-                value={register.email}
-                onChange={(e) => setRegister({ ...register, email: e.target.value })}
-                required
-                className={`mt-2 w-full rounded-2xl border px-4 py-3 bg-slate-950 text-white outline-none focus:border-blue-400 ${
-                  errors.email ? 'border-red-500' : 'border-slate-700'
-                }`}
-              />
+              <input type="email" value={register.email} onChange={(e) => setRegister({ ...register, email: e.target.value })} required className={inputClass('email')} />
               {errors.email ? <p className="mt-2 text-sm text-red-400">{errors.email}</p> : null}
             </div>
             <div>
               <label className="block text-sm text-slate-300">Phone Number</label>
-              <input
-                type="tel"
-                value={register.phone_number}
-                onChange={(e) => setRegister({ ...register, phone_number: e.target.value })}
-                required
-                className={`mt-2 w-full rounded-2xl border px-4 py-3 bg-slate-950 text-white outline-none focus:border-blue-400 ${
-                  errors.phone_number ? 'border-red-500' : 'border-slate-700'
-                }`}
-              />
+              <input type="tel" value={register.phone_number} onChange={(e) => setRegister({ ...register, phone_number: e.target.value })} required className={inputClass('phone_number')} />
               {errors.phone_number ? <p className="mt-2 text-sm text-red-400">{errors.phone_number}</p> : null}
             </div>
             <div>
               <label className="block text-sm text-slate-300">Password</label>
-              <input
-                type="password"
-                value={register.password}
-                onChange={(e) => setRegister({ ...register, password: e.target.value })}
-                required
-                className={`mt-2 w-full rounded-2xl border px-4 py-3 bg-slate-950 text-white outline-none focus:border-blue-400 ${
-                  errors.password ? 'border-red-500' : 'border-slate-700'
-                }`}
-              />
+              <input type="password" value={register.password} onChange={(e) => setRegister({ ...register, password: e.target.value })} required className={inputClass('password')} />
               {errors.password ? <p className="mt-2 text-sm text-red-400">{errors.password}</p> : null}
             </div>
             <div>
               <label className="block text-sm text-slate-300">Confirm Password</label>
-              <input
-                type="password"
-                value={register.confirm_password}
-                onChange={(e) => setRegister({ ...register, confirm_password: e.target.value })}
-                required
-                className={`mt-2 w-full rounded-2xl border px-4 py-3 bg-slate-950 text-white outline-none focus:border-blue-400 ${
-                  errors.confirm_password ? 'border-red-500' : 'border-slate-700'
-                }`}
-              />
+              <input type="password" value={register.confirm_password} onChange={(e) => setRegister({ ...register, confirm_password: e.target.value })} required className={inputClass('confirm_password')} />
               {errors.confirm_password ? <p className="mt-2 text-sm text-red-400">{errors.confirm_password}</p> : null}
             </div>
             <div>
@@ -294,9 +275,7 @@ const Login = () => {
                 value={register.role}
                 onChange={(e) => setRegister({ ...register, role: e.target.value })}
                 required
-                className={`mt-2 w-full rounded-2xl border px-4 py-3 bg-slate-950 text-white outline-none focus:border-blue-400 ${
-                  errors.role ? 'border-red-500' : 'border-slate-700'
-                }`}
+                className={inputClass('role')}
               >
                 <option value="">Select role</option>
                 <option value="landlord">Landlord</option>
@@ -304,6 +283,38 @@ const Login = () => {
               </select>
               {errors.role ? <p className="mt-2 text-sm text-red-400">{errors.role}</p> : null}
             </div>
+
+            {/* ── Hostel fields — landlords only ── */}
+            {register.role === 'landlord' && (
+              <>
+                <div>
+                  <label className="block text-sm text-slate-300">Name of Hostel / Property</label>
+                  <input
+                    type="text"
+                    value={register.hostel_name}
+                    onChange={(e) => setRegister({ ...register, hostel_name: e.target.value })}
+                    placeholder="e.g. Halleluyah Court, Sunshine Hostel"
+                    required
+                    className={inputClass('hostel_name')}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">This name will appear on all tenant receipts</p>
+                  {errors.hostel_name ? <p className="mt-1 text-sm text-red-400">{errors.hostel_name}</p> : null}
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-300">Address of Hostel</label>
+                  <textarea
+                    value={register.hostel_address}
+                    onChange={(e) => setRegister({ ...register, hostel_address: e.target.value })}
+                    placeholder="e.g. No. 5 Oke-Ola Street, Ogbomoso"
+                    rows={3}
+                    required
+                    className={inputClass('hostel_address') + ' resize-none'}
+                  />
+                  {errors.hostel_address ? <p className="mt-1 text-sm text-red-400">{errors.hostel_address}</p> : null}
+                </div>
+              </>
+            )}
+
             <button
               type="submit"
               disabled={loading}
