@@ -33,12 +33,10 @@ const createLandlordSubaccount = async (req, res, next) => {
       const { subaccount_code } = response.data.data;
 
       // Save to database
-      const connection = await pool.getConnection();
-      await connection.query(
-        'UPDATE users SET subaccount_code = ?, bank_name = ?, account_number = ?, account_name = ? WHERE user_id = ?',
+      await pool.query(
+        'UPDATE users SET subaccount_code = $1, bank_name = $2, account_number = $3, account_name = $4 WHERE user_id = $5',
         [subaccount_code, settlement_bank, account_number, business_name, landlord_id]
       );
-      connection.release();
 
       return res.status(201).json({
         message: 'Subaccount created',
@@ -63,23 +61,19 @@ const initiatePayment = async (req, res, next) => {
       return res.status(400).json({ error: 'Lease ID is required' });
     }
 
-    const connection = await pool.getConnection();
-
     // Get lease details
-    const [leases] = await connection.query(
-      'SELECT l.*, u.subaccount_code, u.email, t.email as tenant_email FROM leases l JOIN users u ON l.landlord_id = u.user_id JOIN users t ON l.tenant_id = t.user_id WHERE l.lease_id = ? AND l.tenant_id = ?',
+    const leaseResult = await pool.query(
+      'SELECT l.*, u.subaccount_code, u.email, t.email as tenant_email FROM leases l JOIN users u ON l.landlord_id = u.user_id JOIN users t ON l.tenant_id = t.user_id WHERE l.lease_id = $1 AND l.tenant_id = $2',
       [lease_id, tenant_id]
     );
 
-    if (leases.length === 0) {
-      connection.release();
+    if (leaseResult.rows.length === 0) {
       return res.status(404).json({ error: 'Lease not found' });
     }
 
-    const lease = leases[0];
+    const lease = leaseResult.rows[0];
 
     if (!lease.subaccount_code) {
-      connection.release();
       return res.status(400).json({ error: 'Landlord has not set up payment account' });
     }
 
@@ -113,8 +107,6 @@ const initiatePayment = async (req, res, next) => {
         }
       );
 
-      connection.release();
-
       return res.status(200).json({
         message: 'Payment initialized',
         data: {
@@ -124,7 +116,6 @@ const initiatePayment = async (req, res, next) => {
         },
       });
     } catch (paystackError) {
-      connection.release();
       return res.status(400).json({ error: paystackError.response?.data?.message || paystackError.message });
     }
   } catch (error) {
@@ -154,36 +145,32 @@ const paystackWebhook = async (req, res, next) => {
     const { reference, metadata, amount } = event.data;
     const { lease_id, tenant_id, receipt_number } = metadata;
 
-    const connection = await pool.getConnection();
-
     // Check if payment already exists (prevent duplicates)
-    const [existingPayments] = await connection.query(
-      'SELECT payment_id FROM payments WHERE paystack_ref = ?',
+    const existingPaymentsResult = await pool.query(
+      'SELECT payment_id FROM payments WHERE paystack_ref = $1',
       [reference]
     );
 
-    if (existingPayments.length > 0) {
-      connection.release();
+    if (existingPaymentsResult.rows.length > 0) {
       return res.status(200).json({ message: 'Payment already processed' });
     }
 
     // Get lease and landlord details
-    const [leases] = await connection.query(
-      'SELECT l.*, u.subaccount_code, u.hostel_name, t.email as tenant_email, t.full_name as tenant_name FROM leases l JOIN users u ON l.landlord_id = u.user_id JOIN users t ON l.tenant_id = t.user_id WHERE l.lease_id = ?',
+    const leasesResult = await pool.query(
+      'SELECT l.*, u.subaccount_code, u.hostel_name, t.email as tenant_email, t.full_name as tenant_name FROM leases l JOIN users u ON l.landlord_id = u.user_id JOIN users t ON l.tenant_id = t.user_id WHERE l.lease_id = $1',
       [lease_id]
     );
 
-    if (leases.length === 0) {
-      connection.release();
+    if (leasesResult.rows.length === 0) {
       return res.status(200).json({ message: 'Lease not found' });
     }
 
-    const lease = leases[0];
+    const lease = leasesResult.rows[0];
     const landlord_id = lease.landlord_id;
 
     // Insert payment record
-    await connection.query(
-      'INSERT INTO payments (lease_id, tenant_id, landlord_id, amount_paid, paystack_ref, subaccount_code, payment_status, receipt_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    await pool.query(
+      'INSERT INTO payments (lease_id, tenant_id, landlord_id, amount_paid, paystack_ref, subaccount_code, payment_status, receipt_number) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
       [
         lease_id,
         tenant_id,
@@ -197,27 +184,25 @@ const paystackWebhook = async (req, res, next) => {
     );
 
     // Update room occupancy
-    await connection.query(
-      'UPDATE rooms SET is_occupied = 1 WHERE room_id = (SELECT room_id FROM leases WHERE lease_id = ?)',
+    await pool.query(
+      'UPDATE rooms SET is_occupied = 1 WHERE room_id = (SELECT room_id FROM leases WHERE lease_id = $1)',
       [lease_id]
     );
-
-    connection.release();
 
     // Send confirmation email
-    const [properties] = await pool.query(
-      'SELECT p.property_name, r.room_number FROM rooms r JOIN properties p ON r.property_id = p.property_id WHERE r.room_id = (SELECT room_id FROM leases WHERE lease_id = ?)',
+    const propertiesResult = await pool.query(
+      'SELECT p.property_name, r.room_number FROM rooms r JOIN properties p ON r.property_id = p.property_id WHERE r.room_id = (SELECT room_id FROM leases WHERE lease_id = $1)',
       [lease_id]
     );
 
-    if (properties.length > 0) {
+    if (propertiesResult.rows.length > 0) {
       await sendPaymentConfirmationEmail(
         lease.tenant_email,
         lease.tenant_name,
         amount / 100,
         receipt_number,
-        properties[0].room_number,
-        properties[0].property_name,
+        propertiesResult.rows[0].room_number,
+        propertiesResult.rows[0].property_name,
         new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })
       );
     }
@@ -234,9 +219,7 @@ const paystackWebhook = async (req, res, next) => {
 
 const getPaymentHistory = async (req, res, next) => {
   try {
-    const connection = await pool.getConnection();
-
-    let query = `
+    let queryText = `
       SELECT
         p.*,
         l.rent_amount,
@@ -254,21 +237,19 @@ const getPaymentHistory = async (req, res, next) => {
       JOIN properties pr ON r.property_id = pr.property_id
       JOIN users u_tenant ON p.tenant_id = u_tenant.user_id
       JOIN users u_landlord ON p.landlord_id = u_landlord.user_id
-      WHERE (? = 'tenant' AND p.tenant_id = ?) OR (? != 'tenant' AND p.landlord_id = ?)
+      WHERE ($1 = 'tenant' AND p.tenant_id = $2) OR ($3 != 'tenant' AND p.landlord_id = $4)
       ORDER BY p.payment_date DESC`;
 
-    const [payments] = await connection.query(query, [
+    const result = await pool.query(queryText, [
       req.user.role,
       req.user.user_id,
       req.user.role,
       req.user.user_id,
     ]);
 
-    connection.release();
-
     return res.status(200).json({
       message: 'Payment history retrieved successfully',
-      data: payments,
+      data: result.rows,
     });
   } catch (error) {
     next(error);
@@ -280,8 +261,7 @@ const getReceipt = async (req, res, next) => {
     const { reference } = req.params;
     const userId = req.user.user_id;
 
-    const connection = await pool.getConnection();
-    const [rows] = await connection.query(
+    const result = await pool.query(
       `SELECT
         p.*,
         l.rent_amount,
@@ -299,18 +279,17 @@ const getReceipt = async (req, res, next) => {
       JOIN properties pr ON r.property_id = pr.property_id
       JOIN users u_tenant ON p.tenant_id = u_tenant.user_id
       JOIN users u_landlord ON p.landlord_id = u_landlord.user_id
-      WHERE p.paystack_ref = ? AND (p.tenant_id = ? OR p.landlord_id = ?)`,
+      WHERE p.paystack_ref = $1 AND (p.tenant_id = $2 OR p.landlord_id = $3)`,
       [reference, userId, userId]
     );
-    connection.release();
 
-    if (rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Receipt not found' });
     }
 
     return res.status(200).json({
       message: 'Receipt retrieved successfully',
-      data: rows[0],
+      data: result.rows[0],
     });
   } catch (error) {
     next(error);
@@ -322,14 +301,12 @@ const verifyPayment = async (req, res, next) => {
     const { reference } = req.params;
     const userId = req.user.user_id;
 
-    const connection = await pool.getConnection();
-    const [payments] = await connection.query(
-      'SELECT * FROM payments WHERE paystack_ref = ? AND tenant_id = ?',
+    const result = await pool.query(
+      'SELECT * FROM payments WHERE paystack_ref = $1 AND tenant_id = $2',
       [reference, userId]
     );
-    connection.release();
 
-    if (payments.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         message: 'Payment not found',
       });
@@ -337,7 +314,7 @@ const verifyPayment = async (req, res, next) => {
 
     return res.status(200).json({
       message: 'Payment retrieved successfully',
-      data: payments[0],
+      data: result.rows[0],
     });
   } catch (error) {
     next(error);

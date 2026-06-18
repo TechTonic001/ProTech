@@ -143,7 +143,7 @@ const LandlordProfile = () => {
                       <p className="text-xs text-slate-400 mt-1">This name appears on all tenant payment receipts.</p>
                     </>
                   ) : (
-                    <p className="px-4 py-3 bg-slate-50 rounded-xl text-sm text-slate-800 border border-slate-100 font-medium">{profile?.hostel_name || <span className="text-slate-400 italic">Not set — click Edit to add</span>}</p>
+                    <p className="px-4 py-3 bg-slate-50 rounded-xl text-sm text-slate-800 border border-slate-100 font-medium">{profile?.hostel_name || <span className="text-slate-400 italic">Not set  click Edit to add</span>}</p>
                   )}
                 </div>
                 <div>
@@ -151,7 +151,7 @@ const LandlordProfile = () => {
                   {editing ? (
                     <textarea value={form.hostel_address} onChange={(e) => setForm({ ...form, hostel_address: e.target.value })} placeholder="e.g. No. 5 Oke-Ola Street, Ogbomoso" rows={3} className="w-full px-4 py-3 bg-white rounded-xl text-sm border border-slate-300 focus:border-blue-400 outline-none resize-none" />
                   ) : (
-                    <p className="px-4 py-3 bg-slate-50 rounded-xl text-sm text-slate-800 border border-slate-100">{profile?.hostel_address || <span className="text-slate-400 italic">Not set — click Edit to add</span>}</p>
+                    <p className="px-4 py-3 bg-slate-50 rounded-xl text-sm text-slate-800 border border-slate-100">{profile?.hostel_address || <span className="text-slate-400 italic">Not set click Edit to add</span>}</p>
                   )}
                 </div>
               </div>

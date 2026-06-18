@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const emailFooter = 'ProTech Automated Rent System — Ogbomoso, Oyo State, Nigeria';
+const emailFooter = 'ProTech Automated Rent System  Ogbomoso, Oyo State, Nigeria';
 
 const sendOTPEmail = async (toEmail, otpCode) => {
   const htmlContent = `
@@ -85,8 +85,8 @@ const sendPasswordChangedEmail = async (toEmail, fullName) => {
 
 const sendApprovalEmail = async (toEmail, fullName, approved, propertyName) => {
   const subject = approved
-    ? 'ProTech — Your Account Has Been Approved'
-    : 'ProTech — Your Account Request Was Not Approved';
+    ? 'ProTech  Your Account Has Been Approved'
+    : 'ProTech  Your Account Request Was Not Approved';
 
   const statusMessage = approved
     ? `Your account has been approved by the landlord of ${propertyName}. You can now log in and view your lease details.`
@@ -227,7 +227,7 @@ const sendPaymentConfirmationEmail = async (
     await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to: toEmail,
-      subject: `Payment Confirmed — Receipt ${receiptNumber}`,
+      subject: `Payment Confirmed Receipt ${receiptNumber}`,
       html: htmlContent,
       text: textContent,
     });

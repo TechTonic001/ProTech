@@ -23,17 +23,4 @@ pool.connect((err, client, release) => {
   console.log('✅ PostgreSQL connected — Neon.tech protech_db')
 })
 
-// This wrapper makes queries work the same way
-// as the old MySQL code so nothing else needs to change much
-const query = async (text, params) => {
-  try {
-    const result = await pool.query(text, params)
-    return [result.rows, result]
-  } catch (err) {
-    console.error('[DB ERROR]', err.message)
-    console.error('[DB QUERY]', text)
-    throw err
-  }
-}
-
-module.exports = { query, pool }
+module.exports = pool

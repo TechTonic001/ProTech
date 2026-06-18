@@ -10,17 +10,15 @@ const createProperty = async (req, res, next) => {
       return res.status(400).json({ error: 'Property name and address are required' });
     }
 
-    const connection = await pool.getConnection();
-    const [result] = await connection.query(
-      'INSERT INTO properties (landlord_id, property_name, address, city, total_rooms) VALUES (?, ?, ?, ?, ?)',
+    const result = await pool.query(
+      'INSERT INTO properties (landlord_id, property_name, address, city, total_rooms) VALUES ($1, $2, $3, $4, $5) RETURNING property_id',
       [landlord_id, property_name, address, city || 'Ogbomoso', total_rooms || 0]
     );
-    connection.release();
 
     return res.status(201).json({
       message: 'Property created successfully',
       data: {
-        property_id: result.insertId,
+        property_id: result.rows[0].property_id,
         property_name,
         address,
         city: city || 'Ogbomoso',
@@ -35,16 +33,14 @@ const getProperties = async (req, res, next) => {
   try {
     const landlord_id = req.user.user_id;
 
-    const connection = await pool.getConnection();
-    const [properties] = await connection.query(
-      'SELECT * FROM properties WHERE landlord_id = ? ORDER BY created_at DESC',
+    const propertiesResult = await pool.query(
+      'SELECT * FROM properties WHERE landlord_id = $1 ORDER BY created_at DESC',
       [landlord_id]
     );
-    connection.release();
 
     return res.status(200).json({
       message: 'Properties retrieved successfully',
-      data: properties,
+      data: propertiesResult.rows,
     });
   } catch (error) {
     next(error);
@@ -56,20 +52,18 @@ const getPropertyById = async (req, res, next) => {
     const { id } = req.params;
     const landlord_id = req.user.user_id;
 
-    const connection = await pool.getConnection();
-    const [properties] = await connection.query(
-      'SELECT * FROM properties WHERE property_id = ? AND landlord_id = ?',
+    const propertiesResult = await pool.query(
+      'SELECT * FROM properties WHERE property_id = $1 AND landlord_id = $2',
       [id, landlord_id]
     );
-    connection.release();
 
-    if (properties.length === 0) {
+    if (propertiesResult.rows.length === 0) {
       return res.status(404).json({ error: 'Property not found' });
     }
 
     return res.status(200).json({
       message: 'Property retrieved successfully',
-      data: properties[0],
+      data: propertiesResult.rows[0],
     });
   } catch (error) {
     next(error);
@@ -82,22 +76,27 @@ const updateProperty = async (req, res, next) => {
     const { property_name, address, city, total_rooms } = req.body;
     const landlord_id = req.user.user_id;
 
-    const connection = await pool.getConnection();
-    const [properties] = await connection.query(
-      'SELECT * FROM properties WHERE property_id = ? AND landlord_id = ?',
+    const propertiesResult = await pool.query(
+      'SELECT * FROM properties WHERE property_id = $1 AND landlord_id = $2',
       [id, landlord_id]
     );
 
-    if (properties.length === 0) {
-      connection.release();
+    if (propertiesResult.rows.length === 0) {
       return res.status(404).json({ error: 'Property not found' });
     }
 
-    await connection.query(
-      'UPDATE properties SET property_name = ?, address = ?, city = ?, total_rooms = ? WHERE property_id = ?',
-      [property_name || properties[0].property_name, address || properties[0].address, city || properties[0].city, total_rooms || properties[0].total_rooms, id]
+    const property = propertiesResult.rows[0];
+
+    await pool.query(
+      'UPDATE properties SET property_name = $1, address = $2, city = $3, total_rooms = $4 WHERE property_id = $5',
+      [
+        property_name || property.property_name,
+        address || property.address,
+        city || property.city,
+        total_rooms || property.total_rooms,
+        id
+      ]
     );
-    connection.release();
 
     return res.status(200).json({
       message: 'Property updated successfully',
@@ -112,19 +111,16 @@ const deleteProperty = async (req, res, next) => {
     const { id } = req.params;
     const landlord_id = req.user.user_id;
 
-    const connection = await pool.getConnection();
-    const [properties] = await connection.query(
-      'SELECT * FROM properties WHERE property_id = ? AND landlord_id = ?',
+    const propertiesResult = await pool.query(
+      'SELECT * FROM properties WHERE property_id = $1 AND landlord_id = $2',
       [id, landlord_id]
     );
 
-    if (properties.length === 0) {
-      connection.release();
+    if (propertiesResult.rows.length === 0) {
       return res.status(404).json({ error: 'Property not found' });
     }
 
-    await connection.query('DELETE FROM properties WHERE property_id = ?', [id]);
-    connection.release();
+    await pool.query('DELETE FROM properties WHERE property_id = $1', [id]);
 
     return res.status(200).json({
       message: 'Property deleted successfully',

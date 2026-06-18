@@ -12,31 +12,26 @@ const requestApproval = async (req, res, next) => {
       return res.status(400).json({ error: 'Landlord ID and property ID are required' });
     }
 
-    const connection = await pool.getConnection();
-
     // Check if approval already exists
-    const [existingApprovals] = await connection.query(
-      'SELECT * FROM tenant_approvals WHERE tenant_id = ? AND property_id = ? AND status = ?',
+    const existingResult = await pool.query(
+      'SELECT * FROM tenant_approvals WHERE tenant_id = $1 AND property_id = $2 AND status = $3',
       [tenant_id, property_id, 'pending']
     );
 
-    if (existingApprovals.length > 0) {
-      connection.release();
+    if (existingResult.rows.length > 0) {
       return res.status(400).json({ error: 'Approval request already exists' });
     }
 
     // Create approval request
-    const [result] = await connection.query(
-      'INSERT INTO tenant_approvals (tenant_id, landlord_id, property_id, status) VALUES (?, ?, ?, ?)',
+    const result = await pool.query(
+      'INSERT INTO tenant_approvals (tenant_id, landlord_id, property_id, status) VALUES ($1, $2, $3, $4) RETURNING approval_id',
       [tenant_id, landlord_id, property_id, 'pending']
     );
-
-    connection.release();
 
     return res.status(201).json({
       message: 'Approval request submitted',
       data: {
-        approval_id: result.insertId,
+        approval_id: result.rows[0].approval_id,
       },
     });
   } catch (error) {
@@ -48,22 +43,20 @@ const getPendingApprovals = async (req, res, next) => {
   try {
     const landlord_id = req.user.user_id;
 
-    const connection = await pool.getConnection();
-    const [approvals] = await connection.query(
+    const result = await pool.query(
       `SELECT ta.*, u.username, u.full_name, u.email, u.phone_number, p.property_name, r.room_number
        FROM tenant_approvals ta
        JOIN users u ON ta.tenant_id = u.user_id
        JOIN properties p ON ta.property_id = p.property_id
        LEFT JOIN rooms r ON p.property_id = r.property_id
-       WHERE ta.landlord_id = ? AND ta.status = 'pending'
+       WHERE ta.landlord_id = $1 AND ta.status = 'pending'
        ORDER BY ta.created_at DESC`,
       [landlord_id]
     );
-    connection.release();
 
     return res.status(200).json({
       message: 'Pending approvals retrieved successfully',
-      data: approvals,
+      data: result.rows,
     });
   } catch (error) {
     next(error);
@@ -79,45 +72,40 @@ const processApproval = async (req, res, next) => {
       return res.status(400).json({ error: 'Valid status (approved or rejected) is required' });
     }
 
-    const connection = await pool.getConnection();
-
     // Get approval details
-    const [approvals] = await connection.query(
+    const approvalsResult = await pool.query(
       `SELECT ta.*, u.email, u.full_name FROM tenant_approvals ta
        JOIN users u ON ta.tenant_id = u.user_id
-       WHERE ta.approval_id = ? AND ta.landlord_id = ?`,
+       WHERE ta.approval_id = $1 AND ta.landlord_id = $2`,
       [id, req.user.user_id]
     );
 
-    if (approvals.length === 0) {
-      connection.release();
+    if (approvalsResult.rows.length === 0) {
       return res.status(404).json({ error: 'Approval request not found' });
     }
 
-    const approval = approvals[0];
+    const approval = approvalsResult.rows[0];
 
     // Update approval status
-    await connection.query(
-      'UPDATE tenant_approvals SET status = ?, approved_at = NOW() WHERE approval_id = ?',
+    await pool.query(
+      'UPDATE tenant_approvals SET status = $1, approved_at = NOW() WHERE approval_id = $2',
       [status, id]
     );
 
     // If approved, update user's is_approved status
     if (status === 'approved') {
-      await connection.query('UPDATE users SET is_approved = 1 WHERE user_id = ?', [
+      await pool.query('UPDATE users SET is_approved = 1 WHERE user_id = $1', [
         approval.tenant_id,
       ]);
     }
 
-    connection.release();
-
     // Send approval email
-    const [properties] = await pool.query(
-      'SELECT property_name FROM properties WHERE property_id = ?',
+    const propertiesResult = await pool.query(
+      'SELECT property_name FROM properties WHERE property_id = $1',
       [approval.property_id]
     );
 
-    const propertyName = properties.length > 0 ? properties[0].property_name : 'Your Property';
+    const propertyName = propertiesResult.rows.length > 0 ? propertiesResult.rows[0].property_name : 'Your Property';
 
     await sendApprovalEmail(approval.email, approval.full_name, status === 'approved', propertyName);
 
@@ -139,8 +127,30 @@ const processApproval = async (req, res, next) => {
   }
 };
 
+const getApprovedApprovals = async (req, res, next) => {
+  try {
+    const landlord_id = req.user.user_id;
+    const result = await pool.query(
+      `SELECT ta.*, u.username, u.full_name, u.email, u.phone_number, p.property_name
+       FROM tenant_approvals ta
+       JOIN users u ON ta.tenant_id = u.user_id
+       JOIN properties p ON ta.property_id = p.property_id
+       WHERE ta.landlord_id = $1 AND ta.status = 'approved'
+       ORDER BY ta.approved_at DESC`,
+      [landlord_id]
+    );
+    return res.status(200).json({
+      message: 'Approved tenants retrieved successfully',
+      data: result.rows
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   requestApproval,
   getPendingApprovals,
   processApproval,
+  getApprovedApprovals,
 };

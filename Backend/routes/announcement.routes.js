@@ -5,11 +5,13 @@ const { requireRole } = require('../middleware/role.middleware');
 const {
   createAnnouncement,
   getAnnouncements,
+  deleteAnnouncement,
 } = require('../controllers/announcement.controller');
 
 const router = express.Router();
 
 router.post('/', verifyToken, requireRole('landlord'), createAnnouncement);
 router.get('/', verifyToken, getAnnouncements);
+router.delete('/:id', verifyToken, requireRole('landlord'), deleteAnnouncement);
 
 module.exports = router;

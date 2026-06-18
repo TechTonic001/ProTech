@@ -87,7 +87,7 @@ const Landing = () => {
               Manage Your Rental<br />Properties <span className="text-amber-400">Smarter.</span>
             </h1>
             <p className="text-lg text-slate-300 max-w-lg">
-              ProTech automates rent collection, payment tracking, and tenant notifications for Nigerian landlords and hostel operators — so you never miss a payment again.
+              ProTech automates rent collection, payment tracking, and tenant notifications for Nigerian landlords and hostel operators  so you never miss a payment again.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <button onClick={() => navigate('/login?role=landlord')} className="px-8 py-4 bg-amber-400 text-slate-900 font-bold rounded-2xl text-lg hover:bg-amber-300 transition shadow-lg shadow-amber-400/20">
@@ -178,10 +178,10 @@ const Landing = () => {
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
-              { icon: '🔔', color: 'bg-blue-100 text-blue-600', title: 'Automated Rent Reminders', body: 'Tenants receive email notifications at 30 days, 7 days, and 1 day before rent is due — automatically every morning at 6AM. No manual follow-up required.' },
+              { icon: '🔔', color: 'bg-blue-100 text-blue-600', title: 'Automated Rent Reminders', body: 'Tenants receive email notifications at 30 days, 7 days, and 1 day before rent is due  automatically every morning at 6AM. No manual follow-up required.' },
               { icon: '💳', color: 'bg-green-100 text-green-600', title: 'Secure Paystack Payments', body: 'Tenants pay rent online via Paystack. Funds are automatically routed directly to your registered bank account. Every payment is verified and receipts are emailed instantly.' },
               { icon: '🧾', color: 'bg-amber-100 text-amber-600', title: 'Digital Receipts on Every Payment', body: 'A professionally formatted receipt showing your hostel name is automatically generated and emailed to the tenant after every confirmed payment. No paperwork needed.' },
-              { icon: '📱', color: 'bg-purple-100 text-purple-600', title: 'Phone Notifications — No App Download', body: 'ProTech works as a Progressive Web App. Landlords and tenants receive notifications directly on their phone screen like WhatsApp — without downloading anything from the Play Store.' },
+              { icon: '📱', color: 'bg-purple-100 text-purple-600', title: 'Phone Notifications No App Download', body: 'ProTech works as a Progressive Web App. Landlords and tenants receive notifications directly on their phone screen like WhatsApp without downloading anything from the Play Store.' },
               { icon: '📊', color: 'bg-orange-100 text-orange-600', title: 'Real-Time Financial Dashboard', body: 'See your total revenue, occupied rooms, overdue tenants, and payment history at a glance. Charts update automatically every time a payment is confirmed.' },
               { icon: '📢', color: 'bg-red-100 text-red-600', title: 'Broadcast Announcements', body: 'Send a maintenance notice, security update, or any announcement to all your tenants at once. Every tenant receives it by email and on their phone instantly.' },
             ].map((f, i) => (
@@ -270,7 +270,7 @@ const Landing = () => {
             {[
               { t: 'Transparency', b: 'Every naira tracked, every notification logged, every receipt stored. No disputes, no confusion.' },
               { t: 'Automation', b: 'Technology should do the administrative work so landlords can focus on growing their portfolios.' },
-              { t: 'Accessibility', b: 'Built as a PWA so any Nigerian with a smartphone and internet access can use it — no app download required.' },
+              { t: 'Accessibility', b: 'Built as a PWA so any Nigerian with a smartphone and internet access can use it  no app download required.' },
             ].map((p, i) => (
               <div key={i} className="text-center">
                 <h4 className="text-lg font-bold text-amber-400 mb-3">{p.t}</h4>
@@ -291,7 +291,7 @@ const Landing = () => {
             {[
               'Register multiple properties and all rooms in minutes',
               'Approve tenant accounts with a single click',
-              'Receive rent directly in your bank — zero manual collection',
+              'Receive rent directly in your bank  zero manual collection',
               'See exactly who has paid and who is overdue at a glance',
               'Send announcements to all tenants at once',
               'Download complete payment records any time',
@@ -310,7 +310,7 @@ const Landing = () => {
           <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-8">Pay Rent Safely From Your Phone</h2>
           <ul className="space-y-3 mb-10">
             {[
-              'Pay rent online — no cash, no bank queue',
+              'Pay rent online  no cash, no bank queue',
               'Receive reminders before your due date by email',
               'Get a digital receipt emailed to you after payment',
               'View your complete payment history any time',
@@ -341,7 +341,7 @@ const Landing = () => {
             <div className="flex flex-wrap gap-3 mt-8">
               {[
                 { icon: '📍', text: 'SQI College of ICT, Ogbomoso' },
-                { icon: '🎓', text: 'NID 2 — Computer Science' },
+                { icon: '🎓', text: 'NID 2  Computer Science' },
                 { icon: '📅', text: 'June 2026' },
               ].map((b, i) => (
                 <span key={i} className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-full text-xs font-medium text-slate-600">{b.icon} {b.text}</span>
@@ -358,8 +358,8 @@ const Landing = () => {
                 { icon: '👤', label: 'Developer', value: 'Amoo Halleluyah' },
                 { icon: '🎓', label: 'Matric Number', value: '241295' },
                 { icon: '🏫', label: 'Institution', value: 'SQI College of ICT, Ogbomoso, Oyo State' },
-                { icon: '📧', label: 'Email', value: '[YOUR EMAIL]', href: 'mailto:[YOUR EMAIL]' },
-                { icon: '📱', label: 'Phone', value: '[YOUR PHONE]', href: 'tel:[YOUR PHONE]' },
+                { icon: '📧', label: 'Email', value: 'amooolamilekan307@gmail.com', href: 'mailto:amooolamilekan307@gmail.com' },
+
                 { icon: '🌐', label: 'Department', value: 'Computer Science' },
               ].map((c, i) => (
                 <div key={i} className="border border-slate-200 rounded-xl p-4">

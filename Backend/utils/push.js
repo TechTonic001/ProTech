@@ -10,12 +10,12 @@ webpush.setVapidDetails(
 
 const sendPushNotification = async (userId, title, body, url = null) => {
   try {
-    const connection = await pool.getConnection();
-    const [subscriptions] = await connection.query(
-      'SELECT * FROM pwa_subscriptions WHERE user_id = ? AND is_active = 1',
+    const result = await pool.query(
+      'SELECT * FROM pwa_subscriptions WHERE user_id = $1 AND is_active = 1',
       [userId]
     );
-    connection.release();
+
+    const subscriptions = result.rows;
 
     if (!subscriptions || subscriptions.length === 0) {
       return { success: true, message: 'No active subscriptions' };

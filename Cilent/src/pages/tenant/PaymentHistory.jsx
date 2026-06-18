@@ -128,7 +128,7 @@ const PaymentHistory = () => {
                     { label: 'Hostel Address', value: receipt.hostel_address },
                     { label: 'Tenant', value: receipt.tenant_name },
                     { label: 'Username', value: receipt.tenant_username ? `@${receipt.tenant_username}` : null },
-                    { label: 'Room', value: receipt.room_number ? `${receipt.room_number}${receipt.room_type ? ` — ${receipt.room_type}` : ''}` : null },
+                    { label: 'Room', value: receipt.room_number ? `${receipt.room_number}${receipt.room_type ? `  ${receipt.room_type}` : ''}` : null },
                     { label: 'Amount Paid', value: formatAmount(receipt.amount_paid), green: true },
                     { label: 'Paystack Ref', value: receipt.paystack_ref, mono: true },
                     { label: 'Email Sent To', value: receipt.tenant_email },
@@ -142,7 +142,7 @@ const PaymentHistory = () => {
 
                   {/* Verified badge */}
                   <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl text-center">
-                    <p className="text-sm text-green-700 font-semibold">✓ Verified by Paystack — Funds sent to landlord bank</p>
+                    <p className="text-sm text-green-700 font-semibold">✓ Verified by Paystack Funds sent to landlord bank</p>
                   </div>
 
                   {/* Actions */}

@@ -12,37 +12,34 @@ const createAnnouncement = async (req, res, next) => {
       return res.status(400).json({ error: 'Property ID, title, and message body are required' });
     }
 
-    const connection = await pool.getConnection();
-
     // Verify property belongs to landlord
-    const [properties] = await connection.query(
-      'SELECT * FROM properties WHERE property_id = ? AND landlord_id = ?',
+    const propertiesResult = await pool.query(
+      'SELECT * FROM properties WHERE property_id = $1 AND landlord_id = $2',
       [property_id, landlord_id]
     );
 
-    if (properties.length === 0) {
-      connection.release();
+    if (propertiesResult.rows.length === 0) {
       return res.status(404).json({ error: 'Property not found' });
     }
 
     // Create announcement
-    const [result] = await connection.query(
-      'INSERT INTO announcements (landlord_id, property_id, title, message_body) VALUES (?, ?, ?, ?)',
+    const result = await pool.query(
+      'INSERT INTO announcements (landlord_id, property_id, title, message_body) VALUES ($1, $2, $3, $4) RETURNING announcement_id',
       [landlord_id, property_id, title, message_body]
     );
 
-    const announcement_id = result.insertId;
+    const announcement_id = result.rows[0].announcement_id;
 
     // Get all active tenants for this property
-    const [tenants] = await connection.query(
+    const tenantsResult = await pool.query(
       `SELECT DISTINCT u.user_id, u.email, u.full_name FROM users u
        JOIN leases l ON u.user_id = l.tenant_id
        JOIN rooms r ON l.room_id = r.room_id
-       WHERE r.property_id = ? AND l.lease_status = 'active'`,
+       WHERE r.property_id = $1 AND l.lease_status = 'active'`,
       [property_id]
     );
 
-    connection.release();
+    const tenants = tenantsResult.rows;
 
     // Send email and push notifications
     let tenants_reached = 0;
@@ -75,37 +72,56 @@ const createAnnouncement = async (req, res, next) => {
 
 const getAnnouncements = async (req, res, next) => {
   try {
-    const connection = await pool.getConnection();
-
-    let query, params;
+    let queryText, params;
 
     if (req.user.role === 'tenant') {
       // Get announcements for tenant's active leases
-      query = `SELECT a.*, p.property_name FROM announcements a
+      queryText = `SELECT a.*, p.property_name FROM announcements a
                JOIN properties p ON a.property_id = p.property_id
                WHERE p.property_id IN (
                  SELECT r.property_id FROM rooms r
                  JOIN leases l ON r.room_id = l.room_id
-                 WHERE l.tenant_id = ? AND l.lease_status = 'active'
+                 WHERE l.tenant_id = $1 AND l.lease_status = 'active'
                )
                ORDER BY a.created_at DESC`;
       params = [req.user.user_id];
     } else {
       // Landlord or admin - get their announcements
-      query = `SELECT a.*, p.property_name FROM announcements a
+      queryText = `SELECT a.*, p.property_name FROM announcements a
                JOIN properties p ON a.property_id = p.property_id
-               WHERE a.landlord_id = ?
+               WHERE a.landlord_id = $1
                ORDER BY a.created_at DESC`;
       params = [req.user.user_id];
     }
 
-    const [announcements] = await connection.query(query, params);
-    connection.release();
+    const result = await pool.query(queryText, params);
 
     return res.status(200).json({
       message: 'Announcements retrieved successfully',
-      data: announcements,
+      data: result.rows,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteAnnouncement = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const landlord_id = req.user.user_id;
+    
+    const checkResult = await pool.query(
+      'SELECT * FROM announcements WHERE announcement_id = $1 AND landlord_id = $2',
+      [id, landlord_id]
+    );
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+
+    await pool.query('DELETE FROM announcements WHERE announcement_id = $1', [id]);
+
+    return res.status(200).json({ message: 'Announcement deleted successfully' });
   } catch (error) {
     next(error);
   }
@@ -114,4 +130,5 @@ const getAnnouncements = async (req, res, next) => {
 module.exports = {
   createAnnouncement,
   getAnnouncements,
+  deleteAnnouncement,
 };

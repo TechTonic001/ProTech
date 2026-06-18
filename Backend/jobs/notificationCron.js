@@ -6,27 +6,26 @@ const { sendSMS } = require('../utils/sms');
 const { sendPushNotification } = require('../utils/push');
 
 const startNotificationCron = () => {
+  // Run every morning at 6 AM
   cron.schedule('0 6 * * *', async () => {
     try {
       console.log('[CRON] Starting rent reminder notifications...');
 
-      const connection = await pool.getConnection();
-
       // Get all active leases with tenant details and days until due
-      const [leases] = await connection.query(
+      const leasesResult = await pool.query(
         `SELECT 
           l.lease_id, l.tenant_id, l.rent_amount, l.due_day,
           u.full_name as tenant_name, u.email as tenant_email, u.phone_number,
           p.property_name, r.room_number,
-          DATEDIFF(DATE_FORMAT(CURDATE(), CONCAT(YEAR(CURDATE()), '-', MONTH(CURDATE()), '-', ?)), CURDATE()) AS days_until_due
+          (MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER, EXTRACT(MONTH FROM CURRENT_DATE)::INTEGER, l.due_day::INTEGER) - CURRENT_DATE) AS days_until_due
          FROM leases l
          JOIN users u ON l.tenant_id = u.user_id
          JOIN rooms r ON l.room_id = r.room_id
          JOIN properties p ON r.property_id = p.property_id
-         WHERE l.lease_status = 'active'`,
-        [leases]
+         WHERE l.lease_status = 'active'`
       );
 
+      const leases = leasesResult.rows;
       let emailCount = 0;
       let pushCount = 0;
       let leasesEvaluated = 0;
@@ -40,23 +39,23 @@ const startNotificationCron = () => {
         }
 
         // Duplicate prevention
-        const [existingNotifications] = await connection.query(
-          'SELECT notification_id FROM notifications WHERE lease_id = ? AND days_before_due = ? AND DATE(sent_at) = CURDATE()',
+        const existingNotificationsResult = await pool.query(
+          'SELECT notification_id FROM notifications WHERE lease_id = $1 AND days_before_due = $2 AND sent_at::date = CURRENT_DATE',
           [lease.lease_id, Math.abs(lease.days_until_due)]
         );
 
-        if (existingNotifications.length > 0) {
+        if (existingNotificationsResult.rows.length > 0) {
           continue;
         }
 
         // Overdue check (only for days_until_due = 0)
         if (lease.days_until_due === 0) {
-          const [paidThisMonth] = await connection.query(
-            'SELECT payment_id FROM payments WHERE lease_id = ? AND payment_status = ? AND MONTH(payment_date) = MONTH(NOW()) AND YEAR(payment_date) = YEAR(NOW())',
+          const paidThisMonthResult = await pool.query(
+            'SELECT payment_id FROM payments WHERE lease_id = $1 AND payment_status = $2 AND EXTRACT(MONTH FROM payment_date) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM payment_date) = EXTRACT(YEAR FROM CURRENT_DATE)',
             [lease.lease_id, 'success']
           );
 
-          if (paidThisMonth.length > 0) {
+          if (paidThisMonthResult.rows.length > 0) {
             continue;
           }
         }
@@ -84,8 +83,8 @@ const startNotificationCron = () => {
             lease.property_name
           );
 
-          await connection.query(
-            'INSERT INTO notifications (lease_id, tenant_id, channel, message_body, days_before_due) VALUES (?, ?, ?, ?, ?)',
+          await pool.query(
+            'INSERT INTO notifications (lease_id, tenant_id, channel, message_body, days_before_due) VALUES ($1, $2, $3, $4, $5)',
             [lease.lease_id, lease.tenant_id, 'email', messageBody, Math.abs(lease.days_until_due)]
           );
 
@@ -110,8 +109,8 @@ const startNotificationCron = () => {
             `${process.env.FRONTEND_URL}/pay`
           );
 
-          await connection.query(
-            'INSERT INTO notifications (lease_id, tenant_id, channel, message_body, days_before_due) VALUES (?, ?, ?, ?, ?)',
+          await pool.query(
+            'INSERT INTO notifications (lease_id, tenant_id, channel, message_body, days_before_due) VALUES ($1, $2, $3, $4, $5)',
             [lease.lease_id, lease.tenant_id, 'push', messageBody, Math.abs(lease.days_until_due)]
           );
 
@@ -120,8 +119,6 @@ const startNotificationCron = () => {
           console.error(`Error sending push for lease ${lease.lease_id}:`, pushError.message);
         }
       }
-
-      connection.release();
 
       console.log(
         `[CRON COMPLETE] Emails: ${emailCount} | Push: ${pushCount} | Leases evaluated: ${leasesEvaluated}`
@@ -133,7 +130,5 @@ const startNotificationCron = () => {
 
   console.log('[CRON] Rent reminder notifications scheduled for 6 AM Lagos time daily');
 };
-
-startNotificationCron();
 
 module.exports = { startNotificationCron };

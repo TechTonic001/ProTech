@@ -6,6 +6,10 @@ const cors = require('cors');
 // Import the DB module so it executes its connection test on startup
 require('./config/db');
 
+// Start notifications cron scheduler
+const { startNotificationCron } = require('./jobs/notificationCron');
+startNotificationCron();
+
 const app = express();
 
 const allowedOrigins = [
@@ -51,6 +55,7 @@ app.use('/api/notification', require('./routes/notification.routes'));
 app.use('/api/property', require('./routes/property.routes'));
 app.use('/api/pwa', require('./routes/pwa.routes'));
 app.use('/api/room', require('./routes/room.routes'));
+app.use('/api/admin', require('./routes/admin.routes'));
 
 // Health and root
 app.get('/api/health', (req, res) => res.status(200).json({ status: 'UP', app: 'ProTech' }));

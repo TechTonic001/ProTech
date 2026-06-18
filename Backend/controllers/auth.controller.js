@@ -22,19 +22,15 @@ const register = async (req, res, next) => {
       }
     }
 
-    const connection = await pool.getConnection();
-
     // Check email uniqueness
-    const [emailCheck] = await connection.query('SELECT user_id FROM users WHERE email = ?', [email]);
-    if (emailCheck.length > 0) {
-      connection.release();
+    const emailCheck = await pool.query('SELECT user_id FROM users WHERE email = $1', [email]);
+    if (emailCheck.rows.length > 0) {
       return res.status(400).json({ error: 'Email is already registered.' });
     }
 
     // Check username uniqueness
-    const [usernameCheck] = await connection.query('SELECT user_id FROM users WHERE username = ?', [username]);
-    if (usernameCheck.length > 0) {
-      connection.release();
+    const usernameCheck = await pool.query('SELECT user_id FROM users WHERE username = $1', [username]);
+    if (usernameCheck.rows.length > 0) {
       return res.status(400).json({ error: 'Username is already taken.' });
     }
 
@@ -46,8 +42,8 @@ const register = async (req, res, next) => {
     const is_approved = role === 'landlord' ? 1 : 0;
 
     // Insert user with hostel columns
-    const [result] = await connection.query(
-      'INSERT INTO users (username, full_name, email, phone_number, password_hash, role, is_approved, hostel_name, hostel_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    const result = await pool.query(
+      'INSERT INTO users (username, full_name, email, phone_number, password_hash, role, is_approved, hostel_name, hostel_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING user_id',
       [
         username, full_name, email, phone_number, password_hash, role, is_approved,
         role === 'landlord' ? hostel_name : null,
@@ -55,9 +51,7 @@ const register = async (req, res, next) => {
       ]
     );
 
-    const user_id = result.insertId;
-
-    connection.release();
+    const user_id = result.rows[0].user_id;
 
     if (is_approved === 0) {
       return res.status(201).json({
@@ -90,19 +84,16 @@ const login = async (req, res, next) => {
       return res.status(400).json({ error: 'Identifier and password are required' });
     }
 
-    const connection = await pool.getConnection();
-    const [users] = await connection.query(
-      'SELECT * FROM users WHERE email = ? OR username = ?',
+    const result = await pool.query(
+      'SELECT * FROM users WHERE email = $1 OR username = $2',
       [identifier, identifier]
     );
 
-    connection.release();
-
-    if (users.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const user = users[0];
+    const user = result.rows[0];
 
     // If tenant is not approved, return 403 with clear message
     if (user.role === 'tenant' && !user.is_approved) {
@@ -144,16 +135,14 @@ const profile = async (req, res, next) => {
     const userId = req.user?.user_id;
     if (!userId) return res.status(400).json({ error: 'Unable to resolve user' });
 
-    const connection = await pool.getConnection();
-    const [users] = await connection.query(
-      'SELECT user_id, username, full_name, email, phone_number, role, is_approved, hostel_name, hostel_address FROM users WHERE user_id = ?',
+    const result = await pool.query(
+      'SELECT user_id, username, full_name, email, phone_number, role, is_approved, hostel_name, hostel_address FROM users WHERE user_id = $1',
       [userId]
     );
-    connection.release();
 
-    if (users.length === 0) return res.status(404).json({ error: 'User not found' });
+    if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
 
-    return res.status(200).json({ user: users[0] });
+    return res.status(200).json({ user: result.rows[0] });
   } catch (error) {
     next(error);
   }
@@ -166,46 +155,54 @@ const updateProfile = async (req, res, next) => {
 
     const { full_name, phone_number, hostel_name, hostel_address } = req.body;
 
-    const connection = await pool.getConnection();
-
     // Get current user to check role
-    const [users] = await connection.query('SELECT role FROM users WHERE user_id = ?', [userId]);
-    if (users.length === 0) {
-      connection.release();
+    const result = await pool.query('SELECT role FROM users WHERE user_id = $1', [userId]);
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const userRole = users[0].role;
+    const userRole = result.rows[0].role;
 
     // Build dynamic update
     const fields = [];
     const values = [];
+    let paramCount = 1;
 
-    if (full_name !== undefined) { fields.push('full_name = ?'); values.push(full_name); }
-    if (phone_number !== undefined) { fields.push('phone_number = ?'); values.push(phone_number); }
+    if (full_name !== undefined) { 
+      fields.push(`full_name = $${paramCount++}`); 
+      values.push(full_name); 
+    }
+    if (phone_number !== undefined) { 
+      fields.push(`phone_number = $${paramCount++}`); 
+      values.push(phone_number); 
+    }
 
     // Only allow hostel fields for landlords
     if (userRole === 'landlord') {
-      if (hostel_name !== undefined) { fields.push('hostel_name = ?'); values.push(hostel_name); }
-      if (hostel_address !== undefined) { fields.push('hostel_address = ?'); values.push(hostel_address); }
+      if (hostel_name !== undefined) { 
+        fields.push(`hostel_name = $${paramCount++}`); 
+        values.push(hostel_name); 
+      }
+      if (hostel_address !== undefined) { 
+        fields.push(`hostel_address = $${paramCount++}`); 
+        values.push(hostel_address); 
+      }
     }
 
     if (fields.length === 0) {
-      connection.release();
       return res.status(400).json({ error: 'No fields to update' });
     }
 
     values.push(userId);
-    await connection.query(`UPDATE users SET ${fields.join(', ')} WHERE user_id = ?`, values);
+    await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE user_id = $${paramCount}`, values);
 
     // Return updated user
-    const [updated] = await connection.query(
-      'SELECT user_id, username, full_name, email, phone_number, role, is_approved, hostel_name, hostel_address FROM users WHERE user_id = ?',
+    const updatedResult = await pool.query(
+      'SELECT user_id, username, full_name, email, phone_number, role, is_approved, hostel_name, hostel_address FROM users WHERE user_id = $1',
       [userId]
     );
-    connection.release();
 
-    return res.status(200).json({ message: 'Profile updated successfully', user: updated[0] });
+    return res.status(200).json({ message: 'Profile updated successfully', user: updatedResult.rows[0] });
   } catch (error) {
     next(error);
   }
@@ -219,11 +216,9 @@ const forgotPassword = async (req, res, next) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    const connection = await pool.getConnection();
-    const [users] = await connection.query('SELECT * FROM users WHERE email = ?', [email]);
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
 
-    if (users.length === 0) {
-      connection.release();
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User with this email not found' });
     }
 
@@ -232,12 +227,10 @@ const forgotPassword = async (req, res, next) => {
 
     // Insert OTP record
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-    await connection.query(
-      'INSERT INTO password_resets (email, otp_code, is_used, expires_at) VALUES (?, ?, ?, ?)',
+    await pool.query(
+      'INSERT INTO password_resets (email, otp_code, is_used, expires_at) VALUES ($1, $2, $3, $4)',
       [email, otpCode, 0, expiresAt]
     );
-
-    connection.release();
 
     // Send OTP email
     await sendOTPEmail(email, otpCode);
@@ -260,41 +253,36 @@ const resetPassword = async (req, res, next) => {
       return res.status(400).json({ error: 'Email, OTP code, and new password are required' });
     }
 
-    const connection = await pool.getConnection();
-
     // Find OTP record
-    const [otpRecords] = await connection.query(
-      'SELECT * FROM password_resets WHERE email = ? AND otp_code = ? AND is_used = 0 AND expires_at > NOW()',
-      [email, otp_code]
+    const result = await pool.query(
+      'SELECT * FROM password_resets WHERE email = $1 AND otp_code = $2 AND is_used = 0 AND expires_at > NOW()',
+      [email, otpValue]
     );
 
-    if (otpRecords.length === 0) {
-      connection.release();
+    if (result.rows.length === 0) {
       return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
 
     // Hash new password
     const salt = await bcrypt.genSalt(10);
-    const password_hash = await bcrypt.hash(new_password, salt);
+    const password_hash = await bcrypt.hash(newPassword, salt);
 
     // Update user password
-    await connection.query('UPDATE users SET password_hash = ? WHERE email = ?', [
+    await pool.query('UPDATE users SET password_hash = $1 WHERE email = $2', [
       password_hash,
       email,
     ]);
 
     // Mark OTP as used
-    const otpRecord = otpRecords[0];
-    await connection.query('UPDATE password_resets SET is_used = 1 WHERE reset_id = ?', [
+    const otpRecord = result.rows[0];
+    await pool.query('UPDATE password_resets SET is_used = 1 WHERE reset_id = $1', [
       otpRecord.reset_id,
     ]);
 
-    connection.release();
-
     // Send confirmation email
-    const [users] = await pool.query('SELECT full_name FROM users WHERE email = ?', [email]);
-    if (users.length > 0) {
-      await sendPasswordChangedEmail(email, users[0].full_name);
+    const userResult = await pool.query('SELECT full_name FROM users WHERE email = $1', [email]);
+    if (userResult.rows.length > 0) {
+      await sendPasswordChangedEmail(email, userResult.rows[0].full_name);
     }
 
     return res.status(200).json({
