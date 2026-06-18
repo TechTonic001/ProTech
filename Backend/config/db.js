@@ -1,40 +1,39 @@
 // config/db.js
-const mysql = require('mysql2/promise');
+// PostgreSQL connection — Neon.tech cloud database
 
-// Support both DB_PASSWORD and DB_PASS env names
-const DB_PASSWORD = process.env.DB_PASSWORD ?? process.env.DB_PASS ?? '';
+const { Pool } = require('pg')
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
-  user: process.env.DB_USER || 'root',
-  password: DB_PASSWORD,
-  database: process.env.DB_NAME || 'protech_db',
-  waitForConnections: true,
-  connectionLimit: 5,
-  queueLimit: 0,
-  enableKeepAlive: true,
-  keepAliveInitialDelayMs: 0,
-  // Cloud MySQL providers require SSL – accept their CA automatically
-  ssl: process.env.DB_HOST && process.env.DB_HOST !== 'localhost'
-    ? { rejectUnauthorized: true }
-    : undefined,
-});
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  },
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000
+})
 
-// Test connection but do NOT crash the process on Vercel (serverless cold-start)
-(async () => {
-  try {
-    const connection = await pool.getConnection();
-    await connection.ping();
-    connection.release();
-    console.log(`🟩 SUCCESS: Connected to MySQL (${process.env.DB_NAME || 'protech_db'}) successfully!`);
-  } catch (error) {
-    console.log('🟥 ERROR: Database connection failed!', error.message);
-    // Only hard-exit locally; on Vercel let the function return a proper error
-    if (process.env.VERCEL !== '1') {
-      process.exit(1);
-    }
+// Test connection when server starts
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('❌ PostgreSQL connection FAILED:', err.message)
+    return
   }
-})();
+  release()
+  console.log('✅ PostgreSQL connected — Neon.tech protech_db')
+})
 
-module.exports = pool;
+// This wrapper makes queries work the same way
+// as the old MySQL code so nothing else needs to change much
+const query = async (text, params) => {
+  try {
+    const result = await pool.query(text, params)
+    return [result.rows, result]
+  } catch (err) {
+    console.error('[DB ERROR]', err.message)
+    console.error('[DB QUERY]', text)
+    throw err
+  }
+}
+
+module.exports = { query, pool }
