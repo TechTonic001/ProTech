@@ -38,7 +38,7 @@ const sendOTPEmail = async (toEmail, otpCode) => {
     await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to: toEmail,
-      subject: 'ProTech — Your Password Reset Code',
+      subject: 'ProTech Your Password Reset Code',
       html: htmlContent,
       text: textContent,
     });
@@ -72,7 +72,7 @@ const sendPasswordChangedEmail = async (toEmail, fullName) => {
     await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to: toEmail,
-      subject: 'ProTech — Password Changed Successfully',
+      subject: 'ProTech Password Changed Successfully',
       html: htmlContent,
       text: textContent,
     });

@@ -33,15 +33,15 @@ const Landing = () => {
 
             {/* Desktop Nav */}
             <div className="hidden lg:flex items-center gap-8">
-              {['Home','Features','How It Works','Vision','About','Contact'].map(s => (
-                <a key={s} href={`#${s.toLowerCase().replace(/\s+/g,'-')}`} className="text-sm font-medium text-slate-600 hover:text-slate-900 transition">{s}</a>
+              {['Home', 'Features', 'How It Works', 'Vision', 'About', 'Contact'].map(s => (
+                <a key={s} href={`#${s.toLowerCase().replace(/\s+/g, '-')}`} className="text-sm font-medium text-slate-600 hover:text-slate-900 transition">{s}</a>
               ))}
             </div>
 
             {/* Desktop Buttons */}
             <div className="hidden lg:flex items-center gap-3">
               <button onClick={() => navigate('/login?role=landlord')} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold border-2 border-slate-800 text-slate-800 rounded-xl hover:bg-slate-800 hover:text-white transition">
-                 Landlord Login
+                Landlord Login
               </button>
               <button onClick={() => navigate('/login?role=tenant')} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition">
                 👤 Tenant Login
@@ -61,8 +61,8 @@ const Landing = () => {
           {/* Mobile Menu */}
           {mobileMenu && (
             <div className="lg:hidden border-t py-4 space-y-3">
-              {['Home','Features','How It Works','Vision','About','Contact'].map(s => (
-                <a key={s} href={`#${s.toLowerCase().replace(/\s+/g,'-')}`} onClick={() => setMobileMenu(false)} className="block px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900">{s}</a>
+              {['Home', 'Features', 'How It Works', 'Vision', 'About', 'Contact'].map(s => (
+                <a key={s} href={`#${s.toLowerCase().replace(/\s+/g, '-')}`} onClick={() => setMobileMenu(false)} className="block px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900">{s}</a>
               ))}
               <div className="flex flex-col gap-2 pt-3 border-t">
                 <button onClick={() => { navigate('/login?role=landlord'); setMobileMenu(false); }} className="w-full px-4 py-2.5 text-sm font-semibold border-2 border-slate-800 text-slate-800 rounded-xl">🏠 Landlord Login</button>
@@ -113,9 +113,9 @@ const Landing = () => {
               {/* Body */}
               <div className="bg-white/15 backdrop-blur rounded-b-2xl p-6 border border-white/10">
                 {/* Windows grid */}
-                {[0,1,2,3].map(row => (
+                {[0, 1, 2, 3].map(row => (
                   <div key={row} className="grid grid-cols-4 gap-3 mb-3">
-                    {[0,1,2,3].map(col => (
+                    {[0, 1, 2, 3].map(col => (
                       <div key={col} className="h-8 rounded-md bg-blue-300/30 border border-blue-200/20 flex items-center justify-center">
                         <div className="w-3 h-4 rounded-sm bg-blue-200/50" />
                       </div>
@@ -135,7 +135,7 @@ const Landing = () => {
             {/* Floating Cards */}
             <div className="absolute -top-4 -right-8 bg-white rounded-xl shadow-xl p-3 w-48" style={floatStyle1}>
               <p className="text-green-600 font-bold text-sm">✅ Rent Paid</p>
-              <p className="text-xs text-slate-500">Bisi Adebayo — ₦45,000</p>
+              <p className="text-xs text-slate-500">Bisi Adebayo ₦45,000</p>
               <p className="text-[10px] text-slate-400 mt-1">Just now</p>
             </div>
             <div className="absolute top-1/3 -left-16 bg-white rounded-xl shadow-xl p-3 w-44" style={floatStyle2}>
@@ -174,7 +174,7 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
             <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900">Everything You Need to Manage Your Hostel</h2>
-            <p className="mt-4 text-lg text-slate-500 max-w-2xl mx-auto">From tenant onboarding to automatic rent reminders — ProTech handles it all.</p>
+            <p className="mt-4 text-lg text-slate-500 max-w-2xl mx-auto">From tenant onboarding to automatic rent reminders, ProTech handles it all.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
@@ -245,8 +245,8 @@ const Landing = () => {
             <ol className="space-y-4 list-decimal list-inside text-sm text-slate-600 leading-relaxed">
               <li>Build a secure role-based web application for landlords, estate managers, and tenants with separate authenticated portals for each user class.</li>
               <li>Integrate Paystack Subaccount architecture to enable automatic fund routing from tenant payments directly to landlord bank accounts.</li>
-              <li>Develop a Dynamic Notification Engine that dispatches personalised rent reminders via email at 30-day, 7-day, and 1-day intervals using a daily automated cron job.</li>
-              <li>Create a real-time financial dashboard that displays revenue, occupancy, overdue payments, and payment history without requiring any manual data entry.</li>
+              <li>Develop a Dynamic Notification Engine that dispatches personalised rent reminders via email at 30 day, 7 day, and 1 day intervals using a daily automated cron job.</li>
+              <li>Create a realtime financial dashboard that displays revenue, occupancy, overdue payments, and payment history without requiring any manual data entry.</li>
               <li>Implement a PWA push notification system that delivers alerts to users' phones like normal messages without requiring any Play Store installation.</li>
               <li>Provide a centralised announcement module enabling landlords to broadcast messages to all tenants simultaneously via email and push notification.</li>
             </ol>
@@ -263,7 +263,7 @@ const Landing = () => {
             A Nigeria Where Every Landlord and Tenant Has a Fair, Transparent, and Fully Digital Rental Experience.
           </h2>
           <p className="text-slate-300 leading-relaxed max-w-2xl mx-auto mb-10">
-            ProTech was built in Ogbomoso, Oyo State, for Nigerian hostel operators who deserve the same quality of property management tools available to large real estate firms. Our vision is to grow from a final-year academic project into a platform that serves thousands of properties across Nigeria — making rent collection honest, automated, and stress-free for everyone involved.
+            ProTech was built in Ogbomoso, Oyo State, for Nigerian hostel operators who deserve the same quality of property management tools available to large real estate firms. Our vision is to grow from a final  year academic project into a platform that serves thousands of properties across Nigeria  making rent collection honest, automated, and stress free for everyone involved.
           </p>
           <div className="w-20 h-1 bg-amber-400 mx-auto mb-12 rounded-full" />
           <div className="grid md:grid-cols-3 gap-8">
@@ -336,7 +336,7 @@ const Landing = () => {
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-6">Built at SQI College of ICT, Ogbomoso</h2>
             <div className="space-y-4 text-sm text-slate-600 leading-relaxed">
               <p>ProTech is a final-year capstone project developed by Amoo Halleluyah as part of the National Innovation Diploma (NID 2) programme at SQI College of ICT, Ogbomoso, Oyo State, Nigeria.</p>
-              <p>The system was designed to solve real operational problems observed in student hostel management across Ogbomoso — where most landlords still rely on paper records and informal bank transfers for rent collection.</p>
+              <p>The system was designed to solve real operational problems observed in student hostel management across Ogbomoso where most landlords still rely on paper records and informal bank transfers for rent collection.</p>
             </div>
             <div className="flex flex-wrap gap-3 mt-8">
               {[
@@ -400,14 +400,14 @@ const Landing = () => {
               <span className="text-xl font-extrabold text-white">ProTech</span>
             </div>
             <p className="text-sm mb-4">Automated Rent Tracking for Nigerian Landlords and Tenants</p>
-            <span className="inline-block px-3 py-1 text-[10px] font-bold bg-amber-400/20 text-amber-400 rounded-full">PWA — No App Download Required</span>
-            <p className="text-xs text-slate-500 mt-4">A SQI College of ICT Final Year Project — 2026</p>
+            <span className="inline-block px-3 py-1 text-[10px] font-bold bg-amber-400/20 text-amber-400 rounded-full">PWA No App Download Required</span>
+            <p className="text-xs text-slate-500 mt-4">A SQI College of ICT Final Year Project 2026</p>
           </div>
           {/* Features */}
           <div>
             <h4 className="text-sm font-bold text-white mb-4">Features</h4>
             <ul className="space-y-2 text-sm">
-              {['Rent Reminders','Paystack Payments','Digital Receipts','PWA Notifications','Financial Dashboard','Announcements'].map(f => (
+              {['Rent Reminders', 'Paystack Payments', 'Digital Receipts', 'PWA Notifications', 'Financial Dashboard', 'Announcements'].map(f => (
                 <li key={f} className="hover:text-white transition cursor-default">{f}</li>
               ))}
             </ul>
@@ -424,7 +424,7 @@ const Landing = () => {
             </ul>
           </div>
           {/* Project Info */}
-          <div>
+          {/* <div>
             <h4 className="text-sm font-bold text-white mb-4">Project Info</h4>
             <ul className="space-y-2 text-sm">
               <li>Student: Amoo Halleluyah</li>
@@ -435,12 +435,12 @@ const Landing = () => {
               <li>Supervisor: Ms. Oduleke O. Janet</li>
               <li>Year: 2026</li>
             </ul>
-          </div>
+          </div> */}
         </div>
         {/* Bottom bar */}
         <div className="border-t border-slate-800 pt-6">
           <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
-            <p>© 2026 ProTech — Amoo Halleluyah. NID 2 Final Year Project.</p>
+            <p>© 2026 ProTech  Amoo Halleluyah. NID 2 Final Year Project.</p>
             <p>SQI College of ICT, Ogbomoso, Oyo State, Nigeria.</p>
           </div>
         </div>

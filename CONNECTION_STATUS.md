@@ -71,8 +71,7 @@ curl http://localhost:5001/api/health
   - Username: testuser123
   - Full Name: Test User
   - Email: test@email.com
-  - Phone: 1234567890
-  - Password: Password123
+  - Password: Password123     
   - Role: Landlord
 - Click "Create Account"
 - Should see success message

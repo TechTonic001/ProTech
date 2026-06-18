@@ -24,7 +24,7 @@ echo ""
 echo "✅ SERVICES WILL START ON:"
 echo "  • Backend API:  http://localhost:5001"
 echo "  • Frontend App: http://localhost:3000"
-echo "  • DB:           MySQL at localhost:3306"
+
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
 echo ""
