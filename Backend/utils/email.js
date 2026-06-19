@@ -14,14 +14,24 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Test connection on startup
-transporter.verify((err, success) => {
-  if (err) {
-    console.error('❌ Email transporter FAILED:', err.message);
-  } else {
-    console.log('✅ Email transporter ready — Nodemailer connected');
-  }
-});
+// Test connection on startup (skip if placeholder values)
+const isPlaceholderEmail = 
+  !process.env.EMAIL_USER || 
+  process.env.EMAIL_USER.includes('your_gmail') || 
+  !process.env.EMAIL_PASS || 
+  process.env.EMAIL_PASS.includes('your_gmail_app_password');
+
+if (isPlaceholderEmail) {
+  console.log('⚠️ Email transporter in placeholder state — SMTP verification skipped.');
+} else {
+  transporter.verify((err, success) => {
+    if (err) {
+      console.error('❌ Email transporter FAILED:', err.message);
+    } else {
+      console.log('✅ Email transporter ready — Nodemailer connected');
+    }
+  });
+}
 
 const emailFooter = 'ProTech Automated Rent System • Ogbomoso, Oyo State, Nigeria';
 
