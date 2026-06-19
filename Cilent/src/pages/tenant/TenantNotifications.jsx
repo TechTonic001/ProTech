@@ -14,11 +14,13 @@ import {
   AlertCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { usePWA } from '../../hooks/usePWA';
 
 const TenantNotifications = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
+  const { isSubscribed, subscribeToPush } = usePWA();
 
   useEffect(() => {
     fetchNotifications();
@@ -116,13 +118,27 @@ const TenantNotifications = () => {
       )}
 
       {/* PWA Reminder Box */}
-      <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 flex gap-4 text-xs leading-relaxed text-amber-800 font-semibold">
-        <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-        <div>
-          <p className="font-bold uppercase tracking-wide text-amber-900">Push Notification Integration</p>
-          <p className="text-[11px] text-amber-800/80 mt-1 font-medium leading-relaxed">
-            Ensure browser notification permissions are enabled in your client settings to receive instant mobile reminders. Our background scheduler automatically sends warning logs 3 days prior to monthly deadlines.
-          </p>
+      <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 flex flex-col md:flex-row gap-4 text-xs leading-relaxed text-amber-800 font-semibold">
+        <div className="flex gap-4">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold uppercase tracking-wide text-amber-900">Push Notification Integration</p>
+            <p className="text-[11px] text-amber-800/80 mt-1 font-medium leading-relaxed">
+              Ensure browser notification permissions are enabled in your client settings to receive instant mobile reminders. Our background scheduler automatically sends warning logs 3 days prior to monthly deadlines.
+            </p>
+          </div>
+        </div>
+        <div className="md:self-center shrink-0">
+          <button
+            onClick={subscribeToPush}
+            className={`w-full md:w-auto px-4 py-2.5 rounded-xl text-xs font-black transition active:scale-95 cursor-pointer shadow-sm
+              ${isSubscribed 
+                ? 'bg-green-600 hover:bg-green-700 text-white' 
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+              }`}
+          >
+            {isSubscribed ? 'Push Notifications Active' : 'Enable Push Notifications'}
+          </button>
         </div>
       </div>
     </div>

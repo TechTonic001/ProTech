@@ -109,14 +109,17 @@ const register = async (req, res, next) => {
         [landlord.user_id]
       );
       
-      const property_id = propertyResult.rows.length > 0 ? propertyResult.rows[0].property_id : null;
+      const property_id = (propertyResult.rows.length > 0 && propertyResult.rows[0].property_id) ? propertyResult.rows[0].property_id : 0;
 
-      if (property_id) {
-        // Create pending registration approval log
+      // Create pending registration approval log
+      try {
         await pool.query(
           'INSERT INTO tenant_approvals (tenant_id, landlord_id, property_id, status) VALUES ($1, $2, $3, $4)',
           [user_id, landlord.user_id, property_id, 'pending']
         );
+        console.log('[APPROVAL CREATED] tenant:', user_id, 'landlord:', landlord.user_id);
+      } catch (err) {
+        console.error('[APPROVAL INSERT FAILED]', err.message);
       }
 
       // Send Tenant Welcome and Landlord Notification emails

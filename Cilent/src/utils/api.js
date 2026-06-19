@@ -86,6 +86,7 @@ export const paymentAPI = {
 export const approvalAPI = {
   request: (data) => api.post('/approval/request', data),
   getPending: () => api.get('/approval/pending'),
+  getApproved: () => api.get('/approval/approved'),
   process: (id, data) => api.put(`/approval/${id}`, data),
 };
 

@@ -9,6 +9,18 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  tls: {
+    rejectUnauthorized: false
+  }
+});
+
+// Test connection on startup
+transporter.verify((err, success) => {
+  if (err) {
+    console.error('❌ Email transporter FAILED:', err.message);
+  } else {
+    console.log('✅ Email transporter ready — Nodemailer connected');
+  }
 });
 
 const emailFooter = 'ProTech Automated Rent System • Ogbomoso, Oyo State, Nigeria';

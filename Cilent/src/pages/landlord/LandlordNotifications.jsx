@@ -7,10 +7,12 @@ import EmptyState from '../../components/ui/EmptyState';
 import Badge from '../../components/ui/Badge';
 import { Bell, Mail, Smartphone, Clock, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { usePWA } from '../../hooks/usePWA';
 
 const LandlordNotifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { isSubscribed, subscribeToPush } = usePWA();
 
   useEffect(() => {
     fetchNotifications();
@@ -33,12 +35,24 @@ const LandlordNotifications = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-2.5">
           <h2 className="text-xl lg:text-2xl font-black text-slate-900">Notifications Feed</h2>
           <span className="bg-slate-200 text-slate-700 text-xs font-black px-2 py-0.5 rounded-full">
             {notifications.length} alerts
           </span>
+        </div>
+        <div>
+          <button
+            onClick={subscribeToPush}
+            className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-black transition active:scale-95 cursor-pointer shadow-sm
+              ${isSubscribed 
+                ? 'bg-green-600 hover:bg-green-700 text-white' 
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+              }`}
+          >
+            {isSubscribed ? 'Push Notifications Active' : 'Enable Push Notifications'}
+          </button>
         </div>
       </div>
 

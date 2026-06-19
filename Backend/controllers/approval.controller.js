@@ -47,7 +47,7 @@ const getPendingApprovals = async (req, res, next) => {
       `SELECT ta.*, u.username, u.full_name, u.email, u.phone_number, p.property_name, r.room_number
        FROM tenant_approvals ta
        JOIN users u ON ta.tenant_id = u.user_id
-       JOIN properties p ON ta.property_id = p.property_id
+       LEFT JOIN properties p ON ta.property_id = p.property_id
        LEFT JOIN rooms r ON p.property_id = r.property_id
        WHERE ta.landlord_id = $1 AND ta.status = 'pending'
        ORDER BY ta.created_at DESC`,
@@ -134,7 +134,7 @@ const getApprovedApprovals = async (req, res, next) => {
       `SELECT ta.*, u.username, u.full_name, u.email, u.phone_number, p.property_name
        FROM tenant_approvals ta
        JOIN users u ON ta.tenant_id = u.user_id
-       JOIN properties p ON ta.property_id = p.property_id
+       LEFT JOIN properties p ON ta.property_id = p.property_id
        WHERE ta.landlord_id = $1 AND ta.status = 'approved'
        ORDER BY ta.approved_at DESC`,
       [landlord_id]

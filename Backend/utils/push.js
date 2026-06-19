@@ -8,7 +8,7 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 );
 
-const sendPushNotification = async (userId, title, body, url = null) => {
+const sendPushNotification = async (userId, title, body, url = '/') => {
   try {
     const result = await pool.query(
       'SELECT * FROM pwa_subscriptions WHERE user_id = $1 AND is_active = 1',
@@ -18,40 +18,37 @@ const sendPushNotification = async (userId, title, body, url = null) => {
     const subscriptions = result.rows;
 
     if (!subscriptions || subscriptions.length === 0) {
-      return { success: true, message: 'No active subscriptions' };
+      console.log('[PUSH] No active subscriptions for user', userId);
+      return;
     }
 
-    const notificationPayload = {
-      title: title,
-      body: body,
-      icon: '/icon-192x192.png',
-      badge: '/badge-72x72.png',
-      data: url ? { url: url } : {},
-    };
+    for (const sub of subscriptions) {
+      const pushSubscription = {
+        endpoint: sub.endpoint,
+        keys: {
+          p256dh: sub.p256dh_key,
+          auth: sub.auth_key
+        }
+      };
 
-    const results = [];
-    for (const subscription of subscriptions) {
       try {
-        const pushSubscription = {
-          endpoint: subscription.endpoint,
-          keys: {
-            p256dh: subscription.p256dh_key,
-            auth: subscription.auth_key,
-          },
-        };
-
-        await webpush.sendNotification(pushSubscription, JSON.stringify(notificationPayload));
-        results.push({ success: true, endpoint: subscription.endpoint });
-      } catch (error) {
-        console.error(`Push notification error for subscription ${subscription.subscription_id}:`, error.message);
-        results.push({ success: false, endpoint: subscription.endpoint, error: error.message });
+        await webpush.sendNotification(
+          pushSubscription,
+          JSON.stringify({ title, body, url })
+        );
+      } catch (err) {
+        console.error('[PUSH FAILED] sub:', sub.subscription_id, err.message);
+        if (err.statusCode === 410) {
+          // subscription expired — deactivate it
+          await pool.query(
+            'UPDATE pwa_subscriptions SET is_active = 0 WHERE subscription_id = $1',
+            [sub.subscription_id]
+          );
+        }
       }
     }
-
-    return { success: true, results: results };
-  } catch (error) {
-    console.error('Error sending push notifications:', error.message);
-    return { success: false, error: error.message };
+  } catch (err) {
+    console.error('[PUSH ERROR]', err.message);
   }
 };
 

@@ -218,7 +218,9 @@ const Login = () => {
         login(token, user);
         toast.success('Welcome back!');
         
-        if (user.role === 'landlord' || user.role === 'admin') {
+        if (user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else if (user.role === 'landlord') {
           navigate('/landlord/dashboard');
         } else if (user.role === 'tenant') {
           navigate('/tenant/dashboard');
