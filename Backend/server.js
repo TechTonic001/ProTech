@@ -12,20 +12,10 @@ startNotificationCron();
 
 const app = express();
 
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:5173',
-  process.env.FRONTEND_URL,
-].filter(Boolean);
-
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (Postman, webhooks, server-to-server)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error('Not allowed by CORS'));
+    // Dynamic origin matching to support credentials and completely avoid CORS issues on deployments
+    callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -66,13 +56,11 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Not Found', message: `Route ${req.method} ${req.originalUrl} does not exist.` });
 });
 
-// Only listen when running locally (not on Vercel)
-if (process.env.VERCEL !== '1') {
-  const PORT = process.env.PORT || 5001;
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
-}
+// Port configuration set automatically by Vercel or defaulting to 5000
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
 // Export the Express app for Vercel's serverless runtime
 module.exports = app;

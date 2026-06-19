@@ -1,18 +1,47 @@
 // controllers/auth.controller.js
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const pool = require('../config/db');
-const { sendOTPEmail, sendPasswordChangedEmail } = require('../utils/email');
+const pool = require('../config/db'); // imports { query, pool }
+const { 
+  sendOTPEmail, 
+  sendPasswordChangedEmail,
+  sendLandlordWelcomeEmail,
+  sendTenantWelcomeEmail,
+  sendLandlordTenantRegistrationNotificationEmail
+} = require('../utils/email');
 
 const register = async (req, res, next) => {
   try {
-    const { username, full_name, email, phone_number, password, role, hostel_name, hostel_address } = req.body;
+    const { 
+      username, 
+      full_name, 
+      email, 
+      phone_number, 
+      password, 
+      role, 
+      hostel_name, 
+      hostel_address,
+      landlord_username 
+    } = req.body;
 
     if (!username || !full_name || !email || !phone_number || !password || !role) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    // Hostel validation — landlords only
+    // Email uniqueness check
+    const emailCheck = await pool.query('SELECT user_id FROM users WHERE email = $1', [email]);
+    if (emailCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'Email is already registered.' });
+    }
+
+    // Username uniqueness check
+    const usernameCheck = await pool.query('SELECT user_id FROM users WHERE username = $1', [username]);
+    if (usernameCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'Username is already taken.' });
+    }
+
+    // Role specific validation
+    let landlord = null;
     if (role === 'landlord') {
       if (!hostel_name || hostel_name.trim() === '') {
         return res.status(400).json({ error: 'Hostel name is required for landlords.' });
@@ -20,38 +49,84 @@ const register = async (req, res, next) => {
       if (!hostel_address || hostel_address.trim() === '') {
         return res.status(400).json({ error: 'Hostel address is required for landlords.' });
       }
-    }
-
-    // Check email uniqueness
-    const emailCheck = await pool.query('SELECT user_id FROM users WHERE email = $1', [email]);
-    if (emailCheck.rows.length > 0) {
-      return res.status(400).json({ error: 'Email is already registered.' });
-    }
-
-    // Check username uniqueness
-    const usernameCheck = await pool.query('SELECT user_id FROM users WHERE username = $1', [username]);
-    if (usernameCheck.rows.length > 0) {
-      return res.status(400).json({ error: 'Username is already taken.' });
+    } else if (role === 'tenant') {
+      if (!landlord_username || landlord_username.trim() === '') {
+        return res.status(400).json({ error: 'Landlord username is required for tenants.' });
+      }
+      const landlordClean = landlord_username.replace(/^@/, '').trim();
+      const landlordResult = await pool.query(
+        "SELECT user_id, email, full_name FROM users WHERE username = $1 AND role = 'landlord'",
+        [landlordClean]
+      );
+      if (landlordResult.rows.length === 0) {
+        return res.status(400).json({ error: 'Landlord not found. Check username.' });
+      }
+      landlord = landlordResult.rows[0];
     }
 
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
 
-    // Determine approval status based on role
+    // Approval status mapping
     const is_approved = role === 'landlord' ? 1 : 0;
 
-    // Insert user with hostel columns
+    // Create user
     const result = await pool.query(
       'INSERT INTO users (username, full_name, email, phone_number, password_hash, role, is_approved, hostel_name, hostel_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING user_id',
       [
-        username, full_name, email, phone_number, password_hash, role, is_approved,
-        role === 'landlord' ? hostel_name : null,
-        role === 'landlord' ? hostel_address : null,
+        username.trim(),
+        full_name.trim(),
+        email.trim(),
+        phone_number.trim(),
+        password_hash,
+        role,
+        is_approved,
+        role === 'landlord' ? hostel_name.trim() : null,
+        role === 'landlord' ? hostel_address.trim() : null,
       ]
     );
 
     const user_id = result.rows[0].user_id;
+
+    if (role === 'landlord') {
+      // Create properties entry for landlord's primary hostel
+      const propResult = await pool.query(
+        'INSERT INTO properties (landlord_id, property_name, property_address) VALUES ($1, $2, $3) RETURNING property_id',
+        [user_id, hostel_name.trim(), hostel_address.trim()]
+      );
+
+      // Send Landlord Welcome email
+      try {
+        await sendLandlordWelcomeEmail(email, full_name, hostel_name);
+      } catch (err) {
+        console.error('[ERROR] Failed to send landlord welcome email:', err.message);
+      }
+    } else if (role === 'tenant' && landlord) {
+      // Find landlord's primary property
+      const propertyResult = await pool.query(
+        'SELECT property_id FROM properties WHERE landlord_id = $1 ORDER BY created_at ASC LIMIT 1',
+        [landlord.user_id]
+      );
+      
+      const property_id = propertyResult.rows.length > 0 ? propertyResult.rows[0].property_id : null;
+
+      if (property_id) {
+        // Create pending registration approval log
+        await pool.query(
+          'INSERT INTO tenant_approvals (tenant_id, landlord_id, property_id, status) VALUES ($1, $2, $3, $4)',
+          [user_id, landlord.user_id, property_id, 'pending']
+        );
+      }
+
+      // Send Tenant Welcome and Landlord Notification emails
+      try {
+        await sendTenantWelcomeEmail(email, full_name, landlord_username);
+        await sendLandlordTenantRegistrationNotificationEmail(landlord.email, landlord.full_name, full_name);
+      } catch (err) {
+        console.error('[ERROR] Failed to send tenant welcome/notification emails:', err.message);
+      }
+    }
 
     if (is_approved === 0) {
       return res.status(201).json({
@@ -72,6 +147,7 @@ const register = async (req, res, next) => {
       },
     });
   } catch (error) {
+    console.error('[ERROR] Registration error:', error.message);
     next(error);
   }
 };
@@ -95,7 +171,7 @@ const login = async (req, res, next) => {
 
     const user = result.rows[0];
 
-    // If tenant is not approved, return 403 with clear message
+    // Check tenant approval
     if (user.role === 'tenant' && !user.is_approved) {
       return res.status(403).json({ error: 'Your account is pending landlord approval. Check your email.' });
     }
@@ -126,6 +202,7 @@ const login = async (req, res, next) => {
       },
     });
   } catch (error) {
+    console.error('[ERROR] Login error:', error.message);
     next(error);
   }
 };
@@ -144,6 +221,7 @@ const profile = async (req, res, next) => {
 
     return res.status(200).json({ user: result.rows[0] });
   } catch (error) {
+    console.error('[ERROR] Fetch profile error:', error.message);
     next(error);
   }
 };
@@ -204,6 +282,7 @@ const updateProfile = async (req, res, next) => {
 
     return res.status(200).json({ message: 'Profile updated successfully', user: updatedResult.rows[0] });
   } catch (error) {
+    console.error('[ERROR] Update profile error:', error.message);
     next(error);
   }
 };
@@ -239,6 +318,7 @@ const forgotPassword = async (req, res, next) => {
       message: 'OTP sent to your registered email address',
     });
   } catch (error) {
+    console.error('[ERROR] Forgot password error:', error.message);
     next(error);
   }
 };
@@ -289,6 +369,7 @@ const resetPassword = async (req, res, next) => {
       message: 'Password reset successful',
     });
   } catch (error) {
+    console.error('[ERROR] Reset password error:', error.message);
     next(error);
   }
 };

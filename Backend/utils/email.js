@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const emailFooter = 'ProTech Automated Rent System  Ogbomoso, Oyo State, Nigeria';
+const emailFooter = 'ProTech Automated Rent System • Ogbomoso, Oyo State, Nigeria';
 
 const sendOTPEmail = async (toEmail, otpCode) => {
   const htmlContent = `
@@ -38,13 +38,13 @@ const sendOTPEmail = async (toEmail, otpCode) => {
     await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to: toEmail,
-      subject: 'ProTech Your Password Reset Code',
+      subject: 'ProTech • Your Password Reset Code',
       html: htmlContent,
       text: textContent,
     });
     return { success: true };
   } catch (error) {
-    console.error('OTP email error:', error.message);
+    console.error('[ERROR] OTP email error:', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -72,21 +72,21 @@ const sendPasswordChangedEmail = async (toEmail, fullName) => {
     await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to: toEmail,
-      subject: 'ProTech Password Changed Successfully',
+      subject: 'ProTech • Password Changed Successfully',
       html: htmlContent,
       text: textContent,
     });
     return { success: true };
   } catch (error) {
-    console.error('Password change email error:', error.message);
+    console.error('[ERROR] Password change email error:', error.message);
     return { success: false, error: error.message };
   }
 };
 
 const sendApprovalEmail = async (toEmail, fullName, approved, propertyName) => {
   const subject = approved
-    ? 'ProTech  Your Account Has Been Approved'
-    : 'ProTech  Your Account Request Was Not Approved';
+    ? 'ProTech • Your Account Has Been Approved'
+    : 'ProTech • Your Account Request Was Not Approved';
 
   const statusMessage = approved
     ? `Your account has been approved by the landlord of ${propertyName}. You can now log in and view your lease details.`
@@ -125,7 +125,7 @@ const sendApprovalEmail = async (toEmail, fullName, approved, propertyName) => {
     });
     return { success: true };
   } catch (error) {
-    console.error('Approval email error:', error.message);
+    console.error('[ERROR] Approval email error:', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -185,7 +185,7 @@ const sendRentReminderEmail = async (
     });
     return { success: true };
   } catch (error) {
-    console.error('Rent reminder email error:', error.message);
+    console.error('[ERROR] Rent reminder email error:', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -233,7 +233,7 @@ const sendPaymentConfirmationEmail = async (
     });
     return { success: true };
   } catch (error) {
-    console.error('Payment confirmation email error:', error.message);
+    console.error('[ERROR] Payment confirmation email error:', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -268,7 +268,109 @@ const sendAnnouncementEmail = async (toEmail, tenantName, title, messageBody) =>
     });
     return { success: true };
   } catch (error) {
-    console.error('Announcement email error:', error.message);
+    console.error('[ERROR] Announcement email error:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+const sendLandlordWelcomeEmail = async (toEmail, landlordName, hostelName) => {
+  const htmlContent = `
+    <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">
+        <div style="max-width: 600px; background-color: white; margin: 0 auto; padding: 30px; border-radius: 8px;">
+          <h2 style="color: #1a7f7e; text-align: center;">Welcome to ProTech, ${landlordName}!</h2>
+          <p style="color: #666;">Thank you for registering as a landlord on ProTech.</p>
+          <p style="color: #666;">We have set up your hostel space: <strong>${hostelName}</strong>. You can now configure bank details, manage rooms, broadcast announcements, and approve your tenant requests.</p>
+          <div style="text-align: center; margin: 25px 0;">
+            <a href="${process.env.FRONTEND_URL}/login" style="background-color: #1a7f7e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block;">Go to Landlord Portal</a>
+          </div>
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+          <p style="color: #999; font-size: 12px; text-align: center;">${emailFooter}</p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const textContent = `Hello ${landlordName},\n\nWelcome to ProTech! Your landlord account and hostel "${hostelName}" have been set up successfully.\n\n${emailFooter}`;
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: toEmail,
+      subject: 'Welcome to ProTech • Landlord Space Configured',
+      html: htmlContent,
+      text: textContent,
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('[ERROR] Landlord welcome email error:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+const sendTenantWelcomeEmail = async (toEmail, tenantName, landlordName) => {
+  const htmlContent = `
+    <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">
+        <div style="max-width: 600px; background-color: white; margin: 0 auto; padding: 30px; border-radius: 8px;">
+          <h2 style="color: #1a7f7e; text-align: center;">Welcome to ProTech, ${tenantName}!</h2>
+          <p style="color: #666;">Your tenant account has been registered successfully.</p>
+          <p style="color: #666;">Your approval request has been forwarded to your landlord <strong>@${landlordName}</strong>. Once approved, you will be assigned to a room and can start paying rent online securely.</p>
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+          <p style="color: #999; font-size: 12px; text-align: center;">${emailFooter}</p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const textContent = `Hello ${tenantName},\n\nWelcome to ProTech! Your account has been created and is currently awaiting approval from landlord @${landlordName}.\n\n${emailFooter}`;
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: toEmail,
+      subject: 'Welcome to ProTech • Account Awaiting Approval',
+      html: htmlContent,
+      text: textContent,
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('[ERROR] Tenant welcome email error:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+const sendLandlordTenantRegistrationNotificationEmail = async (toEmail, landlordName, tenantName) => {
+  const htmlContent = `
+    <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">
+        <div style="max-width: 600px; background-color: white; margin: 0 auto; padding: 30px; border-radius: 8px;">
+          <h2 style="color: #1a7f7e; text-align: center;">New Tenant Awaiting Approval</h2>
+          <p style="color: #666;">Hello ${landlordName},</p>
+          <p style="color: #666;">A new tenant, <strong>${tenantName}</strong>, has registered on ProTech under your landlord space and is awaiting your approval.</p>
+          <div style="text-align: center; margin: 25px 0;">
+            <a href="${process.env.FRONTEND_URL}/login" style="background-color: #1a7f7e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block;">Approve Requests</a>
+          </div>
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+          <p style="color: #999; font-size: 12px; text-align: center;">${emailFooter}</p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const textContent = `Hello ${landlordName},\n\nNew Tenant Registration: ${tenantName} has registered under your space and is awaiting approval.\n\n${emailFooter}`;
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: toEmail,
+      subject: 'ProTech Alert • New Tenant Requesting Approval',
+      html: htmlContent,
+      text: textContent,
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('[ERROR] Landlord tenant registration notification email error:', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -280,4 +382,7 @@ module.exports = {
   sendRentReminderEmail,
   sendPaymentConfirmationEmail,
   sendAnnouncementEmail,
+  sendLandlordWelcomeEmail,
+  sendTenantWelcomeEmail,
+  sendLandlordTenantRegistrationNotificationEmail,
 };
