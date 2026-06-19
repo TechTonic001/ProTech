@@ -109,12 +109,9 @@ const register = async (req, res, next) => {
         [user_id, hostel_name.trim(), hostel_address.trim()]
       );
 
-      // Send Landlord Welcome email
-      try {
-        await sendLandlordWelcomeEmail(email, full_name, hostel_name, dbLandlordCode);
-      } catch (err) {
-        console.error('[ERROR] Failed to send landlord welcome email:', err.message);
-      }
+      // Send Landlord Welcome email in background
+      sendLandlordWelcomeEmail(email, full_name, hostel_name, dbLandlordCode)
+        .catch(err => console.error('[ERROR] Failed to send landlord welcome email:', err.message));
     } else if (role === 'tenant' && landlord) {
       // Find landlord's primary property
       const propertyResult = await pool.query(
@@ -135,13 +132,11 @@ const register = async (req, res, next) => {
         console.error('[APPROVAL INSERT FAILED]', err.message);
       }
 
-      // Send Tenant Welcome and Landlord Notification emails
-      try {
-        await sendTenantWelcomeEmail(email, full_name, landlord.username);
-        await sendLandlordTenantRegistrationNotificationEmail(landlord.email, landlord.full_name, full_name);
-      } catch (err) {
-        console.error('[ERROR] Failed to send tenant welcome/notification emails:', err.message);
-      }
+      // Send Tenant Welcome and Landlord Notification emails in background
+      sendTenantWelcomeEmail(email, full_name, landlord.username)
+        .catch(err => console.error('[ERROR] Failed to send tenant welcome email:', err.message));
+      sendLandlordTenantRegistrationNotificationEmail(landlord.email, landlord.full_name, full_name)
+        .catch(err => console.error('[ERROR] Failed to send landlord notification email:', err.message));
     }
 
     if (is_approved === 0) {
@@ -329,8 +324,9 @@ const forgotPassword = async (req, res, next) => {
       [email, otpCode, 0, expiresAt]
     );
 
-    // Send OTP email
-    await sendOTPEmail(email, otpCode);
+    // Send OTP email in background
+    sendOTPEmail(email, otpCode)
+      .catch(err => console.error('[ERROR] Failed to send OTP email:', err.message));
 
     return res.status(200).json({
       message: 'OTP sent to your registered email address',
@@ -377,10 +373,11 @@ const resetPassword = async (req, res, next) => {
       otpRecord.reset_id,
     ]);
 
-    // Send confirmation email
+    // Send confirmation email in background
     const userResult = await pool.query('SELECT full_name FROM users WHERE email = $1', [email]);
     if (userResult.rows.length > 0) {
-      await sendPasswordChangedEmail(email, userResult.rows[0].full_name);
+      sendPasswordChangedEmail(email, userResult.rows[0].full_name)
+        .catch(err => console.error('[ERROR] Failed to send password changed email:', err.message));
     }
 
     return res.status(200).json({

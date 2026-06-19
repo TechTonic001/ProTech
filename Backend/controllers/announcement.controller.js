@@ -41,28 +41,24 @@ const createAnnouncement = async (req, res, next) => {
 
     const tenants = tenantsResult.rows;
 
-    // Send email and push notifications
-    let tenants_reached = 0;
-    for (const tenant of tenants) {
-      try {
-        await sendAnnouncementEmail(tenant.email, tenant.full_name, title, message_body);
-        await sendPushNotification(
-          tenant.user_id,
-          'New Announcement',
-          title,
-          `${process.env.FRONTEND_URL}/announcements`
-        );
-        tenants_reached++;
-      } catch (error) {
-        console.error(`Error notifying tenant ${tenant.user_id}:`, error.message);
-      }
-    }
+    // Send email and push notifications in the background
+    tenants.forEach((tenant) => {
+      sendAnnouncementEmail(tenant.email, tenant.full_name, title, message_body)
+        .catch((emailError) => console.error(`Error sending email for lease tenant ${tenant.user_id}:`, emailError.message));
+
+      sendPushNotification(
+        tenant.user_id,
+        'New Announcement',
+        title,
+        `${process.env.FRONTEND_URL}/announcements`
+      ).catch((pushError) => console.error(`Error sending push for tenant ${tenant.user_id}:`, pushError.message));
+    });
 
     return res.status(201).json({
       message: 'Announcement created and sent',
       data: {
         announcement_id,
-        tenants_reached,
+        tenants_reached: tenants.length,
       },
     });
   } catch (error) {

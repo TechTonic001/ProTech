@@ -9,6 +9,9 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  pool: true,           // reuse SMTP connections
+  maxConnections: 3,
+  maxMessages: 100,
   tls: {
     rejectUnauthorized: false
   }

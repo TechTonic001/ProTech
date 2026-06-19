@@ -12,28 +12,21 @@ import {
   Plus, 
   Calendar, 
   Clock, 
-  User, 
   Tag, 
   Building2, 
   Loader2,
   Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const Rooms = () => {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const initialPropertyId = queryParams.get('property_id');
 
-  const [properties, setProperties] = useState([]);
   const [activePropertyId, setActivePropertyId] = useState(initialPropertyId || '');
-  const [rooms, setRooms] = useState([]);
-  const [leases, setLeases] = useState([]);
-  const [approvedTenants, setApprovedTenants] = useState([]);
   
-  const [loading, setLoading] = useState(true);
-  const [roomsLoading, setRoomsLoading] = useState(false);
-
   // Modal states
   const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
   const [isLeaseModalOpen, setIsLeaseModalOpen] = useState(false);
@@ -57,129 +50,142 @@ const Rooms = () => {
     due_day: 5,
   });
 
-  const [submitLoading, setSubmitLoading] = useState(false);
   const [formError, setFormError] = useState('');
 
+  const queryClient = useQueryClient();
+
+  // Load properties list
+  const { data: properties = [], isLoading: loading } = useQuery({
+    queryKey: ['properties'],
+    queryFn: () => propertyAPI.getAll().then(res => res.data.data || [])
+  });
+
+  // Auto-select first property once properties finish loading
   useEffect(() => {
-    loadInitialData();
-  }, []);
-
-  useEffect(() => {
-    if (activePropertyId) {
-      fetchRooms(activePropertyId);
-    } else {
-      setRooms([]);
+    if (properties.length > 0 && !activePropertyId) {
+      const activeId = initialPropertyId && properties.some(p => String(p.property_id) === String(initialPropertyId))
+        ? initialPropertyId 
+        : properties[0].property_id;
+      setActivePropertyId(activeId);
     }
-  }, [activePropertyId]);
+  }, [properties, activePropertyId, initialPropertyId]);
 
-  const loadInitialData = async () => {
-    try {
-      setLoading(true);
-      const propRes = await propertyAPI.getAll();
-      const propList = propRes.data.data || [];
-      setProperties(propList);
-      
-      if (propList.length > 0) {
-        // Use initial query param or first property
-        const activeId = initialPropertyId && propList.some(p => String(p.property_id) === String(initialPropertyId))
-          ? initialPropertyId 
-          : propList[0].property_id;
-        setActivePropertyId(activeId);
-      }
-    } catch (err) {
-      toast.error(err.message || 'Failed to load hostels');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchRooms = async (propertyId) => {
-    try {
-      setRoomsLoading(true);
-      const [roomRes, leaseRes, tenantRes] = await Promise.all([
-        roomAPI.getAll(propertyId),
+  // Load rooms data: rooms, active leases, and approved tenants
+  const { data: roomsData = { rooms: [], leases: [], approvedTenants: [] }, isLoading: roomsLoading } = useQuery({
+    queryKey: ['roomsData', activePropertyId],
+    queryFn: async () => {
+      if (!activePropertyId) return { rooms: [], leases: [], approvedTenants: [] };
+      const [roomRes, leaseRes, approvedRes] = await Promise.all([
+        roomAPI.getAll(activePropertyId),
         leaseAPI.getAll(),
-        approvalAPI.getPending() // Fetch approvals or rather approved tenants
+        approvalAPI.getApproved ? approvalAPI.getApproved() : approvalAPI.getPending()
       ]);
+      return {
+        rooms: roomRes.data.data || [],
+        leases: leaseRes.data.data || [],
+        approvedTenants: approvedRes.data.data || []
+      };
+    },
+    enabled: !!activePropertyId
+  });
 
-      setRooms(roomRes.data.data || []);
-      setLeases(leaseRes.data.data || []);
-      
-      // Load approved tenants who don't have leases yet
-      try {
-        const approvedRes = await approvalAPI.getPending(); // Fallback to approved endpoint we added
-        // Wait, inside api.js we have: getApproved: () => api.get('/approval/approved')
-        // Let's call the approved endpoint:
-        const approvedResReal = await approvalAPI.getPending(); // Default safe list
-        // Let's try to query approvalAPI.getApproved we added:
-        const approvedResTrue = await approvalAPI.getApproved ? await approvalAPI.getApproved() : approvedResReal;
-        setApprovedTenants(approvedResTrue.data.data || []);
-      } catch (err) {
-        setApprovedTenants([]);
-      }
+  const rooms = roomsData.rooms;
+  const leases = roomsData.leases;
+  const approvedTenants = roomsData.approvedTenants;
 
-    } catch (err) {
-      toast.error(err.message || 'Failed to load rooms');
-    } finally {
-      setRoomsLoading(false);
+  // Add Room Mutation with Optimistic UI updates
+  const addRoomMutation = useMutation({
+    mutationFn: (newRoom) => roomAPI.create(newRoom),
+    onMutate: async (newRoom) => {
+      await queryClient.cancelQueries({ queryKey: ['roomsData', activePropertyId] });
+      const previousRoomsData = queryClient.getQueryData(['roomsData', activePropertyId]);
+
+      const tempRoom = {
+        room_id: `temp-${Date.now()}`,
+        ...newRoom,
+        is_occupied: 0,
+        isOptimistic: true
+      };
+
+      queryClient.setQueryData(['roomsData', activePropertyId], (old) => {
+        if (!old) return { rooms: [tempRoom], leases: [], approvedTenants: [] };
+        return {
+          ...old,
+          rooms: [...old.rooms, tempRoom]
+        };
+      });
+
+      return { previousRoomsData };
+    },
+    onError: (err, newRoom, context) => {
+      queryClient.setQueryData(['roomsData', activePropertyId], context.previousRoomsData);
+      setFormError(err.message || 'Failed to create room');
+    },
+    onSuccess: () => {
+      toast.success('Room created successfully');
+      setIsRoomModalOpen(false);
+      setRoomForm({ room_number: '', room_type: 'Single', monthly_rent: '' });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['roomsData', activePropertyId] });
     }
-  };
+  });
 
-  // Add Room submits
-  const handleRoomSubmit = async (e) => {
+  // Assign Tenant Mutation
+  const assignTenantMutation = useMutation({
+    mutationFn: (newLease) => leaseAPI.create(newLease),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roomsData', activePropertyId] });
+      toast.success('Tenant assigned and lease created!');
+      setIsLeaseModalOpen(false);
+    },
+    onError: (err) => {
+      setFormError(err.message || 'Failed to assign tenant');
+    }
+  });
+
+  // Delete Room Mutation
+  const deleteRoomMutation = useMutation({
+    mutationFn: (roomId) => roomAPI.delete(roomId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roomsData', activePropertyId] });
+      toast.success('Room deleted successfully');
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to delete room');
+    }
+  });
+
+  const handleRoomSubmit = (e) => {
     e.preventDefault();
     if (!roomForm.room_number || !roomForm.monthly_rent) {
       setFormError('Room Number and Rent are required');
       return;
     }
-
     setFormError('');
-    setSubmitLoading(true);
-    try {
-      await roomAPI.create({
-        property_id: activePropertyId,
-        room_number: roomForm.room_number,
-        room_type: roomForm.room_type,
-        monthly_rent: Number(roomForm.monthly_rent),
-      });
-      toast.success('Room created successfully');
-      setIsRoomModalOpen(false);
-      setRoomForm({ room_number: '', room_type: 'Single', monthly_rent: '' });
-      fetchRooms(activePropertyId);
-    } catch (err) {
-      setFormError(err.message || 'Failed to create room');
-    } finally {
-      setSubmitLoading(false);
-    }
+    addRoomMutation.mutate({
+      property_id: activePropertyId,
+      room_number: roomForm.room_number,
+      room_type: roomForm.room_type,
+      monthly_rent: Number(roomForm.monthly_rent),
+    });
   };
 
-  // Assign Tenant submits
-  const handleLeaseSubmit = async (e) => {
+  const handleLeaseSubmit = (e) => {
     e.preventDefault();
     if (!leaseForm.tenant_id || !leaseForm.start_date || !leaseForm.end_date || !leaseForm.rent_amount) {
       setFormError('All fields are required');
       return;
     }
-
     setFormError('');
-    setSubmitLoading(true);
-    try {
-      await leaseAPI.create({
-        tenant_id: leaseForm.tenant_id,
-        room_id: selectedRoom.room_id,
-        start_date: leaseForm.start_date,
-        end_date: leaseForm.end_date,
-        rent_amount: Number(leaseForm.rent_amount),
-        due_day: Number(leaseForm.due_day),
-      });
-      toast.success('Tenant assigned and lease created!');
-      setIsLeaseModalOpen(false);
-      fetchRooms(activePropertyId);
-    } catch (err) {
-      setFormError(err.message || 'Failed to assign tenant');
-    } finally {
-      setSubmitLoading(false);
-    }
+    assignTenantMutation.mutate({
+      tenant_id: leaseForm.tenant_id,
+      room_id: selectedRoom.room_id,
+      start_date: leaseForm.start_date,
+      end_date: leaseForm.end_date,
+      rent_amount: Number(leaseForm.rent_amount),
+      due_day: Number(leaseForm.due_day),
+    });
   };
 
   const openAssignModal = (room) => {
@@ -195,17 +201,11 @@ const Rooms = () => {
     setIsLeaseModalOpen(true);
   };
 
-  const handleDeleteRoom = async (roomId) => {
+  const handleDeleteRoom = (roomId) => {
     if (!window.confirm('Are you sure you want to delete this room? This cannot be undone.')) {
       return;
     }
-    try {
-      await roomAPI.delete(roomId);
-      toast.success('Room deleted successfully');
-      fetchRooms(activePropertyId);
-    } catch (err) {
-      toast.error(err.message || 'Failed to delete room');
-    }
+    deleteRoomMutation.mutate(roomId);
   };
 
   const getRoomLease = (roomId) => {
@@ -218,7 +218,6 @@ const Rooms = () => {
     const dueDay = leaseItem.due_day || 5;
     const due = new Date(now.getFullYear(), now.getMonth(), dueDay);
     
-    // If due day passed in current month, set due to next month
     if (now.getDate() > dueDay) {
       due.setMonth(due.getMonth() + 1);
     }
@@ -266,7 +265,7 @@ const Rooms = () => {
           icon={Building2}
           title="No hostels registered"
           message="You need to create a property before adding rooms."
-          actionText="Add Property"
+          actionText="Add Hostel"
           onActionClick={() => navigate('/landlord/properties')}
         />
       ) : (
@@ -375,7 +374,7 @@ const Rooms = () => {
                       {!isOccupied ? (
                         <button
                           onClick={() => openAssignModal(room)}
-                          className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition"
+                          className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition animate-pulse-once"
                         >
                           Assign Tenant
                         </button>
@@ -407,7 +406,7 @@ const Rooms = () => {
       <Modal isOpen={isRoomModalOpen} onClose={() => setIsRoomModalOpen(false)} title="Add New Room">
         <form onSubmit={handleRoomSubmit} className="p-6 space-y-4">
           {formError && (
-            <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-xl p-3">
+            <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-xl p-3 animate-slide-down">
               {formError}
             </p>
           )}
@@ -456,10 +455,10 @@ const Rooms = () => {
 
           <button
             type="submit"
-            disabled={submitLoading}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition duration-150 flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-blue-500/25 active:scale-[0.98]"
+            disabled={addRoomMutation.isPending}
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition duration-150 flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-blue-500/25 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {submitLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Room'}
+            {addRoomMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Room'}
           </button>
         </form>
       </Modal>
@@ -468,7 +467,7 @@ const Rooms = () => {
       <Modal isOpen={isLeaseModalOpen} onClose={() => setIsLeaseModalOpen(false)} title={`Assign Tenant — Room ${selectedRoom?.room_number}`}>
         <form onSubmit={handleLeaseSubmit} className="p-6 space-y-4">
           {formError && (
-            <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-xl p-3">
+            <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-xl p-3 animate-slide-down">
               {formError}
             </p>
           )}
@@ -551,10 +550,10 @@ const Rooms = () => {
 
           <button
             type="submit"
-            disabled={submitLoading || !leaseForm.tenant_id}
+            disabled={assignTenantMutation.isPending || !leaseForm.tenant_id}
             className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition duration-150 flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-blue-500/25 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {submitLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Assign Tenant & Create Lease'}
+            {assignTenantMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Assign Tenant & Create Lease'}
           </button>
         </form>
       </Modal>

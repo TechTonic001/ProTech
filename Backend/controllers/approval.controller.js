@@ -107,14 +107,17 @@ const processApproval = async (req, res, next) => {
 
     const propertyName = propertiesResult.rows.length > 0 ? propertiesResult.rows[0].property_name : 'Your Property';
 
-    await sendApprovalEmail(approval.email, approval.full_name, status === 'approved', propertyName);
+    // Send approval email in background
+    sendApprovalEmail(approval.email, approval.full_name, status === 'approved', propertyName)
+      .catch((emailError) => console.error(`[ERROR] Failed to send approval email:`, emailError.message));
 
-    // Send push notification
+    // Send push notification in background
     const message =
       status === 'approved'
         ? 'Your account has been approved!'
         : 'Your account request was not approved.';
-    await sendPushNotification(approval.tenant_id, 'Account Status Update', message);
+    sendPushNotification(approval.tenant_id, 'Account Status Update', message)
+      .catch((pushError) => console.error(`[ERROR] Failed to send approval push:`, pushError.message));
 
     return res.status(200).json({
       message: 'Approval processed successfully',

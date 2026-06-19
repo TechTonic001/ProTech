@@ -1,4 +1,12 @@
 // server.js
+process.on('unhandledRejection', (reason) => {
+  console.error('[UNHANDLED REJECTION]', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[UNCAUGHT EXCEPTION]', err.message);
+});
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -54,6 +62,16 @@ app.get('/', (req, res) => res.status(200).json({ message: 'Welcome to the ProTe
 // Catch-all: any route not matched above gets a proper JSON 404
 app.use((req, res) => {
   res.status(404).json({ error: 'Not Found', message: `Route ${req.method} ${req.originalUrl} does not exist.` });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('[GLOBAL ERROR HANDLER]', err.message);
+  console.error(err.stack);
+  if (res.headersSent) return next(err);
+  return res.status(500).json({
+    error: 'Internal server error. Please try again.'
+  });
 });
 
 // Port configuration set automatically by Vercel or defaulting to 5000

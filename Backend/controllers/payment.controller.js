@@ -196,7 +196,7 @@ const paystackWebhook = async (req, res, next) => {
     );
 
     if (propertiesResult.rows.length > 0) {
-      await sendPaymentConfirmationEmail(
+      sendPaymentConfirmationEmail(
         lease.tenant_email,
         lease.tenant_name,
         amount / 100,
@@ -204,11 +204,12 @@ const paystackWebhook = async (req, res, next) => {
         propertiesResult.rows[0].room_number,
         propertiesResult.rows[0].property_name,
         new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })
-      );
+      ).catch((emailError) => console.error(`[ERROR] Failed to send payment confirmation email:`, emailError.message));
     }
 
-    // Send push notification
-    await sendPushNotification(tenant_id, 'Payment Confirmed', `Your rent payment of ₦${(amount / 100).toLocaleString('en-NG', { minimumFractionDigits: 2 })} has been confirmed.`);
+    // Send push notification in background
+    sendPushNotification(tenant_id, 'Payment Confirmed', `Your rent payment of ₦${(amount / 100).toLocaleString('en-NG', { minimumFractionDigits: 2 })} has been confirmed.`)
+      .catch((pushError) => console.error(`[ERROR] Failed to send payment push:`, pushError.message));
 
     return res.status(200).json({ message: 'Payment processed' });
   } catch (error) {
