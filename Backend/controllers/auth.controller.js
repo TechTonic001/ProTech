@@ -9,6 +9,7 @@ const {
   sendTenantWelcomeEmail,
   sendLandlordTenantRegistrationNotificationEmail
 } = require('../utils/email');
+const { generateUniqueLandlordCode } = require('../utils/generateCode');
 
 const register = async (req, res, next) => {
   try {
@@ -20,8 +21,7 @@ const register = async (req, res, next) => {
       password, 
       role, 
       hostel_name, 
-      hostel_address,
-      landlord_username 
+      hostel_address
     } = req.body;
 
     if (!username || !full_name || !email || !phone_number || !password || !role) {
@@ -42,6 +42,7 @@ const register = async (req, res, next) => {
 
     // Role specific validation
     let landlord = null;
+    let landlordCode = null;
     if (role === 'landlord') {
       if (!hostel_name || hostel_name.trim() === '') {
         return res.status(400).json({ error: 'Hostel name is required for landlords.' });
@@ -49,17 +50,27 @@ const register = async (req, res, next) => {
       if (!hostel_address || hostel_address.trim() === '') {
         return res.status(400).json({ error: 'Hostel address is required for landlords.' });
       }
+      landlordCode = await generateUniqueLandlordCode(pool);
     } else if (role === 'tenant') {
-      if (!landlord_username || landlord_username.trim() === '') {
-        return res.status(400).json({ error: 'Landlord username is required for tenants.' });
+      const { landlord_code } = req.body;
+      if (!landlord_code || landlord_code.trim() === '') {
+        return res.status(400).json({
+          error: "Please enter your landlord's unique code to register."
+        });
       }
-      const landlordClean = landlord_username.replace(/^@/, '').trim();
+
+      // Clean the code — uppercase, trim spaces
+      const cleanCode = landlord_code.trim().toUpperCase();
+
       const landlordResult = await pool.query(
-        "SELECT user_id, email, full_name FROM users WHERE username = $1 AND role = 'landlord'",
-        [landlordClean]
+        "SELECT user_id, email, full_name, hostel_name, username FROM users WHERE landlord_code = $1 AND role = 'landlord'",
+        [cleanCode]
       );
+
       if (landlordResult.rows.length === 0) {
-        return res.status(400).json({ error: 'Landlord not found. Check username.' });
+        return res.status(404).json({
+          error: 'Landlord code not found. Please check the code and try again.'
+        });
       }
       landlord = landlordResult.rows[0];
     }
@@ -73,7 +84,7 @@ const register = async (req, res, next) => {
 
     // Create user
     const result = await pool.query(
-      'INSERT INTO users (username, full_name, email, phone_number, password_hash, role, is_approved, hostel_name, hostel_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING user_id',
+      'INSERT INTO users (username, full_name, email, phone_number, password_hash, role, is_approved, hostel_name, hostel_address, landlord_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING user_id, landlord_code',
       [
         username.trim(),
         full_name.trim(),
@@ -84,10 +95,12 @@ const register = async (req, res, next) => {
         is_approved,
         role === 'landlord' ? hostel_name.trim() : null,
         role === 'landlord' ? hostel_address.trim() : null,
+        landlordCode
       ]
     );
 
     const user_id = result.rows[0].user_id;
+    const dbLandlordCode = result.rows[0].landlord_code;
 
     if (role === 'landlord') {
       // Create properties entry for landlord's primary hostel
@@ -98,7 +111,7 @@ const register = async (req, res, next) => {
 
       // Send Landlord Welcome email
       try {
-        await sendLandlordWelcomeEmail(email, full_name, hostel_name);
+        await sendLandlordWelcomeEmail(email, full_name, hostel_name, dbLandlordCode);
       } catch (err) {
         console.error('[ERROR] Failed to send landlord welcome email:', err.message);
       }
@@ -124,7 +137,7 @@ const register = async (req, res, next) => {
 
       // Send Tenant Welcome and Landlord Notification emails
       try {
-        await sendTenantWelcomeEmail(email, full_name, landlord_username);
+        await sendTenantWelcomeEmail(email, full_name, landlord.username);
         await sendLandlordTenantRegistrationNotificationEmail(landlord.email, landlord.full_name, full_name);
       } catch (err) {
         console.error('[ERROR] Failed to send tenant welcome/notification emails:', err.message);
@@ -135,6 +148,7 @@ const register = async (req, res, next) => {
       return res.status(201).json({
         message: 'Account created. Pending landlord approval.',
         data: { user_id, is_approved: 0, email },
+        landlord_hostel: landlord ? landlord.hostel_name : null
       });
     }
 
@@ -147,6 +161,7 @@ const register = async (req, res, next) => {
         role,
         is_approved,
         hostel_name: role === 'landlord' ? hostel_name : null,
+        landlord_code: dbLandlordCode
       },
     });
   } catch (error) {
@@ -216,7 +231,7 @@ const profile = async (req, res, next) => {
     if (!userId) return res.status(400).json({ error: 'Unable to resolve user' });
 
     const result = await pool.query(
-      'SELECT user_id, username, full_name, email, phone_number, role, is_approved, hostel_name, hostel_address FROM users WHERE user_id = $1',
+      'SELECT user_id, username, full_name, email, phone_number, role, is_approved, hostel_name, hostel_address, landlord_code FROM users WHERE user_id = $1',
       [userId]
     );
 
@@ -279,7 +294,7 @@ const updateProfile = async (req, res, next) => {
 
     // Return updated user
     const updatedResult = await pool.query(
-      'SELECT user_id, username, full_name, email, phone_number, role, is_approved, hostel_name, hostel_address FROM users WHERE user_id = $1',
+      'SELECT user_id, username, full_name, email, phone_number, role, is_approved, hostel_name, hostel_address, landlord_code FROM users WHERE user_id = $1',
       [userId]
     );
 

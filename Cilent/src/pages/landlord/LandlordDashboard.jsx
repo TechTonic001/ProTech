@@ -16,8 +16,10 @@ import {
   DoorOpen,
   UserCheck,
   CreditCard,
-  Plus
+  Plus,
+  Copy
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { 
   BarChart, 
   Bar, 
@@ -187,6 +189,37 @@ const LandlordDashboard = () => {
             <div className="flex justify-between"><div className="w-3 h-3 bg-white/40 rounded-xs" /><div className="w-3 h-3 bg-white/40 rounded-xs" /></div>
           </div>
         </div>
+      </div>
+
+      {/* Unique Landlord Code Card */}
+      <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 mb-6 flex items-center justify-between shadow-xs">
+        <div>
+          <p className="text-xs font-bold text-amber-700 uppercase tracking-wider">
+            Your Unique Landlord Code
+          </p>
+          <p className="text-3xl font-black text-slate-900 font-mono mt-1 tracking-wider">
+            {user?.landlord_code || 'PT-XXXXXX'}
+          </p>
+          <p className="text-xs text-amber-600 mt-1">
+            Share this code with tenants — they need it to register
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            if (user?.landlord_code) {
+              navigator.clipboard.writeText(user.landlord_code);
+              toast.success('Code copied to clipboard!');
+            } else {
+              toast.error('No landlord code found');
+            }
+          }}
+          className="bg-amber-500 hover:bg-amber-600 text-white
+                     px-4 py-2 rounded-xl font-semibold text-sm
+                     flex items-center gap-2 transition"
+        >
+          <Copy className="w-4 h-4" />
+          Copy Code
+        </button>
       </div>
 
       {/* Quick Actions */}
@@ -365,7 +398,7 @@ const LandlordDashboard = () => {
           <div className="space-y-4 text-xs leading-relaxed text-slate-500 font-medium">
             <div className="p-3.5 bg-blue-50/50 border border-blue-100/50 rounded-xl">
               <h4 className="font-bold text-blue-800 text-[11px] uppercase tracking-wider mb-1">💡 Pro-tip: Tenant Onboarding</h4>
-              Provide your username <span className="font-mono bg-blue-100 px-1 py-0.5 rounded text-blue-700 font-bold">@{user?.username}</span> to your tenants. Once they submit their registration, review and approve them inside the approvals tab.
+              Provide your unique landlord code <span className="font-mono bg-blue-100 px-1 py-0.5 rounded text-blue-700 font-bold">{user?.landlord_code || 'PT-XXXXXX'}</span> to your tenants. Once they submit their registration, review and approve them inside the approvals tab.
             </div>
             <div className="p-3.5 bg-green-50/50 border border-green-100/50 rounded-xl">
               <h4 className="font-bold text-green-800 text-[11px] uppercase tracking-wider mb-1">💳 Paystack Bank Settlement</h4>

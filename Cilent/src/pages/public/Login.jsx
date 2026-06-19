@@ -22,7 +22,8 @@ import {
   Star,
   UserPlus,
   CheckCircle2,
-  Info
+  Info,
+  KeyRound
 } from 'lucide-react';
 
 const initialSignIn = {
@@ -40,7 +41,7 @@ const initialRegister = {
   role: '',
   hostel_name: '',
   hostel_address: '',
-  landlord_username: '',
+  landlord_code: '',
 };
 
 const Login = () => {
@@ -186,8 +187,10 @@ const Login = () => {
     }
 
     if (register.role === 'tenant') {
-      if (!register.landlord_username || !register.landlord_username.trim()) {
-        nextErrors.landlord_username = 'Landlord username is required';
+      if (!register.landlord_code || !register.landlord_code.trim()) {
+        nextErrors.landlord_code = "Please enter your landlord's unique code to register.";
+      } else if (!/^PT-[A-Z0-9]{6}$/i.test(register.landlord_code)) {
+        nextErrors.landlord_code = 'Code must match PT-XXXXXX format';
       }
     }
 
@@ -267,10 +270,10 @@ const Login = () => {
         payload.hostel_name = register.hostel_name;
         payload.hostel_address = register.hostel_address;
       } else if (register.role === 'tenant') {
-        payload.landlord_username = register.landlord_username;
+        payload.landlord_code = register.landlord_code;
       }
 
-      await api.post('/auth/register', payload);
+      const response = await api.post('/auth/register', payload);
 
       if (register.role === 'landlord') {
         toast.success('Account created! Please sign in.');
@@ -280,7 +283,7 @@ const Login = () => {
       } else {
         // Success state for tenant
         setSuccessTenantInfo({
-          landlord_username: register.landlord_username.replace(/^@/, ''),
+          landlord_hostel: response.data.landlord_hostel || 'your landlord',
           email: register.email,
         });
         setRegister(initialRegister);
@@ -293,8 +296,8 @@ const Login = () => {
         setErrors({ email: 'Email already registered' });
       } else if (lowerMessage.includes('username is already taken') || lowerMessage.includes('username already') || lowerMessage.includes('username taken')) {
         setErrors({ username: 'Username already taken' });
-      } else if (lowerMessage.includes('landlord not found') || lowerMessage.includes('landlord_username') || lowerMessage.includes('check username')) {
-        setErrors({ landlord_username: 'Landlord not found. Check username.' });
+      } else if (lowerMessage.includes('landlord not found') || lowerMessage.includes('landlord code not found') || lowerMessage.includes('landlord_code') || lowerMessage.includes('landlord code')) {
+        setErrors({ landlord_code: 'This code was not found. Double-check with your landlord.' });
       } else {
         toast.error('Registration failed. Try again.');
       }
@@ -462,7 +465,7 @@ const Login = () => {
               </div>
               <h2 className="text-2xl font-bold text-slate-900 mt-4">Account Created!</h2>
               <p className="text-slate-600 mt-2 text-sm">
-                Request sent to <span className="font-semibold">@{successTenantInfo.landlord_username}</span>
+                Request sent to the landlord of <span className="font-semibold">{successTenantInfo.landlord_hostel}</span>
               </p>
               <p className="text-slate-500 text-sm mt-1">
                 Check your email at <span className="font-medium text-slate-700">{successTenantInfo.email}</span>
@@ -748,34 +751,45 @@ const Login = () => {
                     {/* Role Specific Fields */}
                     {register.role && (
                       <div className="space-y-4 animate-slide-down">
-                        {/* Landlord Username (TENANT ONLY) */}
+                        {/* Landlord Unique Code (TENANT ONLY) */}
                         {register.role === 'tenant' && (
                           <div>
                             <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                              Landlord's ProTech Username
+                              Landlord's Unique Code
                             </label>
                             <div className="relative">
                               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                                <AtSign className="w-4 h-4" />
+                                <KeyRound className="w-4 h-4" />
                               </span>
                               <input
                                 type="text"
-                                name="landlord_username"
-                                value={register.landlord_username}
-                                onChange={handleRegisterChange}
-                                placeholder="@landlord_username"
+                                name="landlord_code"
+                                value={register.landlord_code}
+                                onChange={(e) => {
+                                  const val = e.target.value.toUpperCase();
+                                  setRegister((prev) => ({ ...prev, landlord_code: val }));
+                                  if (errors.landlord_code) {
+                                    setErrors((prev) => ({ ...prev, landlord_code: '' }));
+                                  }
+                                }}
+                                placeholder="e.g. PT-7K3X9M"
                                 className={`w-full px-4 py-3 pl-11 border rounded-xl text-sm text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all duration-150 placeholder:text-slate-400 ${
-                                  errors.landlord_username ? 'border-red-400 bg-red-50 focus:ring-red-400' : 'border-slate-200'
+                                  errors.landlord_code ? 'border-red-400 bg-red-50 focus:ring-red-400' : 'border-slate-200'
                                 }`}
                               />
                             </div>
-                            <p className="text-xs text-slate-400 flex items-center gap-1 mt-1 select-none">
-                              <Info className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" /> Ask your landlord for this
-                            </p>
-                            {errors.landlord_username && (
+                            <div className="bg-blue-50 rounded-lg p-3 mt-2 flex items-start gap-2 border border-blue-100 shadow-xs">
+                              <KeyRound className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                              <p className="text-xs text-blue-600 leading-normal">
+                                Ask your landlord for their unique ProTech code.
+                                It looks like PT-7K3X9M and is different for every
+                                landlord — this ensures you connect to the right one.
+                              </p>
+                            </div>
+                            {errors.landlord_code && (
                               <div className="text-xs text-red-500 mt-1 flex items-center gap-1 animate-slide-down">
                                 <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                                <span>{errors.landlord_username}</span>
+                                <span>{errors.landlord_code}</span>
                               </div>
                             )}
                           </div>

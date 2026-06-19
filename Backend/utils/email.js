@@ -295,31 +295,56 @@ const sendAnnouncementEmail = async (toEmail, tenantName, title, messageBody) =>
   }
 };
 
-const sendLandlordWelcomeEmail = async (toEmail, landlordName, hostelName) => {
+const sendLandlordWelcomeEmail = async (toEmail, fullName, hostelName, landlordCode) => {
   const htmlContent = `
-    <html>
-      <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">
-        <div style="max-width: 600px; background-color: white; margin: 0 auto; padding: 30px; border-radius: 8px;">
-          <h2 style="color: #1a7f7e; text-align: center;">Welcome to ProTech, ${landlordName}!</h2>
-          <p style="color: #666;">Thank you for registering as a landlord on ProTech.</p>
-          <p style="color: #666;">We have set up your hostel space: <strong>${hostelName}</strong>. You can now configure bank details, manage rooms, broadcast announcements, and approve your tenant requests.</p>
-          <div style="text-align: center; margin: 25px 0;">
-            <a href="${process.env.FRONTEND_URL}/login" style="background-color: #1a7f7e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block;">Go to Landlord Portal</a>
-          </div>
-          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-          <p style="color: #999; font-size: 12px; text-align: center;">${emailFooter}</p>
+    <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
+      <div style="background:#0F2A5E;padding:24px;text-align:center;border-radius:12px 12px 0 0">
+        <h1 style="color:#fff;margin:0;font-size:20px">🏠 ProTech</h1>
+      </div>
+      <div style="background:#fff;padding:28px;border-radius:0 0 12px 12px">
+        <p>Dear ${fullName},</p>
+        <p>Welcome to ProTech! Your landlord account for
+        <strong>${hostelName}</strong> has been created successfully.</p>
+
+        <div style="background:#FFFBEB;border:2px solid #F59E0B;
+                    border-radius:12px;padding:20px;text-align:center;
+                    margin:20px 0">
+          <p style="margin:0;font-size:12px;color:#92400E;
+                    text-transform:uppercase;letter-spacing:1px;
+                    font-weight:bold">Your Unique Landlord Code</p>
+          <p style="margin:8px 0;font-size:32px;font-weight:900;
+                    color:#0F2A5E;letter-spacing:2px;
+                    font-family:monospace">${landlordCode}</p>
+          <p style="margin:0;font-size:12px;color:#92400E">
+            Share this code with your tenants — NOT your username
+          </p>
         </div>
-      </body>
-    </html>
+
+        <p style="font-size:14px;color:#475569">
+          <strong>Important:</strong> Your tenants will need this
+          exact code to register and request access to your hostel.
+          Each landlord on ProTech has a different code, so make
+          sure you share <strong>${landlordCode}</strong> and not
+          anyone else's code.
+        </p>
+
+        <a href="https://protech-ruddy.vercel.app/login"
+           style="display:inline-block;background:#1565C0;color:#fff;
+                  padding:12px 28px;border-radius:8px;
+                  text-decoration:none;font-weight:bold;margin-top:16px">
+          Go to My Dashboard
+        </a>
+      </div>
+    </div>
   `;
 
-  const textContent = `Hello ${landlordName},\n\nWelcome to ProTech! Your landlord account and hostel "${hostelName}" have been set up successfully.\n\n${emailFooter}`;
+  const textContent = `Hello ${fullName},\n\nWelcome to ProTech! Your landlord account and hostel "${hostelName}" have been set up successfully.\n\nYour unique landlord code is: ${landlordCode}\n\nShare this code with your tenants so they can register.\n\n${emailFooter}`;
 
   try {
     await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to: toEmail,
-      subject: 'Welcome to ProTech • Landlord Space Configured',
+      subject: `Welcome to ProTech — Your Code is ${landlordCode}`,
       html: htmlContent,
       text: textContent,
     });

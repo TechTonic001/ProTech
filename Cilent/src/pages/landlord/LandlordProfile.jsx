@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
+import { Copy } from 'lucide-react';
 
 const LandlordProfile = () => {
   const [profile, setProfile] = useState(null);
@@ -64,6 +65,37 @@ const LandlordProfile = () => {
       <div className="max-w-4xl mx-auto space-y-6">
         <h1 className="text-3xl font-semibold">Profile</h1>
         <p className="text-slate-500">Update your landlord profile and hostel information.</p>
+
+        {/* Unique Landlord Code Card */}
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 flex items-center justify-between shadow-xs">
+          <div>
+            <p className="text-xs font-bold text-amber-700 uppercase tracking-wider">
+              Your Unique Landlord Code
+            </p>
+            <p className="text-3xl font-black text-slate-900 font-mono mt-1 tracking-wider">
+              {profile?.landlord_code || 'PT-XXXXXX'}
+            </p>
+            <p className="text-xs text-amber-600 mt-1">
+              Share this code with tenants — they need it to register
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              if (profile?.landlord_code) {
+                navigator.clipboard.writeText(profile.landlord_code);
+                toast.success('Code copied to clipboard!');
+              } else {
+                toast.error('No landlord code found');
+              }
+            }}
+            className="bg-amber-500 hover:bg-amber-600 text-white
+                       px-4 py-2 rounded-xl font-semibold text-sm
+                       flex items-center gap-2 transition"
+          >
+            <Copy className="w-4 h-4" />
+            Copy Code
+          </button>
+        </div>
 
         {/* Profile Card */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
