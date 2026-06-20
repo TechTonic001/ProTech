@@ -18,10 +18,10 @@ const transporter = nodemailer.createTransport({
 });
 
 // Test connection on startup (skip if placeholder values)
-const isPlaceholderEmail = 
-  !process.env.EMAIL_USER || 
-  process.env.EMAIL_USER.includes('your_gmail') || 
-  !process.env.EMAIL_PASS || 
+const isPlaceholderEmail =
+  !process.env.EMAIL_USER ||
+  process.env.EMAIL_USER.includes('your_gmail') ||
+  !process.env.EMAIL_PASS ||
   process.env.EMAIL_PASS.includes('your_gmail_app_password');
 
 if (isPlaceholderEmail) {
@@ -331,7 +331,7 @@ const sendLandlordWelcomeEmail = async (toEmail, fullName, hostelName, landlordC
           anyone else's code.
         </p>
 
-        <a href="https://protech-ruddy.vercel.app/login"
+        <a href="https://pro-tech-one.vercel.app//login"
            style="display:inline-block;background:#1565C0;color:#fff;
                   padding:12px 28px;border-radius:8px;
                   text-decoration:none;font-weight:bold;margin-top:16px">

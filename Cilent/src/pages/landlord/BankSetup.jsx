@@ -15,6 +15,9 @@ const BankSetup = () => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [banks, setBanks] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
 
   // Form State
   const [form, setForm] = useState({
@@ -26,27 +29,47 @@ const BankSetup = () => {
 
   const [formError, setFormError] = useState('');
 
-  // Nigerian Banks List for Paystack integration
-  const banks = [
-    { code: '044', name: 'Access Bank' },
-    { code: '058', name: 'Guaranty Trust Bank (GTBank)' },
-    { code: '057', name: 'Zenith Bank' },
-    { code: '033', name: 'United Bank for Africa (UBA)' },
-    { code: '011', name: 'First Bank of Nigeria' },
-    { code: '050', name: 'EcoBank Nigeria' },
-    { code: '070', name: 'Fidelity Bank' },
-    { code: '232', name: 'Sterling Bank' },
-    { code: '032', name: 'Union Bank of Nigeria' },
-    { code: '035', name: 'Wema Bank' },
-    { code: '214', name: 'First City Monument Bank (FCMB)' },
-    { code: '082', name: 'Keystone Bank' },
-    { code: '101', name: 'Providus Bank' },
-    { code: '301', name: 'Jaiz Bank' },
-  ];
-
   useEffect(() => {
     fetchProfile();
+    fetchBanksList();
   }, []);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('.bank-search-container')) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
+
+  const fetchBanksList = async () => {
+    try {
+      const res = await paymentAPI.getBanks();
+      if (res.data && res.data.data) {
+        setBanks(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch bank list dynamically, using fallback', err);
+      setBanks([
+        { code: '044', name: 'Access Bank' },
+        { code: '058', name: 'Guaranty Trust Bank (GTBank)' },
+        { code: '057', name: 'Zenith Bank' },
+        { code: '033', name: 'United Bank for Africa (UBA)' },
+        { code: '011', name: 'First Bank of Nigeria' },
+        { code: '050', name: 'EcoBank Nigeria' },
+        { code: '070', name: 'Fidelity Bank' },
+        { code: '232', name: 'Sterling Bank' },
+        { code: '032', name: 'Union Bank of Nigeria' },
+        { code: '035', name: 'Wema Bank' },
+        { code: '214', name: 'First City Monument Bank (FCMB)' },
+        { code: '082', name: 'Keystone Bank' },
+        { code: '101', name: 'Providus Bank' },
+        { code: '301', name: 'Jaiz Bank' },
+      ]);
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -83,9 +106,10 @@ const BankSetup = () => {
       
       await paymentAPI.createSubaccount({
         business_name: form.business_name,
-        settlement_bank: selectedBankName,
+        settlement_bank: form.settlement_bank, // bank code
         account_number: form.account_number,
-        percentage_charge: Number(form.percentage_charge)
+        percentage_charge: Number(form.percentage_charge),
+        bank_name: selectedBankName
       });
 
       toast.success('Paystack settlement subaccount connected successfully!');
@@ -101,6 +125,9 @@ const BankSetup = () => {
   if (loading) return <LoadingSpinner fullPage />;
 
   const hasSubaccount = profile && profile.subaccount_code;
+  const filteredBanks = banks.filter(b =>
+    b.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -183,21 +210,39 @@ const BankSetup = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+              <div className="bank-search-container relative">
                 <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest block mb-1.5">
                   Select Settlement Bank
                 </label>
-                <select
-                  name="settlement_bank"
-                  value={form.settlement_bank}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition"
-                >
-                  <option value="">-- Choose Bank --</option>
-                  {banks.map(b => (
-                    <option key={b.code} value={b.code}>{b.name}</option>
-                  ))}
-                </select>
+                <input
+                  type="text"
+                  placeholder="Search bank name..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowDropdown(true);
+                    setForm(prev => ({ ...prev, settlement_bank: '' }));
+                  }}
+                  onFocus={() => setShowDropdown(true)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition"
+                />
+                {showDropdown && filteredBanks.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg">
+                    {filteredBanks.map(b => (
+                      <div
+                        key={b.code}
+                        onClick={() => {
+                          setSearchQuery(b.name);
+                          setForm(prev => ({ ...prev, settlement_bank: b.code }));
+                          setShowDropdown(false);
+                        }}
+                        className="px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer transition"
+                      >
+                        {b.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>

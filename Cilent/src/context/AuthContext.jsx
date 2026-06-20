@@ -22,11 +22,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    const role = user?.role;
     localStorage.removeItem('protech_token');
     localStorage.removeItem('protech_user');
     setToken(null);
     setUser(null);
-    navigate('/login');
+    if (role === 'admin') {
+      navigate('/admin/login');
+    } else if (role === 'tenant') {
+      navigate('/tenant/login');
+    } else if (role === 'landlord') {
+      navigate('/landlord/login');
+    } else {
+      navigate('/');
+    }
   };
 
   const loadUser = async () => {

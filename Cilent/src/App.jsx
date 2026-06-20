@@ -13,7 +13,11 @@ import AdminLayout from './components/layout/AdminLayout';
 
 // Public pages
 const Landing = lazy(() => import('./pages/public/Landing'));
-const Login = lazy(() => import('./pages/public/Login'));
+const LandlordLogin = lazy(() => import('./pages/landlord/LandlordLogin'));
+const LandlordRegister = lazy(() => import('./pages/landlord/LandlordRegister'));
+const TenantLogin = lazy(() => import('./pages/tenant/TenantLogin'));
+const TenantRegister = lazy(() => import('./pages/tenant/TenantRegister'));
+const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
 const ForgotPassword = lazy(() => import('./pages/public/ForgotPassword'));
 const VerifyOTP = lazy(() => import('./pages/public/VerifyOTP'));
 const ResetSuccess = lazy(() => import('./pages/public/ResetSuccess'));
@@ -49,11 +53,11 @@ const AdminProfile = lazy(() => import('./pages/admin/AdminProfile'));
 const AuthRedirect = () => {
   const { user } = useAuth();
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/" replace />;
   if (user.role === 'landlord') return <Navigate to="/landlord/dashboard" replace />;
   if (user.role === 'tenant') return <Navigate to="/tenant/dashboard" replace />;
   if (user.role === 'admin') return <Navigate to="/admin/dashboard" replace />;
-  return <Navigate to="/login" replace />;
+  return <Navigate to="/" replace />;
 };
 
 const App = () => {
@@ -62,7 +66,11 @@ const App = () => {
       <Suspense fallback={<LoadingSpinner fullPage />}>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/landlord/login" element={<LandlordLogin />} />
+          <Route path="/landlord/register" element={<LandlordRegister />} />
+          <Route path="/tenant/login" element={<TenantLogin />} />
+          <Route path="/tenant/register" element={<TenantRegister />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/verify-otp" element={<VerifyOTP />} />
           <Route path="/reset-success" element={<ResetSuccess />} />

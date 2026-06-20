@@ -12,7 +12,7 @@ const createLease = async (req, res, next) => {
 
     // Verify room belongs to landlord's property
     const roomsResult = await pool.query(
-      'SELECT r.*, p.landlord_id FROM rooms r JOIN properties p ON r.property_id = p.property_id WHERE r.room_id = $1',
+      'SELECT r.room_id, r.is_occupied, p.landlord_id FROM rooms r JOIN properties p ON r.property_id = p.property_id WHERE r.room_id = $1',
       [room_id]
     );
 
@@ -51,7 +51,7 @@ const getLeasesByLandlord = async (req, res, next) => {
     const landlord_id = req.user.user_id;
 
     const result = await pool.query(
-      `SELECT l.*, u.full_name as tenant_name, u.email as tenant_email, r.room_number, p.property_name
+      `SELECT l.lease_id, l.tenant_id, l.room_id, l.landlord_id, l.start_date, l.end_date, l.rent_amount, l.due_day, l.lease_status, l.created_at, u.full_name as tenant_name, u.email as tenant_email, r.room_number, p.property_name
        FROM leases l
        JOIN users u ON l.tenant_id = u.user_id
        JOIN rooms r ON l.room_id = r.room_id
@@ -75,7 +75,7 @@ const getLeasesByTenant = async (req, res, next) => {
     const tenant_id = req.user.user_id;
 
     const result = await pool.query(
-      `SELECT l.*, u.full_name as landlord_name, u.email as landlord_email, r.room_number, r.monthly_rent, p.property_name
+      `SELECT l.lease_id, l.tenant_id, l.room_id, l.landlord_id, l.start_date, l.end_date, l.rent_amount, l.due_day, l.lease_status, l.created_at, u.full_name as landlord_name, u.email as landlord_email, r.room_number, r.monthly_rent, p.property_name
        FROM leases l
        JOIN users u ON l.landlord_id = u.user_id
        JOIN rooms r ON l.room_id = r.room_id
@@ -99,7 +99,7 @@ const getLeaseById = async (req, res, next) => {
     const { lease_id } = req.params;
 
     const result = await pool.query(
-      `SELECT l.*, u.full_name as landlord_name, u.email as landlord_email, t.full_name as tenant_name, t.email as tenant_email, r.room_number, p.property_name
+      `SELECT l.lease_id, l.tenant_id, l.room_id, l.landlord_id, l.start_date, l.end_date, l.rent_amount, l.due_day, l.lease_status, l.created_at, u.full_name as landlord_name, u.email as landlord_email, t.full_name as tenant_name, t.email as tenant_email, r.room_number, p.property_name
        FROM leases l
        JOIN users u ON l.landlord_id = u.user_id
        JOIN users t ON l.tenant_id = t.user_id
@@ -132,7 +132,7 @@ const updateLease = async (req, res, next) => {
     const { lease_id } = req.params;
     const { start_date, end_date, rent_amount, due_day, lease_status } = req.body;
 
-    const leaseResult = await pool.query('SELECT * FROM leases WHERE lease_id = $1', [lease_id]);
+    const leaseResult = await pool.query('SELECT lease_id, landlord_id, room_id, start_date, end_date, rent_amount, due_day, lease_status FROM leases WHERE lease_id = $1', [lease_id]);
 
     if (leaseResult.rows.length === 0) {
       return res.status(404).json({ error: 'Lease not found' });
@@ -167,7 +167,7 @@ const terminateLease = async (req, res, next) => {
   try {
     const { lease_id } = req.params;
 
-    const leaseResult = await pool.query('SELECT * FROM leases WHERE lease_id = $1', [lease_id]);
+    const leaseResult = await pool.query('SELECT lease_id, landlord_id, room_id, lease_status FROM leases WHERE lease_id = $1', [lease_id]);
 
     if (leaseResult.rows.length === 0) {
       return res.status(404).json({ error: 'Lease not found' });

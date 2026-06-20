@@ -9,7 +9,13 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    if (location.pathname.startsWith('/admin')) {
+      return <Navigate to="/admin/login" state={{ from: location }} replace />;
+    } else if (location.pathname.startsWith('/tenant')) {
+      return <Navigate to="/tenant/login" state={{ from: location }} replace />;
+    } else {
+      return <Navigate to="/landlord/login" state={{ from: location }} replace />;
+    }
   }
 
   if (!allowedRoles.includes(user.role)) {

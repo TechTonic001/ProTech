@@ -34,7 +34,7 @@ const getProperties = async (req, res, next) => {
     const landlord_id = req.user.user_id;
 
     const propertiesResult = await pool.query(
-      'SELECT * FROM properties WHERE landlord_id = $1 ORDER BY created_at DESC',
+      'SELECT property_id, landlord_id, property_name, address, city, total_rooms, created_at, updated_at FROM properties WHERE landlord_id = $1 ORDER BY created_at DESC',
       [landlord_id]
     );
 
@@ -53,7 +53,7 @@ const getPropertyById = async (req, res, next) => {
     const landlord_id = req.user.user_id;
 
     const propertiesResult = await pool.query(
-      'SELECT * FROM properties WHERE property_id = $1 AND landlord_id = $2',
+      'SELECT property_id, landlord_id, property_name, address, city, total_rooms, created_at, updated_at FROM properties WHERE property_id = $1 AND landlord_id = $2',
       [id, landlord_id]
     );
 
@@ -77,7 +77,7 @@ const updateProperty = async (req, res, next) => {
     const landlord_id = req.user.user_id;
 
     const propertiesResult = await pool.query(
-      'SELECT * FROM properties WHERE property_id = $1 AND landlord_id = $2',
+      'SELECT property_id, property_name, address, city, total_rooms FROM properties WHERE property_id = $1 AND landlord_id = $2',
       [id, landlord_id]
     );
 
@@ -112,7 +112,7 @@ const deleteProperty = async (req, res, next) => {
     const landlord_id = req.user.user_id;
 
     const propertiesResult = await pool.query(
-      'SELECT * FROM properties WHERE property_id = $1 AND landlord_id = $2',
+      'SELECT property_id FROM properties WHERE property_id = $1 AND landlord_id = $2',
       [id, landlord_id]
     );
 

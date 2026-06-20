@@ -11,7 +11,7 @@ const createRoom = async (req, res, next) => {
 
     // Verify property belongs to landlord
     const propertiesResult = await pool.query(
-      'SELECT * FROM properties WHERE property_id = $1 AND landlord_id = $2',
+      'SELECT property_id FROM properties WHERE property_id = $1 AND landlord_id = $2',
       [property_id, req.user.user_id]
     );
 
@@ -44,7 +44,7 @@ const getRoomsByProperty = async (req, res, next) => {
 
     // Verify property belongs to landlord
     const propertiesResult = await pool.query(
-      'SELECT * FROM properties WHERE property_id = $1 AND landlord_id = $2',
+      'SELECT property_id FROM properties WHERE property_id = $1 AND landlord_id = $2',
       [property_id, req.user.user_id]
     );
 
@@ -53,7 +53,7 @@ const getRoomsByProperty = async (req, res, next) => {
     }
 
     const roomsResult = await pool.query(
-      'SELECT * FROM rooms WHERE property_id = $1 ORDER BY room_number ASC',
+      'SELECT room_id, property_id, room_number, room_type, monthly_rent, is_occupied, created_at, updated_at FROM rooms WHERE property_id = $1 ORDER BY room_number ASC',
       [property_id]
     );
 
@@ -71,7 +71,7 @@ const getRoomById = async (req, res, next) => {
     const { room_id } = req.params;
 
     const roomsResult = await pool.query(
-      'SELECT r.*, p.landlord_id FROM rooms r JOIN properties p ON r.property_id = p.property_id WHERE r.room_id = $1',
+      'SELECT r.room_id, r.property_id, r.room_number, r.room_type, r.monthly_rent, r.is_occupied, r.created_at, r.updated_at, p.landlord_id FROM rooms r JOIN properties p ON r.property_id = p.property_id WHERE r.room_id = $1',
       [room_id]
     );
 
@@ -99,7 +99,7 @@ const updateRoom = async (req, res, next) => {
     const { room_number, room_type, monthly_rent } = req.body;
 
     const roomsResult = await pool.query(
-      'SELECT r.*, p.landlord_id FROM rooms r JOIN properties p ON r.property_id = p.property_id WHERE r.room_id = $1',
+      'SELECT r.room_id, r.room_number, r.room_type, r.monthly_rent, p.landlord_id FROM rooms r JOIN properties p ON r.property_id = p.property_id WHERE r.room_id = $1',
       [room_id]
     );
 
@@ -136,7 +136,7 @@ const deleteRoom = async (req, res, next) => {
     const { room_id } = req.params;
 
     const roomsResult = await pool.query(
-      'SELECT r.*, p.landlord_id FROM rooms r JOIN properties p ON r.property_id = p.property_id WHERE r.room_id = $1',
+      'SELECT r.room_id, p.landlord_id FROM rooms r JOIN properties p ON r.property_id = p.property_id WHERE r.room_id = $1',
       [room_id]
     );
 

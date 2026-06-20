@@ -106,7 +106,7 @@ const ForgotPassword = () => {
         {/* Back Link */}
         <div className="mt-6 text-center">
           <Link
-            to="/login"
+            to="/"
             className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700 transition"
           >
             <ArrowLeft className="w-4 h-4" />

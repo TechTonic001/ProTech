@@ -24,13 +24,13 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto print:p-0 print:bg-white print:static print:block">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4 overflow-y-auto print:p-0 print:bg-white print:static print:block">
       <div 
         className="fixed inset-0 print:hidden" 
         onClick={onClose}
       />
       <div 
-        className={`bg-white rounded-3xl w-full shadow-2xl overflow-hidden transform transition-all duration-300 relative z-10 print:shadow-none print:w-full print:max-w-none print:rounded-none ${sizeClasses[size]}`}
+        className={`bg-white w-full h-full sm:h-auto sm:rounded-3xl rounded-none shadow-2xl overflow-hidden transform transition-all duration-300 relative z-10 print:shadow-none print:w-full print:max-w-none print:rounded-none flex flex-col sm:block ${sizeClasses[size]}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -44,7 +44,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
           </button>
         </div>
         {/* Body */}
-        <div className="max-h-[calc(100vh-8rem)] overflow-y-auto print:max-h-none print:overflow-visible">
+        <div className="flex-1 overflow-y-auto sm:max-h-[calc(100vh-8rem)] print:max-h-none print:overflow-visible">
           {children}
         </div>
       </div>

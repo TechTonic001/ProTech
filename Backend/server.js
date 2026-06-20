@@ -44,6 +44,7 @@ app.use(
 app.use(express.json());
 
 // Routes
+app.use('/api', require('./routes/test.routes'));
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/payments', require('./routes/payment.routes'));
 app.use('/api/announcement', require('./routes/announcement.routes'));

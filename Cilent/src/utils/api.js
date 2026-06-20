@@ -29,9 +29,15 @@ api.interceptors.response.use(
       localStorage.removeItem('protech_token');
       localStorage.removeItem('protech_user');
       // Prevent infinite redirect loops on public paths
-      const publicPaths = ['/login', '/forgot-password', '/verify-otp', '/reset-success', '/'];
+      const publicPaths = ['/landlord/login', '/landlord/register', '/tenant/login', '/tenant/register', '/admin/login', '/forgot-password', '/verify-otp', '/reset-success', '/'];
       if (!publicPaths.includes(window.location.pathname)) {
-        window.location.href = '/login';
+        if (window.location.pathname.startsWith('/admin')) {
+          window.location.href = '/admin/login';
+        } else if (window.location.pathname.startsWith('/tenant')) {
+          window.location.href = '/tenant/login';
+        } else {
+          window.location.href = '/landlord/login';
+        }
       }
     }
     const message =
@@ -81,6 +87,7 @@ export const paymentAPI = {
   getHistory: () => api.get('/payments/history'),
   getReceipt: (ref) => api.get(`/payments/receipt/${ref}`),
   createSubaccount: (data) => api.post('/payments/subaccount', data),
+  getBanks: () => api.get('/payments/banks'),
 };
 
 export const approvalAPI = {

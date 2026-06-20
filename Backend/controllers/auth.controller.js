@@ -28,6 +28,14 @@ const register = async (req, res, next) => {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
+    // Role validation: reject admin or invalid roles
+    if (role === 'admin') {
+      return res.status(400).json({ error: 'Admin accounts cannot be registered via this API endpoint.' });
+    }
+    if (role !== 'landlord' && role !== 'tenant') {
+      return res.status(400).json({ error: 'Invalid role specified.' });
+    }
+
     // Email uniqueness check
     const emailCheck = await pool.query('SELECT user_id FROM users WHERE email = $1', [email]);
     if (emailCheck.rows.length > 0) {
@@ -147,16 +155,28 @@ const register = async (req, res, next) => {
       });
     }
 
+    // Auto-login for landlords
+    const token = jwt.sign(
+      { user_id, email, username, role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+
     return res.status(201).json({
-      message: 'Account created successfully. Please sign in.',
+      message: 'Account created successfully.',
       data: {
-        user_id,
-        username,
-        email,
-        role,
-        is_approved,
-        hostel_name: role === 'landlord' ? hostel_name : null,
-        landlord_code: dbLandlordCode
+        token,
+        user: {
+          user_id,
+          username,
+          email,
+          full_name,
+          role,
+          is_approved,
+          hostel_name: hostel_name,
+          hostel_address: hostel_address,
+          landlord_code: dbLandlordCode
+        },
       },
     });
   } catch (error) {
@@ -211,6 +231,9 @@ const login = async (req, res, next) => {
           email: user.email,
           full_name: user.full_name,
           role: user.role,
+          hostel_name: user.hostel_name,
+          hostel_address: user.hostel_address,
+          landlord_code: user.landlord_code
         },
       },
     });

@@ -94,6 +94,19 @@ const Properties = () => {
 
     setFormError('');
     setSubmitLoading(true);
+    const oldProperties = [...properties];
+    if (modalMode === 'create') {
+      const optimisticProperty = {
+        property_id: `temp-${Date.now()}`,
+        property_name: form.property_name,
+        address: form.address,
+        city: form.city || 'Ogbomoso',
+        total_rooms: parseInt(form.total_rooms) || 0,
+        isOptimistic: true
+      };
+      setProperties(prev => [optimisticProperty, ...prev]);
+    }
+
     try {
       if (modalMode === 'create') {
         await propertyAPI.create(form);
@@ -105,6 +118,9 @@ const Properties = () => {
       setIsModalOpen(false);
       fetchProperties();
     } catch (err) {
+      if (modalMode === 'create') {
+        setProperties(oldProperties);
+      }
       setFormError(err.message || 'Error saving property');
       toast.error(err.message || 'Operation failed');
     } finally {
@@ -160,7 +176,9 @@ const Properties = () => {
           {properties.map((prop) => (
             <div
               key={prop.property_id}
-              className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-xs hover:shadow-md transition duration-200 flex flex-col justify-between"
+              className={`bg-white rounded-2xl border overflow-hidden shadow-xs hover:shadow-md transition duration-200 flex flex-col justify-between ${
+                prop.isOptimistic ? 'border-blue-300 opacity-60 pointer-events-none' : 'border-slate-100'
+              }`}
             >
               {/* Top accent bar */}
               <div className="h-1.5 bg-gradient-to-r from-blue-500 to-blue-600" />
@@ -168,10 +186,17 @@ const Properties = () => {
               <div className="p-6 space-y-4">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 flex-shrink-0">
-                    <Building2 className="w-6 h-6" />
+                    {prop.isOptimistic ? <Loader2 className="w-6 h-6 animate-spin" /> : <Building2 className="w-6 h-6" />}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-lg font-bold text-slate-900 truncate">{prop.property_name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-slate-900 truncate">{prop.property_name}</h3>
+                      {prop.isOptimistic && (
+                        <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded-full font-bold animate-pulse">
+                          Saving...
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
                       <MapPin className="w-3.5 h-3.5 text-slate-400" />
                       <span className="truncate">{prop.address}, {prop.city}</span>
@@ -200,28 +225,32 @@ const Properties = () => {
               <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center gap-2 justify-end">
                 <button
                   onClick={() => navigate(`/landlord/rooms?property_id=${prop.property_id}`)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg transition"
+                  disabled={prop.isOptimistic}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg transition disabled:opacity-50"
                 >
                   <DoorOpen className="w-3.5 h-3.5" />
                   Rooms
                 </button>
                 <button
                   onClick={() => openEditModal(prop)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg transition"
+                  disabled={prop.isOptimistic}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg transition disabled:opacity-50"
                 >
                   <PenTool className="w-3.5 h-3.5" />
                   Edit
                 </button>
                 <button
                   onClick={() => navigate(`/landlord/announcements?property_id=${prop.property_id}`)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg transition"
+                  disabled={prop.isOptimistic}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg transition disabled:opacity-50"
                 >
                   <Megaphone className="w-3.5 h-3.5" />
                   Announce
                 </button>
                 <button
                   onClick={() => handleDelete(prop.property_id)}
-                  className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition ml-auto"
+                  disabled={prop.isOptimistic}
+                  className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition ml-auto disabled:opacity-50"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

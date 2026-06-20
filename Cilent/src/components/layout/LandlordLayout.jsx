@@ -215,6 +215,27 @@ const LandlordLayout = () => {
 
         {/* Main Content Area */}
         <main className="flex-1 mt-16 p-4 lg:p-8 overflow-y-auto">
+          {!user?.subaccount_code && (
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg font-bold">
+                  ⚠️
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-amber-900 uppercase tracking-wider">Settlement Account Required</h4>
+                  <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed font-semibold">
+                    You have not connected your bank details. Tenants will not be able to pay rent until you do.
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => navigate('bank-setup')}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold rounded-xl transition duration-150 flex-shrink-0"
+              >
+                Set Up Now
+              </button>
+            </div>
+          )}
           <Outlet />
         </main>
       </div>

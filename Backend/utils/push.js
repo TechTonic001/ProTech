@@ -4,7 +4,7 @@ const pool = require('../config/db');
 
 const vapidEmail = process.env.VAPID_EMAIL && process.env.VAPID_EMAIL.startsWith('mailto:')
   ? process.env.VAPID_EMAIL
-  : `mailto:${process.env.VAPID_EMAIL || 'admin@protech.com'}`;
+  : `mailto:${process.env.VAPID_EMAIL || 'protech78902@gmail.com'}`;
 
 webpush.setVapidDetails(
   vapidEmail,

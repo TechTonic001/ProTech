@@ -7,7 +7,7 @@ const { sendPushNotification } = require('../utils/push');
 
 const createLandlordSubaccount = async (req, res, next) => {
   try {
-    const { business_name, settlement_bank, account_number, percentage_charge } = req.body;
+    const { business_name, settlement_bank, account_number, percentage_charge, bank_name } = req.body;
     const landlord_id = req.user.user_id;
 
     if (!business_name || !settlement_bank || !account_number || !percentage_charge) {
@@ -35,14 +35,37 @@ const createLandlordSubaccount = async (req, res, next) => {
       // Save to database
       await pool.query(
         'UPDATE users SET subaccount_code = $1, bank_name = $2, account_number = $3, account_name = $4 WHERE user_id = $5',
-        [subaccount_code, settlement_bank, account_number, business_name, landlord_id]
+        [subaccount_code, bank_name || settlement_bank, account_number, business_name, landlord_id]
       );
 
       return res.status(201).json({
-        message: 'Subaccount created',
+        message: 'Subaccount created successfully',
         data: {
           subaccount_code,
+          bank_name: bank_name || settlement_bank,
+          account_number,
+          account_name: business_name,
         },
+      });
+    } catch (paystackError) {
+      return res.status(400).json({ error: paystackError.response?.data?.message || paystackError.message });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getBankList = async (req, res, next) => {
+  try {
+    try {
+      const response = await axios.get('https://api.paystack.co/bank?country=nigeria', {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        },
+      });
+      return res.status(200).json({
+        message: 'Banks retrieved successfully',
+        data: response.data.data,
       });
     } catch (paystackError) {
       return res.status(400).json({ error: paystackError.response?.data?.message || paystackError.message });
@@ -136,7 +159,14 @@ const paystackWebhook = async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid signature' });
     }
 
-    const event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    let event;
+    if (Buffer.isBuffer(req.body)) {
+      event = JSON.parse(req.body.toString('utf8'));
+    } else if (typeof req.body === 'string') {
+      event = JSON.parse(req.body);
+    } else {
+      event = req.body;
+    }
 
     if (!event || event.event !== 'charge.success') {
       return res.status(200).json({ message: 'Event ignored' });
@@ -324,6 +354,7 @@ const verifyPayment = async (req, res, next) => {
 
 module.exports = {
   createLandlordSubaccount,
+  getBankList,
   initiatePayment,
   paystackWebhook,
   getPaymentHistory,

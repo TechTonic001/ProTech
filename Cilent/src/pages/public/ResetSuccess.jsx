@@ -72,7 +72,7 @@ const ResetSuccess = () => {
 
         {/* Button */}
         <button
-          onClick={() => navigate('/login')}
+          onClick={() => navigate('/')}
           className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm rounded-xl transition duration-150 mt-6 hover:shadow-lg hover:shadow-blue-500/25 active:scale-[0.98]"
         >
           Sign In Now

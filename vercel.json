@@ -11,5 +11,10 @@
       "source": "/(.*)",
       "destination": "Backend/server.js"
     }
-  ]
+  ],
+  "functions": {
+    "Backend/server.js": {
+      "maxDuration": 30
+    }
+  }
 }

@@ -40,10 +40,10 @@ const Landing = () => {
 
             {/* Desktop Buttons */}
             <div className="hidden lg:flex items-center gap-3">
-              <button onClick={() => navigate('/login?role=landlord')} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold border-2 border-slate-800 text-slate-800 rounded-xl hover:bg-slate-800 hover:text-white transition">
+              <button onClick={() => navigate('/landlord/login')} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold border-2 border-slate-800 text-slate-800 rounded-xl hover:bg-slate-800 hover:text-white transition">
                 Landlord Login
               </button>
-              <button onClick={() => navigate('/login?role=tenant')} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition">
+              <button onClick={() => navigate('/tenant/login')} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition">
                 👤 Tenant Login
               </button>
             </div>
@@ -65,8 +65,8 @@ const Landing = () => {
                 <a key={s} href={`#${s.toLowerCase().replace(/\s+/g, '-')}`} onClick={() => setMobileMenu(false)} className="block px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900">{s}</a>
               ))}
               <div className="flex flex-col gap-2 pt-3 border-t">
-                <button onClick={() => { navigate('/login?role=landlord'); setMobileMenu(false); }} className="w-full px-4 py-2.5 text-sm font-semibold border-2 border-slate-800 text-slate-800 rounded-xl">🏠 Landlord Login</button>
-                <button onClick={() => { navigate('/login?role=tenant'); setMobileMenu(false); }} className="w-full px-4 py-2.5 text-sm font-semibold bg-slate-800 text-white rounded-xl">👤 Tenant Login</button>
+                <button onClick={() => { navigate('/landlord/login'); setMobileMenu(false); }} className="w-full px-4 py-2.5 text-sm font-semibold border-2 border-slate-800 text-slate-800 rounded-xl">🏠 Landlord Login</button>
+                <button onClick={() => { navigate('/tenant/login'); setMobileMenu(false); }} className="w-full px-4 py-2.5 text-sm font-semibold bg-slate-800 text-white rounded-xl">👤 Tenant Login</button>
               </div>
             </div>
           )}
@@ -90,10 +90,10 @@ const Landing = () => {
               ProTech automates rent collection, payment tracking, and tenant notifications for Nigerian landlords and hostel operators  so you never miss a payment again.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <button onClick={() => navigate('/login?role=landlord')} className="px-8 py-4 bg-amber-400 text-slate-900 font-bold rounded-2xl text-lg hover:bg-amber-300 transition shadow-lg shadow-amber-400/20">
+              <button onClick={() => navigate('/landlord/login')} className="px-8 py-4 bg-amber-400 text-slate-900 font-bold rounded-2xl text-lg hover:bg-amber-300 transition shadow-lg shadow-amber-400/20">
                 Get Started as Landlord
               </button>
-              <button onClick={() => navigate('/login?role=tenant')} className="px-8 py-4 border-2 border-white text-white font-bold rounded-2xl text-lg hover:bg-white/10 transition">
+              <button onClick={() => navigate('/tenant/register')} className="px-8 py-4 border-2 border-white text-white font-bold rounded-2xl text-lg hover:bg-white/10 transition">
                 Register as Tenant
               </button>
             </div>
@@ -300,7 +300,7 @@ const Landing = () => {
               <li key={i} className="flex items-start gap-3 text-white/90 text-sm"><span className="text-green-400 mt-0.5">✓</span>{b}</li>
             ))}
           </ul>
-          <button onClick={() => navigate('/login?role=landlord')} className="px-8 py-3.5 bg-amber-400 text-slate-900 font-bold rounded-xl hover:bg-amber-300 transition">
+          <button onClick={() => navigate('/landlord/login')} className="px-8 py-3.5 bg-amber-400 text-slate-900 font-bold rounded-xl hover:bg-amber-300 transition">
             Start as Landlord
           </button>
         </div>
@@ -321,7 +321,7 @@ const Landing = () => {
               <li key={i} className="flex items-start gap-3 text-white/90 text-sm"><span className="text-blue-300 mt-0.5">✓</span>{b}</li>
             ))}
           </ul>
-          <button onClick={() => navigate('/login?role=tenant')} className="px-8 py-3.5 bg-white text-blue-700 font-bold rounded-xl hover:bg-blue-50 transition">
+          <button onClick={() => navigate('/tenant/register')} className="px-8 py-3.5 bg-white text-blue-700 font-bold rounded-xl hover:bg-blue-50 transition">
             Register as Tenant
           </button>
         </div>
@@ -384,8 +384,8 @@ const Landing = () => {
           <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-4">Ready to Automate Your Hostel Management?</h2>
           <p className="text-lg text-slate-700 mb-8">Join landlords and tenants across Ogbomoso who are already using ProTech to manage rent the smart way.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button onClick={() => navigate('/login?role=landlord')} className="px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition">Register Your Hostel</button>
-            <button onClick={() => navigate('/login?role=tenant')} className="px-8 py-3.5 bg-white text-slate-900 font-bold rounded-xl hover:bg-slate-50 transition border-2 border-slate-200">Register as Tenant</button>
+            <button onClick={() => navigate('/landlord/register')} className="px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition">Register Your Hostel</button>
+            <button onClick={() => navigate('/tenant/register')} className="px-8 py-3.5 bg-white text-slate-900 font-bold rounded-xl hover:bg-slate-50 transition border-2 border-slate-200">Register as Tenant</button>
           </div>
         </div>
       </section>
@@ -416,10 +416,10 @@ const Landing = () => {
           <div>
             <h4 className="text-sm font-bold text-white mb-4">For Users</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/login?role=landlord" className="hover:text-white transition">Landlord Login</Link></li>
-              <li><Link to="/login?role=tenant" className="hover:text-white transition">Tenant Login</Link></li>
-              <li><Link to="/login?role=landlord" className="hover:text-white transition">Register as Landlord</Link></li>
-              <li><Link to="/login?role=tenant" className="hover:text-white transition">Register as Tenant</Link></li>
+              <li><Link to="/landlord/login" className="hover:text-white transition">Landlord Login</Link></li>
+              <li><Link to="/tenant/login" className="hover:text-white transition">Tenant Login</Link></li>
+              <li><Link to="/landlord/register" className="hover:text-white transition">Register as Landlord</Link></li>
+              <li><Link to="/tenant/register" className="hover:text-white transition">Register as Tenant</Link></li>
               <li><Link to="/forgot-password" className="hover:text-white transition">Forgot Password</Link></li>
             </ul>
           </div>
