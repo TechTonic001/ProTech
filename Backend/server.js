@@ -20,10 +20,23 @@ startNotificationCron();
 
 const app = express();
 
+const allowedOrigins = [
+  'https://pro-tech-one.vercel.app',
+  // 'https://protech-ruddy.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 const corsOptions = {
   origin: function (origin, callback) {
-    // Dynamic origin matching to support credentials and completely avoid CORS issues on deployments
-    callback(null, true);
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS Blocked] Request from origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
