@@ -7,7 +7,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:5001',
+        target: 'http://localhost:5001' || 'https://pro-tech-one.vercel.app/ ',
         changeOrigin: true,
         secure: false,
       },
