@@ -11,8 +11,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
-// Import the DB module so it executes its connection test on startup
-require('./config/db');
+const { testConnection } = require('./config/db');
 
 // Start notifications cron scheduler
 const { startNotificationCron } = require('./jobs/notificationCron');
@@ -93,7 +92,8 @@ const seedAdmin = require('./config/seedAdmin');
 // Port configuration set automatically by Vercel or defaulting to 5000
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
+  await testConnection();
   await seedAdmin();
 });
 
