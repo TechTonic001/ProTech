@@ -71,7 +71,7 @@ app.use('/api/admin', require('./routes/admin.routes'));
 
 // Health and root
 app.get('/api/health', (req, res) => res.status(200).json({ status: 'UP', app: 'ProTech' }));
-app.get('/', (req, res) => res.status(200).json({ message: 'Welcome to the ProTech API!', status: 'Running smoothly 🚀' }));
+app.get('/', (req, res) => res.status(200).json({ message: 'ProTech API is running', status: 'OK' }));
 
 // Catch-all: any route not matched above gets a proper JSON 404
 app.use((req, res) => {
@@ -88,10 +88,13 @@ app.use((err, req, res, next) => {
   });
 });
 
+const seedAdmin = require('./config/seedAdmin');
+
 // Port configuration set automatically by Vercel or defaulting to 5000
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+  await seedAdmin();
 });
 
 // Export the Express app for Vercel's serverless runtime
