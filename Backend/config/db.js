@@ -7,11 +7,11 @@ let pool
 
 const getPool = () => {
   if (!pool) {
+    const isLocal = process.env.DATABASE_URL && (process.env.DATABASE_URL.includes('localhost') || process.env.DATABASE_URL.includes('127.0.0.1'));
+    
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false
-      },
+      ssl: isLocal ? false : { rejectUnauthorized: false },
       max: 1,              // CRITICAL for serverless — one connection per function instance
       idleTimeoutMillis: 10000,
       connectionTimeoutMillis: 10000,
