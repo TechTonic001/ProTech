@@ -77,7 +77,7 @@ const App = () => {
           <Route path="/payment/verify" element={<PaymentVerify />} />
 
           {/* Landlord Routes guarded & wrapped in LandlordLayout */}
-          <Route path="/landlord" element={<ProtectedRoute allowedRoles={['landlord']} />}> 
+          <Route path="/landlord" element={<ProtectedRoute allowedRoles={['landlord']} />}>
             <Route element={<LandlordLayout />}>
               <Route path="dashboard" element={<LandlordDashboard />} />
               <Route path="properties" element={<Properties />} />
@@ -92,7 +92,7 @@ const App = () => {
           </Route>
 
           {/* Tenant Routes guarded & wrapped in TenantLayout */}
-          <Route path="/tenant" element={<ProtectedRoute allowedRoles={['tenant']} />}> 
+          <Route path="/tenant" element={<ProtectedRoute allowedRoles={['tenant']} />}>
             <Route element={<TenantLayout />}>
               <Route path="dashboard" element={<TenantDashboard />} />
               <Route path="pay" element={<PayRent />} />
@@ -104,7 +104,7 @@ const App = () => {
           </Route>
 
           {/* Admin Routes guarded & wrapped in AdminLayout */}
-          <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']} />}> 
+          <Route path="/admin" element={<ProtectedRoute allowedRoles={['Admin']} />}>
             <Route element={<AdminLayout />}>
               <Route path="dashboard" element={<AdminDashboard />} />
               <Route path="landlords" element={<AdminLandlords />} />

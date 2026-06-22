@@ -8,6 +8,20 @@ process.on('uncaughtException', (err) => {
 });
 
 require('dotenv').config();
+
+console.log('═══════════════════════════════════');
+console.log('[STARTUP CONFIG CHECK]');
+console.log('PORT:', process.env.PORT);
+console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+console.log(
+  'DATABASE_URL host:',
+  process.env.DATABASE_URL
+    ? process.env.DATABASE_URL.split('@')[1]?.split('/')[0]
+    : 'MISSING'
+);
+console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+console.log('═══════════════════════════════════');
+
 const express = require('express');
 const cors = require('cors');
 
@@ -22,20 +36,29 @@ const app = express();
 const allowedOrigins = [
   'https://pro-tech-one.vercel.app',
   // 'https://protech-ruddy.vercel.app',
-  'http://localhost:3000',
-  'http://localhost:5173',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
 const corsOptions = {
   origin: function (origin, callback) {
+    // Allow non-browser requests like Postman (no origin)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn(`[CORS Blocked] Request from origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+
+    // Allow explicit whitelisted origins
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+
+    // Allow any localhost origin (any port) for developer convenience
+    try {
+      const url = new URL(origin);
+      if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+        return callback(null, true);
+      }
+    } catch (e) {
+      // fall through to block
     }
+
+    console.error('[CORS BLOCKED]', origin);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -89,10 +112,9 @@ app.use((err, req, res, next) => {
 
 const seedAdmin = require('./config/seedAdmin');
 
-// Port configuration set automatically by Vercel or defaulting to 5000
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 app.listen(PORT, async () => {
-  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`✅ Server running on http://localhost:${PORT}`);
   await testConnection();
   await seedAdmin();
 });
