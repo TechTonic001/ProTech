@@ -53,6 +53,12 @@ const corsOptions = {
       if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
         return callback(null, true);
       }
+
+      // Allow private LAN IP ranges (10.x.x.x, 192.168.x.x, 172.16-31.x.x)
+      const host = url.hostname;
+      if (/^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(host)) {
+        return callback(null, true);
+      }
     } catch (e) {
       // fall through to block
     }

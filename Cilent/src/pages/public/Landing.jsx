@@ -28,7 +28,7 @@ const Landing = () => {
             <Link to="/" className="flex items-center gap-2">
               {/* <span className="text-2xl">🏠</span> */}
               <span className="text-xl font-extrabold text-slate-900">ProTech</span>
-              <span className="ml-1 text-[10px] font-bold bg-amber-400 text-slate-900 px-1.5 py-0.5 rounded-full">PWA</span>
+              {/* <span className="ml-1 text-[10px] font-bold bg-amber-400 text-slate-900 p-1.5 py-0.5 rounded-full">PWA</span> */}
             </Link>
 
             {/* Desktop Nav */}
@@ -400,7 +400,7 @@ const Landing = () => {
               <span className="text-xl font-extrabold text-white">ProTech</span>
             </div>
             <p className="text-sm mb-4">Automated Rent Tracking for Nigerian Landlords and Tenants</p>
-            <span className="inline-block px-3 py-1 text-[10px] font-bold bg-amber-400/20 text-amber-400 rounded-full">PWA No App Download Required</span>
+            {/* <span className="inline-block px-3 py-1 text-[10px] font-bold bg-amber-400/20 text-amber-400 rounded-full">PWA No App Download Required</span> */}
             <p className="text-xs text-slate-500 mt-4">A SQI College of ICT Final Year Project 2026</p>
           </div>
           {/* Features */}
