@@ -104,7 +104,7 @@ const App = () => {
           </Route>
 
           {/* Admin Routes guarded & wrapped in AdminLayout */}
-          <Route path="/admin" element={<ProtectedRoute allowedRoles={['Admin']} />}>
+          <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']} />}>
             <Route element={<AdminLayout />}>
               <Route path="dashboard" element={<AdminDashboard />} />
               <Route path="landlords" element={<AdminLandlords />} />
