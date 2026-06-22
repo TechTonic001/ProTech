@@ -201,7 +201,7 @@ const LandlordDashboard = () => {
             {user?.landlord_code || 'PT-XXXXXX'}
           </p>
           <p className="text-xs text-amber-600 mt-1">
-            Share this code with tenants — they need it to register
+            Share this code with tenants,they need it to register
           </p>
         </div>
         <button
