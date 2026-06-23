@@ -1,7 +1,20 @@
 // src/utils/api.js
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://protechbackend.vercel.app/api';
+const DEFAULT_BASE = 'https://protechbackend.vercel.app/api';
+let BASE_URL = import.meta.env.VITE_API_URL || DEFAULT_BASE;
+
+// If an env value points to a local host but the app is running on a public host,
+// prefer the production backend to avoid attempts to contact localhost from users.
+try {
+  const host = typeof window !== 'undefined' ? window.location.hostname : null;
+  const envLooksLocal = BASE_URL.includes('localhost') || BASE_URL.includes('127.0.0.1') || BASE_URL.startsWith('http://10.');
+  if (envLooksLocal && host && host !== 'localhost' && host !== '127.0.0.1') {
+    BASE_URL = DEFAULT_BASE;
+  }
+} catch (e) {
+  // ignore — keep BASE_URL as-is
+}
 
 const api = axios.create({
   baseURL: BASE_URL,

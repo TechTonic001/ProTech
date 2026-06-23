@@ -1,4 +1,4 @@
-const CACHE_NAME = 'protech-v1';
+const CACHE_NAME = 'protech-v2';
 
 self.addEventListener('install', (event) => {
   console.log('[SW] Installed');
@@ -14,8 +14,8 @@ self.addEventListener('push', (event) => {
   const data = event.data.json();
   const options = {
     body: data.body,
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    icon: 'icons/icon-192.png',
+    badge: 'icons/icon-192.png',
     data: { url: data.url || '/' }
   };
   event.waitUntil(
