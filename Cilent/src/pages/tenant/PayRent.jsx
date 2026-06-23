@@ -45,10 +45,11 @@ const PayRent = () => {
     if (!lease) return;
     try {
       setPaying(true);
-      const res = await paymentAPI.initiate(lease.lease_id);
+      const res = await paymentAPI.initiate({ lease_id: lease.lease_id, amount: lease.rent_amount });
       const { authorization_url } = res.data.data;
       if (authorization_url) {
         toast.loading('Redirecting to Paystack checkout...');
+        // Full browser navigation to Paystack checkout
         window.location.href = authorization_url;
       } else {
         throw new Error('Authorization URL missing from checkout response');

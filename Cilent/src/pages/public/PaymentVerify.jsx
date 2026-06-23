@@ -1,3 +1,39 @@
+import { useEffect, useState } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import api from '../../utils/api'
+import LoadingSpinner from '../../components/ui/LoadingSpinner'
+import SuccessScreen from '../../components/ui/SuccessScreen'
+import PendingScreen from '../../components/ui/PendingScreen'
+
+const PaymentVerify = () => {
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const [status, setStatus] = useState('checking')
+  const reference = searchParams.get('reference')
+
+  useEffect(() => {
+    const checkPayment = async () => {
+      await new Promise(r => setTimeout(r, 3000))
+      try {
+        await api.get(`/payments/verify/${reference}`)
+        setStatus('success')
+      } catch (err) {
+        setStatus('pending')
+      }
+    }
+    if (reference) checkPayment()
+  }, [reference])
+
+  if (status === 'checking') return <LoadingSpinner fullPage message="Verifying your payment..." />
+  if (status === 'success') return (
+    <SuccessScreen message="Payment confirmed! Receipt sent to your email." onContinue={() => navigate('/tenant/history')} />
+  )
+  return (
+    <PendingScreen message="Payment processing. Your receipt will arrive by email shortly." onContinue={() => navigate('/tenant/dashboard')} />
+  )
+}
+
+export default PaymentVerify
 // src/pages/public/PaymentVerify.jsx
 import { useEffect, useState } from 'react';
 import api from '../../utils/api';

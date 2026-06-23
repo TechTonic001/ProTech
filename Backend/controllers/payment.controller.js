@@ -10,18 +10,20 @@ const createLandlordSubaccount = async (req, res, next) => {
     const { business_name, settlement_bank, account_number, percentage_charge, bank_name } = req.body;
     const landlord_id = req.user.user_id;
 
-    if (!business_name || !settlement_bank || !account_number || !percentage_charge) {
+    if (!business_name || !settlement_bank || !account_number) {
       return res.status(400).json({ error: 'All fields are required' });
     }
+
+    const pct = typeof percentage_charge !== 'undefined' ? Number(percentage_charge) : 2;
 
     try {
       const response = await axios.post(
         'https://api.paystack.co/subaccount',
         {
-          business_name: business_name,
-          settlement_bank: settlement_bank,
-          account_number: account_number,
-          percentage_charge: percentage_charge,
+          business_name,
+          settlement_bank,
+          account_number,
+          percentage_charge: pct,
         },
         {
           headers: {
@@ -30,21 +32,21 @@ const createLandlordSubaccount = async (req, res, next) => {
         }
       );
 
-      const { subaccount_code } = response.data.data;
+      const { subaccount_code, account_name } = response.data.data || {};
 
-      // Save to database
+      // Save to database (store account_name returned by Paystack)
       await pool.query(
         'UPDATE users SET subaccount_code = $1, bank_name = $2, account_number = $3, account_name = $4 WHERE user_id = $5',
-        [subaccount_code, bank_name || settlement_bank, account_number, business_name, landlord_id]
+        [subaccount_code, bank_name || settlement_bank, account_number, account_name || business_name, landlord_id]
       );
 
-      return res.status(201).json({
+      return res.status(200).json({
         message: 'Subaccount created successfully',
         data: {
           subaccount_code,
+          account_name: account_name || business_name,
           bank_name: bank_name || settlement_bank,
           account_number,
-          account_name: business_name,
         },
       });
     } catch (paystackError) {
@@ -77,16 +79,16 @@ const getBankList = async (req, res, next) => {
 
 const initiatePayment = async (req, res, next) => {
   try {
-    const { lease_id } = req.body;
+    const { lease_id, amount } = req.body;
     const tenant_id = req.user.user_id;
 
     if (!lease_id) {
       return res.status(400).json({ error: 'Lease ID is required' });
     }
 
-    // Get lease details
+    // Get lease details and landlord subaccount
     const leaseResult = await pool.query(
-      'SELECT l.*, u.subaccount_code, u.email, t.email as tenant_email FROM leases l JOIN users u ON l.landlord_id = u.user_id JOIN users t ON l.tenant_id = t.user_id WHERE l.lease_id = $1 AND l.tenant_id = $2',
+      'SELECT l.*, u.subaccount_code, u.email AS landlord_email, t.email as tenant_email FROM leases l JOIN users u ON l.landlord_id = u.user_id JOIN users t ON l.tenant_id = t.user_id WHERE l.lease_id = $1 AND l.tenant_id = $2',
       [lease_id, tenant_id]
     );
 
@@ -100,12 +102,21 @@ const initiatePayment = async (req, res, next) => {
       return res.status(400).json({ error: 'Landlord has not set up payment account' });
     }
 
-    // Calculate amount (rent + 500 naira service fee)
-    const amount_kobo = (parseFloat(lease.rent_amount) + 500) * 100;
+    // Determine amount: prefer client-provided amount, else default to rent + service fee
+    const rentAmount = parseFloat(lease.rent_amount) || 0;
+    const serviceFee = 500;
+    const desiredAmount = typeof amount !== 'undefined' ? parseFloat(amount) : (rentAmount + serviceFee);
 
-    // Generate reference and receipt number
-    const reference = 'PROTECH-' + Date.now();
-    const receipt_number = 'REC-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    if (isNaN(desiredAmount) || desiredAmount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
+
+    // Convert to kobo
+    const amount_kobo = Math.round(desiredAmount * 100);
+
+    // Generate unique reference and receipt
+    const reference = `PT-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const receipt_number = `REC-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
     try {
       const paystackResponse = await axios.post(
@@ -113,14 +124,14 @@ const initiatePayment = async (req, res, next) => {
         {
           email: lease.tenant_email,
           amount: amount_kobo,
-          reference: reference,
+          reference,
           subaccount: lease.subaccount_code,
           bearer: 'subaccount',
-          callback_url: process.env.FRONTEND_URL + '/payment/verify',
+          callback_url: `${process.env.FRONTEND_URL}/payment/verify`,
           metadata: {
-            lease_id: lease_id,
-            tenant_id: tenant_id,
-            receipt_number: receipt_number,
+            lease_id,
+            tenant_id,
+            receipt_number,
           },
         },
         {
@@ -134,8 +145,7 @@ const initiatePayment = async (req, res, next) => {
         message: 'Payment initialized',
         data: {
           authorization_url: paystackResponse.data.data.authorization_url,
-          reference: reference,
-          receipt_number: receipt_number,
+          reference,
         },
       });
     } catch (paystackError) {
@@ -331,22 +341,21 @@ const verifyPayment = async (req, res, next) => {
   try {
     const { reference } = req.params;
     const userId = req.user.user_id;
+    const userRole = req.user.role;
 
-    const result = await pool.query(
-      'SELECT * FROM payments WHERE paystack_ref = $1 AND tenant_id = $2',
-      [reference, userId]
-    );
-
+    const result = await pool.query('SELECT * FROM payments WHERE paystack_ref = $1', [reference]);
     if (result.rows.length === 0) {
-      return res.status(404).json({
-        message: 'Payment not found',
-      });
+      return res.status(404).json({ message: 'Payment not found' });
     }
 
-    return res.status(200).json({
-      message: 'Payment retrieved successfully',
-      data: result.rows[0],
-    });
+    const payment = result.rows[0];
+
+    // Allow access if the requesting user is the tenant, landlord, or an admin
+    if (payment.tenant_id !== userId && payment.landlord_id !== userId && userRole !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized to view this payment' });
+    }
+
+    return res.status(200).json({ message: 'Payment retrieved successfully', data: payment });
   } catch (error) {
     next(error);
   }

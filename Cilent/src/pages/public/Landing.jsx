@@ -373,7 +373,7 @@ const Landing = () => {
                 </div>
               ))}
             </div>
-            <p className="mt-6 text-xs text-slate-400 italic">Replace [YOUR EMAIL] and [YOUR PHONE] with your actual contact details before submitting this project.</p>
+            {/* <p className="mt-6 text-xs text-slate-400 italic">Replace [YOUR EMAIL] and [YOUR PHONE] with your actual contact details before submitting this project.</p> */}
           </div>
         </div>
       </section>
