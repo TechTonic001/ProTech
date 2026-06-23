@@ -68,8 +68,8 @@ const corsOptions = {
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 
 app.use(cors(corsOptions));
@@ -119,12 +119,19 @@ app.use((err, req, res, next) => {
 
 const seedAdmin = require('./config/seedAdmin');
 
-const PORT = process.env.PORT || 5001;
-app.listen(PORT, async () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
-  await testConnection();
-  await seedAdmin();
-});
+// Only start HTTP server when running locally (not on Vercel serverless)
+if (require.main === module) {
+  const PORT = process.env.PORT || 5001;
+  app.listen(PORT, async () => {
+    console.log(`✅ Server running on http://localhost:${PORT}`);
+    await testConnection();
+    await seedAdmin();
+  });
+} else {
+  // Serverless: run DB check + seed once on cold start without binding a port
+  testConnection().catch(console.error);
+  seedAdmin().catch(console.error);
+}
 
 // Export the Express app for Vercel's serverless runtime
 module.exports = app;
