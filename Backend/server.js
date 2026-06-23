@@ -35,6 +35,7 @@ const app = express();
 
 const allowedOrigins = new Set([
   'https://pro-tech-one.vercel.app',
+  'http://localhost:3000',
   'http://localhost:5173',
   process.env.FRONTEND_URL
 ].filter(Boolean));
@@ -44,7 +45,16 @@ const corsOptions = {
     // Allow requests with no origin (e.g., Postman, server-to-server)
     if (!origin) return callback(null, true);
 
+    // Allow explicitly whitelisted origins
     if (allowedOrigins.has(origin)) return callback(null, true);
+
+    // Allow ANY localhost port for developer convenience
+    try {
+      const { hostname } = new URL(origin);
+      if (hostname === 'localhost' || hostname === '127.0.0.1') return callback(null, true);
+      // Allow LAN IPs (mobile device testing)
+      if (/^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(hostname)) return callback(null, true);
+    } catch (_) { /* invalid origin, fall through */ }
 
     console.warn('[CORS BLOCKED]', origin);
     return callback(new Error('Not allowed by CORS'));
@@ -56,7 +66,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', corsOptions);
+app.options('*', cors(corsOptions)); // Must pass cors() middleware, not raw options object
 
 // Mount Paystack webhook with raw body parser specifically
 app.use(
