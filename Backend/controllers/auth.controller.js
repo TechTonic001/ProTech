@@ -230,10 +230,13 @@ const login = async (req, res, next) => {
           username: user.username,
           email: user.email,
           full_name: user.full_name,
+          phone_number: user.phone_number,
           role: user.role,
+          is_approved: user.is_approved,
           hostel_name: user.hostel_name,
           hostel_address: user.hostel_address,
-          landlord_code: user.landlord_code
+          landlord_code: user.landlord_code,
+          subaccount_code: user.subaccount_code,
         },
       },
     });

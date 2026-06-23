@@ -50,11 +50,12 @@ export const AuthProvider = ({ children }) => {
       if (response?.data?.user) {
         setUser(response.data.user);
         localStorage.setItem('protech_user', JSON.stringify(response.data.user));
-      } else {
-        logout();
       }
     } catch (error) {
-      logout();
+      // The Axios interceptor in api.js already handles 401s (clears storage + redirects).
+      // Do NOT call logout() here — a network error (e.g. Neon cold start, timeout) must
+      // not destroy the user's session. Just silently fail and keep existing state.
+      console.warn('[AuthContext] Profile refresh failed:', error.message);
     } finally {
       setLoading(false);
     }
