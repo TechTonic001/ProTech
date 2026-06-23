@@ -1,6 +1,5 @@
 // routes/test.routes.js
 const express = require('express');
-const nodemailer = require('nodemailer');
 const router = express.Router();
 
 // Import the email utility or use a custom send
