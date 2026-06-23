@@ -33,47 +33,30 @@ startNotificationCron();
 
 const app = express();
 
-const allowedOrigins = [
+const allowedOrigins = new Set([
   'https://pro-tech-one.vercel.app',
-  // 'https://protech-ruddy.vercel.app',
+  'http://localhost:5173',
   process.env.FRONTEND_URL
-].filter(Boolean);
+].filter(Boolean));
 
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow non-browser requests like Postman (no origin)
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g., Postman, server-to-server)
     if (!origin) return callback(null, true);
 
-    // Allow explicit whitelisted origins
-    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (allowedOrigins.has(origin)) return callback(null, true);
 
-    // Allow any localhost origin (any port) for developer convenience
-    try {
-      const url = new URL(origin);
-      if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-        return callback(null, true);
-      }
-
-
-      // Allow private LAN IP ranges (10.x.x.x, 192.168.x.x, 172.16-31.x.x)
-      const host = url.hostname;
-      if (/^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(host)) {
-        return callback(null, true);
-      }
-    } catch (e) {
-      // fall through to block
-    }
-
-    console.error('[CORS BLOCKED]', origin);
+    console.warn('[CORS BLOCKED]', origin);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 204
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.options('*', corsOptions);
 
 // Mount Paystack webhook with raw body parser specifically
 app.use(
