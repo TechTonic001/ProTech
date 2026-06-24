@@ -175,6 +175,8 @@ const register = async (req, res, next) => {
         ]
       );
 
+
+
       const newTenantId = result.rows[0].user_id;
 
       // Create pending approval record (non-fatal if it fails)
@@ -337,9 +339,9 @@ const updateProfile = async (req, res, next) => {
            updated_at     = NOW()
        WHERE user_id = $5`,
       [
-        full_name    || null,
+        full_name || null,
         phone_number || null,
-        hostel_name  || null,
+        hostel_name || null,
         hostel_address || null,
         userId,
       ]
