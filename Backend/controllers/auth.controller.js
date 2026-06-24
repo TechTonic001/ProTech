@@ -12,10 +12,44 @@ const {
 const { generateUniqueLandlordCode } = require('../utils/generateCode');
 const { validatePassword } = require('../utils/validatePassword');
 
+const normalizeText = (value) => {
+  if (typeof value !== 'string') return '';
+  return value.trim();
+};
+
+const normalizeRegistrationPayload = (body = {}) => {
+  const role = normalizeText(body.role || body.accountType || body.roleType || body.expectedRole).toLowerCase();
+  const username = normalizeText(body.username || body.userName || body.user_name);
+  const full_name = normalizeText(body.full_name || body.fullname || body.fullName || body.name);
+  const email = normalizeText(body.email);
+  const phone_number = normalizeText(body.phone_number || body.phone || body.phoneNumber);
+  const password = typeof body.password === 'string' ? body.password : '';
+  const landlord_code = normalizeText(body.landlord_code || body.landlordCode);
+
+  return {
+    username,
+    full_name,
+    email,
+    phone_number,
+    password,
+    role: role || 'landlord',
+    landlord_code,
+  };
+};
+
+const normalizeLoginPayload = (body = {}) => {
+  const identifier = normalizeText(body.identifier || body.email || body.username || body.login);
+  const password = typeof body.password === 'string' ? body.password : '';
+  const expectedRole = normalizeText(body.expectedRole || body.role || body.accountType || body.roleType).toLowerCase();
+
+  return { identifier, password, expectedRole };
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // REGISTER
 // Landlord: 5 fields only — username, full_name, email, phone_number, password
 // Tenant:   same 5 fields + landlord_code
+// Any hostel/property fields sent during registration are ignored.
 // ─────────────────────────────────────────────────────────────────────────────
 const register = async (req, res, next) => {
   try {
@@ -26,8 +60,8 @@ const register = async (req, res, next) => {
       phone_number,
       password,
       role,
-      landlord_code, // only required when role === 'tenant'
-    } = req.body;
+      landlord_code,
+    } = normalizeRegistrationPayload(req.body);
 
     // ── Basic required field check ──
     if (!username || !full_name || !email || !phone_number || !password) {
@@ -69,10 +103,18 @@ const register = async (req, res, next) => {
     // ── Email uniqueness (sole unique identifier) ──
     const emailCheck = await dbQuery(
       'SELECT user_id FROM users WHERE email = $1',
-      [email.trim()]
+      [email]
     );
     if (emailCheck.rows.length > 0) {
       return res.status(400).json({ error: 'Email is already registered.' });
+    }
+
+    const usernameCheck = await dbQuery(
+      'SELECT user_id FROM users WHERE username = $1',
+      [username]
+    );
+    if (usernameCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'Username is already taken.' });
     }
 
     const password_hash = await bcrypt.hash(password, 10);
@@ -81,43 +123,66 @@ const register = async (req, res, next) => {
     // LANDLORD PATH — no hostel info required at registration
     // ══════════════════════════════════════════════════════
     if (role === 'landlord') {
-      const landlordCode = await generateUniqueLandlordCode(dbQuery);
+      let landlordCode;
+      try {
+        landlordCode = await generateUniqueLandlordCode(dbQuery);
+      } catch (codeErr) {
+        console.error('[LANDLORD CODE ERROR]', codeErr.message);
+        landlordCode = `PT-${Date.now().toString().slice(-6).toUpperCase()}`;
+      }
 
-      const result = await dbQuery(
-        `INSERT INTO users
-           (username, full_name, email, phone_number,
-            password_hash, role, is_approved, landlord_code)
-         VALUES ($1, $2, $3, $4, $5, 'landlord', 1, $6)
-         RETURNING user_id, landlord_code`,
-        [
-          username.trim(),
-          full_name.trim(),
-          email.trim(),
-          phone_number.trim(),
-          password_hash,
-          landlordCode,
-        ]
-      );
+      let result;
+      let landlordCodeColumnExists = { rows: [] };
+      try {
+        landlordCodeColumnExists = await dbQuery(
+          `SELECT 1 FROM information_schema.columns
+           WHERE table_name = 'users' AND column_name = 'landlord_code'`
+        );
+
+        const insertQuery = landlordCodeColumnExists.rows.length > 0
+          ? `INSERT INTO users
+             (username, full_name, email, phone_number,
+              password_hash, role, is_approved, landlord_code)
+           VALUES ($1, $2, $3, $4, $5, 'landlord', 1, $6)
+           RETURNING user_id, landlord_code`
+          : `INSERT INTO users
+             (username, full_name, email, phone_number,
+              password_hash, role, is_approved)
+           VALUES ($1, $2, $3, $4, $5, 'landlord', 1)
+           RETURNING user_id`;
+
+        const insertValues = landlordCodeColumnExists.rows.length > 0
+          ? [username, full_name, email, phone_number, password_hash, landlordCode]
+          : [username, full_name, email, phone_number, password_hash];
+
+        result = await dbQuery(insertQuery, insertValues);
+      } catch (dbErr) {
+        console.error('[REGISTER DB ERROR]', dbErr.message);
+        return res.status(500).json({
+          error: 'We could not create your account right now. Please try again in a moment.',
+          details: dbErr.message,
+        });
+      }
 
       const newLandlord = result.rows[0];
+      const createdLandlordCode = landlordCodeColumnExists?.rows?.length > 0 ? (newLandlord.landlord_code || landlordCode) : landlordCode;
 
       const token = jwt.sign(
         {
           user_id: newLandlord.user_id,
-          email: email.trim(),
-          username: username.trim(),
+          email,
+          username,
           role: 'landlord',
         },
         process.env.JWT_SECRET,
         { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
       );
 
-      // Fire-and-forget welcome email
       sendLandlordWelcomeEmail(
-        email.trim(),
-        full_name.trim(),
-        null, // hostel_name not yet set — email template handles null safely
-        newLandlord.landlord_code
+        email,
+        full_name,
+        null,
+        createdLandlordCode
       ).catch((err) => console.error('[EMAIL ERROR] Landlord welcome:', err.message));
 
       return res.status(201).json({
@@ -126,15 +191,15 @@ const register = async (req, res, next) => {
           token,
           user: {
             user_id: newLandlord.user_id,
-            username: username.trim(),
-            full_name: full_name.trim(),
-            email: email.trim(),
-            phone_number: phone_number.trim(),
+            username,
+            full_name,
+            email,
+            phone_number,
             role: 'landlord',
             is_approved: 1,
             hostel_name: null,
             hostel_address: null,
-            landlord_code: newLandlord.landlord_code,
+            landlord_code: createdLandlordCode,
           },
         },
       });
@@ -144,7 +209,7 @@ const register = async (req, res, next) => {
     // TENANT PATH — unchanged, still requires landlord_code
     // ══════════════════════════════════════════════════════
     if (role === 'tenant') {
-      const cleanCode = landlord_code.trim().toUpperCase();
+      const cleanCode = landlord_code.toUpperCase();
 
       const landlordResult = await dbQuery(
         `SELECT user_id, email, full_name, hostel_name, username
@@ -199,13 +264,13 @@ const register = async (req, res, next) => {
       }
 
       // Fire-and-forget emails
-      sendTenantWelcomeEmail(email.trim(), full_name.trim(), landlord.username)
+      sendTenantWelcomeEmail(email, full_name, landlord.username)
         .catch((err) => console.error('[EMAIL ERROR] Tenant welcome:', err.message));
 
       sendLandlordTenantRegistrationNotificationEmail(
         landlord.email,
         landlord.full_name,
-        full_name.trim()
+        full_name
       ).catch((err) => console.error('[EMAIL ERROR] Landlord notification:', err.message));
 
       return res.status(201).json({
@@ -229,7 +294,7 @@ const register = async (req, res, next) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const login = async (req, res, next) => {
   try {
-    const { identifier, password } = req.body;
+    const { identifier, password, expectedRole } = normalizeLoginPayload(req.body);
 
     if (!identifier || !password) {
       return res.status(400).json({ error: 'Identifier and password are required' });
@@ -246,10 +311,20 @@ const login = async (req, res, next) => {
 
     const user = result.rows[0];
 
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
     // Tenants must be approved before they can log in
     if (user.role === 'tenant' && !user.is_approved) {
       return res.status(403).json({
         error: 'Your account is pending landlord approval. Check your email.',
+      });
+    }
+
+    if (expectedRole && user.role !== expectedRole) {
+      return res.status(403).json({
+        error: `This account is not a ${expectedRole} account.`,
       });
     }
 
@@ -304,7 +379,7 @@ const profile = async (req, res, next) => {
 
     const result = await dbQuery(
       `SELECT user_id, username, full_name, email, phone_number, role,
-              is_approved, hostel_name, hostel_address, landlord_code
+              is_approved, hostel_name, hostel_address
        FROM users WHERE user_id = $1`,
       [userId]
     );
@@ -349,7 +424,7 @@ const updateProfile = async (req, res, next) => {
 
     const updatedResult = await dbQuery(
       `SELECT user_id, username, full_name, email, phone_number, role,
-              is_approved, hostel_name, hostel_address, landlord_code
+              is_approved, hostel_name, hostel_address
        FROM users WHERE user_id = $1`,
       [userId]
     );

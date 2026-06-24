@@ -9,10 +9,17 @@ import { Bell, Mail, Smartphone, Clock, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usePWA } from '../../hooks/usePWA';
 
+
+
+
+
+
+
 const LandlordNotifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const { isSubscribed, subscribeToPush } = usePWA();
+
 
   useEffect(() => {
     fetchNotifications();

@@ -44,9 +44,8 @@ const TenantLogin = () => {
     setLoading(true);
     try {
       const response = await api.post('/auth/login', {
-        identifier: form.identifier,
+        identifier: form.identifier.trim(),
         password: form.password,
-        expectedRole: 'tenant'
       });
 
       const resData = response.data?.data || response.data;

@@ -2,20 +2,37 @@ const { Pool } = require('pg')
 
 let pool
 
+const getDatabaseConnectionString = () => {
+  return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.NEON_DATABASE_URL ||
+    process.env.PG_URL ||
+    process.env.DB_URL ||
+    ''
+  )
+}
+
 const getPool = () => {
   if (!pool) {
-    if (!process.env.DATABASE_URL) {
-      console.error('[DB CONFIG] DATABASE_URL is not set')
-    } else if (!process.env.DATABASE_URL.includes('-pooler')) {
+    const connectionString = getDatabaseConnectionString()
+
+    if (!connectionString) {
+      throw new Error('[DB CONFIG] No database connection string was found. Set DATABASE_URL (or a supported alias) in the environment.')
+    }
+
+    const isLocal = /localhost|127\.0\.0\.1/.test(connectionString)
+
+    if (!connectionString.includes('-pooler')) {
       console.warn(
-        '[DB CONFIG] WARNING: DATABASE_URL hostname does not contain "-pooler". ' +
-          'Use Neon pooled connection string for Vercel serverless.'
+        '[DB CONFIG] WARNING: The configured connection string does not look like a Neon pooled URL. ' +
+          'If this runs on Vercel, use the pooled connection string.'
       )
     }
 
     pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
+      connectionString,
+      ssl: isLocal ? false : { rejectUnauthorized: false },
       max: 1,
       idleTimeoutMillis: 10000,
       connectionTimeoutMillis: 15000,
@@ -30,8 +47,9 @@ const getPool = () => {
 }
 
 const query = async (text, params) => {
-  const currentPool = getPool()
+  let currentPool
   try {
+    currentPool = getPool()
     const result = await currentPool.query(text, params)
 
     // Support mysql-style destructuring used in seedAdmin: const [rows] = await query(...)
@@ -50,8 +68,9 @@ const query = async (text, params) => {
 
 const testConnection = async () => {
   try {
-    if (!process.env.DATABASE_URL) {
-      console.error('PostgreSQL connection FAILED: DATABASE_URL is missing')
+    const connectionString = getDatabaseConnectionString()
+    if (!connectionString) {
+      console.error('PostgreSQL connection FAILED: No database connection string was found')
       return false
     }
 
@@ -60,7 +79,7 @@ const testConnection = async () => {
 
     const dbName = (() => {
       try {
-        return new URL(process.env.DATABASE_URL.replace(/^postgresql:/, 'http:')).pathname.replace(/^\//, '') || 'protech_db'
+        return new URL(connectionString.replace(/^postgresql:/, 'http:')).pathname.replace(/^\//, '') || 'protech_db'
       } catch {
         return 'protech_db'
       }

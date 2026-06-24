@@ -13,12 +13,12 @@ console.log('══════════════════════�
 console.log('[STARTUP CONFIG CHECK]');
 console.log('PORT:', process.env.PORT);
 console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
-console.log(
-  'DATABASE_URL host:',
-  process.env.DATABASE_URL
-    ? process.env.DATABASE_URL.split('@')[1]?.split('/')[0]
-    : 'MISSING'
-);
+// console.log(
+//   'DATABASE_URL host:',
+//   process.env.DATABASE_URL
+//     ? process.env.DATABASE_URL.split('@')[1]?.split('/')[0]
+//     : 'MISSING'
+// );
 console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
 console.log('═══════════════════════════════════');
 

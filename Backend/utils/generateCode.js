@@ -15,29 +15,37 @@ const generateLandlordCode = () => {
 };
 
 // Generates a code and guarantees it does not already exist
-// in the database by checking and retrying if needed
+// in the database by checking and retrying if needed.
+// Falls back to a generated value when the landlord_code column is absent.
 const generateUniqueLandlordCode = async (db) => {
-  let code;
-  let isUnique = false;
-  let attempts = 0;
+  try {
+    let code;
+    let isUnique = false;
+    let attempts = 0;
 
-  while (!isUnique && attempts < 10) {
-    code = generateLandlordCode();
-    const existing = await db(
-      'SELECT user_id FROM users WHERE landlord_code = $1',
-      [code]
-    );
-    if (existing.rows.length === 0) {
-      isUnique = true;
+    while (!isUnique && attempts < 10) {
+      code = generateLandlordCode();
+      const existing = await db(
+        'SELECT user_id FROM users WHERE landlord_code = $1',
+        [code]
+      );
+      if (existing.rows.length === 0) {
+        isUnique = true;
+      }
+      attempts++;
     }
-    attempts++;
-  }
 
-  if (!isUnique) {
-    throw new Error('Could not generate unique landlord code after 10 attempts');
-  }
+    if (!isUnique) {
+      throw new Error('Could not generate unique landlord code after 10 attempts');
+    }
 
-  return code;
+    return code;
+  } catch (error) {
+    if (error?.message?.includes('landlord_code')) {
+      return generateLandlordCode();
+    }
+    throw error;
+  }
 };
 
 module.exports = { generateLandlordCode, generateUniqueLandlordCode };

@@ -11,7 +11,6 @@ const {
 } = require('../controllers/admin.controller');
 
 const router = express.Router();
-
 router.get('/stats', verifyToken, requireRole('admin'), getStats);
 router.get('/landlords', verifyToken, requireRole('admin'), getLandlords);
 router.get('/tenants', verifyToken, requireRole('admin'), getTenants);

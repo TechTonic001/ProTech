@@ -5,6 +5,7 @@ const { sendRentReminderEmail } = require('../utils/email');
 const { sendSMS } = require('../utils/sms');
 const { sendPushNotification } = require('../utils/push');
 
+
 const startNotificationCron = () => {
   // Run every morning at 6 AM
   cron.schedule('0 6 * * *', async () => {

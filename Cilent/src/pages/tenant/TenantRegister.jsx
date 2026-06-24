@@ -89,13 +89,13 @@ const TenantRegister = () => {
     setLoading(true);
     try {
       const response = await api.post('/auth/register', {
-        username: form.username,
-        full_name: form.full_name,
-        email: form.email,
-        phone_number: form.phone_number,
+        username: form.username.trim(),
+        full_name: form.full_name.trim(),
+        email: form.email.trim(),
+        phone_number: form.phone_number.trim(),
         password: form.password,
         role: 'tenant',
-        landlord_code: form.landlord_code
+        landlord_code: form.landlord_code.trim().toUpperCase(),
       });
 
       setSuccessInfo({
