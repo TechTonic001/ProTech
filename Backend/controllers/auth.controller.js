@@ -10,6 +10,7 @@ const {
   sendLandlordTenantRegistrationNotificationEmail
 } = require('../utils/email');
 const { generateUniqueLandlordCode } = require('../utils/generateCode');
+const { validatePassword } = require('../utils/validatePassword');
 
 const register = async (req, res, next) => {
   try {
@@ -34,6 +35,15 @@ const register = async (req, res, next) => {
     }
     if (role !== 'landlord' && role !== 'tenant') {
       return res.status(400).json({ error: 'Invalid role specified.' });
+    }
+
+    // Password strength validation (runs before DB checks to fail fast)
+    const passwordCheck = validatePassword(password);
+    if (!passwordCheck.isValid) {
+      return res.status(400).json({
+        error: passwordCheck.errors[0],
+        all_errors: passwordCheck.errors
+      });
     }
 
     // Email uniqueness check
@@ -381,6 +391,15 @@ const resetPassword = async (req, res, next) => {
 
     if (result.rows.length === 0) {
       return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+
+    // Validate new password strength before hashing
+    const passwordCheck = validatePassword(newPassword);
+    if (!passwordCheck.isValid) {
+      return res.status(400).json({
+        error: passwordCheck.errors[0],
+        all_errors: passwordCheck.errors
+      });
     }
 
     // Hash new password

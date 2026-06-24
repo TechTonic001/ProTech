@@ -16,6 +16,8 @@ import {
   Info
 } from 'lucide-react';
 import AuthLayout from '../../components/shared/AuthLayout';
+import PasswordStrength from '../../components/ui/PasswordStrength';
+import { validatePassword } from '../../utils/validatePassword';
 
 const TenantRegister = () => {
   const [form, setForm] = useState({
@@ -69,8 +71,9 @@ const TenantRegister = () => {
     if (!form.phone_number) nextErrors.phone_number = 'Phone number is required';
     if (!form.password) {
       nextErrors.password = 'Password is required';
-    } else if (form.password.length < 8) {
-      nextErrors.password = 'Must be at least 8 characters';
+    } else {
+      const { isValid } = validatePassword(form.password);
+      if (!isValid) nextErrors.password = 'Password does not meet all requirements.';
     }
     if (form.confirm_password !== form.password) {
       nextErrors.confirm_password = 'Passwords do not match';
@@ -324,6 +327,7 @@ const TenantRegister = () => {
                 </button>
               </div>
               {errors.password && <p className="text-[10px] text-red-500 mt-0.5">{errors.password}</p>}
+              <PasswordStrength password={form.password} />
             </div>
 
             <div>

@@ -6,6 +6,7 @@ import { authAPI } from '../../utils/api';
 import OTPInput from '../../components/ui/OTPInput';
 import PasswordStrength from '../../components/ui/PasswordStrength';
 import toast from 'react-hot-toast';
+import { validatePassword } from '../../utils/validatePassword';
 
 const VerifyOTP = () => {
   const location = useLocation();
@@ -66,8 +67,9 @@ const VerifyOTP = () => {
     }
     if (!newPassword) {
       nextErrors.password = 'New password is required';
-    } else if (newPassword.length < 8) {
-      nextErrors.password = 'Must be at least 8 characters';
+    } else {
+      const { isValid } = validatePassword(newPassword);
+      if (!isValid) nextErrors.password = 'Password does not meet all requirements.';
     }
     if (confirmPassword !== newPassword) {
       nextErrors.confirm = 'Passwords do not match';

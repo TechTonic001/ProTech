@@ -18,6 +18,8 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import AuthLayout from '../../components/shared/AuthLayout';
+import PasswordStrength from '../../components/ui/PasswordStrength';
+import { validatePassword } from '../../utils/validatePassword';
 
 const LandlordRegister = () => {
   const [form, setForm] = useState({
@@ -63,8 +65,9 @@ const LandlordRegister = () => {
     if (!form.phone_number) nextErrors.phone_number = 'Phone number is required';
     if (!form.password) {
       nextErrors.password = 'Password is required';
-    } else if (form.password.length < 8) {
-      nextErrors.password = 'Must be at least 8 characters';
+    } else {
+      const { isValid } = validatePassword(form.password);
+      if (!isValid) nextErrors.password = 'Password does not meet all requirements.';
     }
     if (form.confirm_password !== form.password) {
       nextErrors.confirm_password = 'Passwords do not match';
@@ -96,10 +99,12 @@ const LandlordRegister = () => {
         hostel_address: form.hostel_address
       });
 
-      const resData = response.data;
-      if (resData.token && resData.user) {
-        login(resData.token, resData.user);
-        setLandlordCode(resData.user.landlord_code);
+      const resData = response.data?.data || response.data;
+      const { token, user } = resData;
+
+      if (token && user) {
+        login(token, user);
+        setLandlordCode(user.landlord_code);
         setShowSuccessCard(true);
         toast.success('Registration successful!');
         
@@ -342,6 +347,7 @@ const LandlordRegister = () => {
                 </button>
               </div>
               {errors.password && <p className="text-[10px] text-red-500 mt-0.5">{errors.password}</p>}
+              <PasswordStrength password={form.password} />
             </div>
 
             <div>
