@@ -97,6 +97,25 @@ const LandlordProfile = () => {
           </button>
         </div>
 
+        {/* ── Hostel Setup Prompt (shown when hostel_name is not yet set) ── */}
+        {!profile?.hostel_name && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5">
+            <p className="text-sm font-bold text-blue-800">
+              🏠 Add Your Hostel Details
+            </p>
+            <p className="text-xs text-blue-600 mt-1 mb-3">
+              Your hostel name and address appear on every tenant receipt and payment confirmation.
+              Click <strong>Edit</strong> below to add them now.
+            </p>
+            <button
+              onClick={() => setEditing(true)}
+              className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-xl transition"
+            >
+              ✏️ Add Hostel Info
+            </button>
+          </div>
+        )}
+
         {/* Profile Card */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           {/* Header */}

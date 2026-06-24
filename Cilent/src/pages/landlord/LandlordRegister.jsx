@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
@@ -12,78 +12,80 @@ import {
   User,
   Mail,
   Phone,
-  CheckCircle2
+  Copy,
+  CheckCircle2,
 } from 'lucide-react';
 import AuthLayout from '../../components/shared/AuthLayout';
 import PasswordStrength from '../../components/ui/PasswordStrength';
 import { validatePassword } from '../../utils/validatePassword';
 
 const LandlordRegister = () => {
-  const [form, setForm] = useState({
+  const [formData, setFormData] = useState({
     username: '',
     full_name: '',
     email: '',
     phone_number: '',
     password: '',
-    confirm_password: ''
+    confirm_password: '',
   });
 
   const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  
-  // Success card states
-  const [showSuccessCard, setShowSuccessCard] = useState(false);
-  const [landlordCode, setLandlordCode] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [landlordCode, setLandlordCode] = useState(null);
 
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: '' }));
-    }
+  const handleChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
   const validate = () => {
-    const nextErrors = {};
-    if (!form.username) nextErrors.username = 'Username is required';
-    if (!form.full_name) nextErrors.full_name = 'Full name is required';
-    if (!form.email) {
-      nextErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(form.email)) {
-      nextErrors.email = 'Enter a valid email address';
+    const newErrors = {};
+
+    if (!formData.username || formData.username.trim().length < 3) {
+      newErrors.username = 'Username must be at least 3 characters.';
     }
-    if (!form.phone_number) nextErrors.phone_number = 'Phone number is required';
-    if (!form.password) {
-      nextErrors.password = 'Password is required';
+    if (!formData.full_name || formData.full_name.trim().length < 2) {
+      newErrors.full_name = 'Please enter your full name.';
+    }
+    if (!formData.email || !/^\S+@\S+\.\S+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address.';
+    }
+    if (!formData.phone_number || formData.phone_number.trim().length < 10) {
+      newErrors.phone_number = 'Please enter a valid phone number.';
+    }
+    if (!formData.password) {
+      newErrors.password = 'Password is required.';
     } else {
-      const { isValid } = validatePassword(form.password);
-      if (!isValid) nextErrors.password = 'Password does not meet all requirements.';
+      const { isValid } = validatePassword(formData.password);
+      if (!isValid) newErrors.password = 'Password does not meet all requirements.';
     }
-    if (form.confirm_password !== form.password) {
-      nextErrors.confirm_password = 'Passwords do not match';
+    if (formData.password !== formData.confirm_password) {
+      newErrors.confirm_password = 'Passwords do not match.';
     }
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!validate()) return;
 
-    setLoading(true);
+    setIsSubmitting(true);
     try {
       const response = await api.post('/auth/register', {
-        username: form.username,
-        full_name: form.full_name,
-        email: form.email,
-        phone_number: form.phone_number,
-        password: form.password,
-        role: 'landlord'
+        username: formData.username.trim(),
+        full_name: formData.full_name.trim(),
+        email: formData.email.trim(),
+        phone_number: formData.phone_number.trim(),
+        password: formData.password,
+        role: 'landlord',
       });
 
       const resData = response.data?.data || response.data;
@@ -92,24 +94,29 @@ const LandlordRegister = () => {
       if (token && user) {
         login(token, user);
         setLandlordCode(user.landlord_code);
-        setShowSuccessCard(true);
-        toast.success('Registration successful!');
-        
-        setTimeout(() => {
-          navigate('/landlord/dashboard');
-        }, 5000);
+        toast.success('Account created successfully!');
+        setTimeout(() => navigate('/landlord/dashboard'), 5000);
       } else {
-        throw new Error('Unexpected registration response payload');
+        throw new Error('Unexpected response from server. Please try again.');
       }
     } catch (err) {
-      toast.error(err.message || 'Registration failed');
-      setErrors({ api: err.message });
-    } finally {
-      setLoading(false);
+      const message =
+        err.response?.data?.error || err.message || 'Registration failed. Please try again.';
+
+      if (message.toLowerCase().includes('email')) {
+        setErrors({ email: message });
+      } else if (message.toLowerCase().includes('username')) {
+        setErrors({ username: message });
+      } else {
+        setErrors({ api: message });
+        toast.error(message);
+      }
+      setIsSubmitting(false);
     }
   };
 
-  if (showSuccessCard) {
+  // ── Success screen ──
+  if (landlordCode) {
     return (
       <AuthLayout
         accentColor="blue"
@@ -122,8 +129,8 @@ const LandlordRegister = () => {
             <CheckCircle2 className="w-16 h-16 text-green-500 animate-bounce" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Hostel Registered!</h1>
-            <p className="text-slate-500 text-sm mt-1">Your account has been created and verified.</p>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Account Created!</h1>
+            <p className="text-slate-500 text-sm mt-1">Welcome to ProTech</p>
           </div>
 
           <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-6 text-center space-y-2">
@@ -136,6 +143,15 @@ const LandlordRegister = () => {
             <p className="text-xs text-amber-600">
               Save this — your tenants need it to register
             </p>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(landlordCode);
+                toast.success('Code copied!');
+              }}
+              className="mt-2 inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl font-semibold text-sm transition"
+            >
+              <Copy className="w-4 h-4" /> Copy Code
+            </button>
           </div>
 
           <div className="text-xs text-slate-400 font-medium">
@@ -146,6 +162,7 @@ const LandlordRegister = () => {
     );
   }
 
+  // ── Registration form ──
   return (
     <AuthLayout
       accentColor="blue"
@@ -155,11 +172,12 @@ const LandlordRegister = () => {
     >
       <div className="font-outfit space-y-6">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Create Landlord Space</h1>
-          <p className="text-slate-500 text-sm mt-1">Register your building and start collecting rent</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Create your account</h1>
+          <p className="text-slate-500 text-sm mt-1">Join ProTech as a landlord</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* API-level error banner */}
           {errors.api && (
             <div className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-1.5">
               <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
@@ -167,6 +185,7 @@ const LandlordRegister = () => {
             </div>
           )}
 
+          {/* Username + Full Name */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
@@ -177,17 +196,20 @@ const LandlordRegister = () => {
                   <User className="w-3.5 h-3.5" />
                 </span>
                 <input
+                  id="reg-username"
                   type="text"
-                  name="username"
-                  value={form.username}
-                  onChange={handleInputChange}
-                  placeholder="username"
+                  autoComplete="username"
+                  value={formData.username}
+                  onChange={(e) => handleChange('username', e.target.value)}
+                  placeholder="your_username"
                   className={`w-full px-3 py-2.5 pl-9 border rounded-xl text-xs text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition ${
                     errors.username ? 'border-red-400 bg-red-50' : 'border-slate-200'
                   }`}
                 />
               </div>
-              {errors.username && <p className="text-[10px] text-red-500 mt-0.5">{errors.username}</p>}
+              {errors.username && (
+                <p className="text-[10px] text-red-500 mt-0.5">{errors.username}</p>
+              )}
             </div>
 
             <div>
@@ -199,66 +221,76 @@ const LandlordRegister = () => {
                   <User className="w-3.5 h-3.5" />
                 </span>
                 <input
+                  id="reg-fullname"
                   type="text"
-                  name="full_name"
-                  value={form.full_name}
-                  onChange={handleInputChange}
-                  placeholder="Full Name"
+                  autoComplete="name"
+                  value={formData.full_name}
+                  onChange={(e) => handleChange('full_name', e.target.value)}
+                  placeholder="Your full name"
                   className={`w-full px-3 py-2.5 pl-9 border rounded-xl text-xs text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition ${
                     errors.full_name ? 'border-red-400 bg-red-50' : 'border-slate-200'
                   }`}
                 />
               </div>
-              {errors.full_name && <p className="text-[10px] text-red-500 mt-0.5">{errors.full_name}</p>}
+              {errors.full_name && (
+                <p className="text-[10px] text-red-500 mt-0.5">{errors.full_name}</p>
+              )}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Email Address
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                  <Mail className="w-3.5 h-3.5" />
-                </span>
-                <input
-                  type="email"
-                  name="email"
-                  value={form.email}
-                  onChange={handleInputChange}
-                  placeholder="email@example.com"
-                  className={`w-full px-3 py-2.5 pl-9 border rounded-xl text-xs text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition ${
-                    errors.email ? 'border-red-400 bg-red-50' : 'border-slate-200'
-                  }`}
-                />
-              </div>
-              {errors.email && <p className="text-[10px] text-red-500 mt-0.5">{errors.email}</p>}
+          {/* Email */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Email Address
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <Mail className="w-3.5 h-3.5" />
+              </span>
+              <input
+                id="reg-email"
+                type="email"
+                autoComplete="email"
+                value={formData.email}
+                onChange={(e) => handleChange('email', e.target.value)}
+                placeholder="your@email.com"
+                className={`w-full px-3 py-2.5 pl-9 border rounded-xl text-xs text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition ${
+                  errors.email ? 'border-red-400 bg-red-50' : 'border-slate-200'
+                }`}
+              />
             </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Phone Number
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                  <Phone className="w-3.5 h-3.5" />
-                </span>
-                <input
-                  type="text"
-                  name="phone_number"
-                  value={form.phone_number}
-                  onChange={handleInputChange}
-                  placeholder="08012345678"
-                  className={`w-full px-3 py-2.5 pl-9 border rounded-xl text-xs text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition ${
-                    errors.phone_number ? 'border-red-400 bg-red-50' : 'border-slate-200'
-                  }`}
-                />
-              </div>
-              {errors.phone_number && <p className="text-[10px] text-red-500 mt-0.5">{errors.phone_number}</p>}
-            </div>
+            {errors.email && (
+              <p className="text-[10px] text-red-500 mt-0.5">{errors.email}</p>
+            )}
           </div>
 
+          {/* Phone */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Phone Number
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <Phone className="w-3.5 h-3.5" />
+              </span>
+              <input
+                id="reg-phone"
+                type="tel"
+                autoComplete="tel"
+                value={formData.phone_number}
+                onChange={(e) => handleChange('phone_number', e.target.value)}
+                placeholder="08012345678"
+                className={`w-full px-3 py-2.5 pl-9 border rounded-xl text-xs text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition ${
+                  errors.phone_number ? 'border-red-400 bg-red-50' : 'border-slate-200'
+                }`}
+              />
+            </div>
+            {errors.phone_number && (
+              <p className="text-[10px] text-red-500 mt-0.5">{errors.phone_number}</p>
+            )}
+          </div>
+
+          {/* Password + Confirm */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
@@ -269,10 +301,11 @@ const LandlordRegister = () => {
                   <Lock className="w-3.5 h-3.5" />
                 </span>
                 <input
+                  id="reg-password"
                   type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={form.password}
-                  onChange={handleInputChange}
+                  autoComplete="new-password"
+                  value={formData.password}
+                  onChange={(e) => handleChange('password', e.target.value)}
                   placeholder="Min. 8 chars"
                   className={`w-full px-3 py-2.5 pl-9 pr-9 border rounded-xl text-xs text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition ${
                     errors.password ? 'border-red-400 bg-red-50' : 'border-slate-200'
@@ -280,14 +313,16 @@ const LandlordRegister = () => {
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
+                  onClick={() => setShowPassword((p) => !p)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
               </div>
-              {errors.password && <p className="text-[10px] text-red-500 mt-0.5">{errors.password}</p>}
-              <PasswordStrength password={form.password} />
+              {errors.password && (
+                <p className="text-[10px] text-red-500 mt-0.5">{errors.password}</p>
+              )}
+              <PasswordStrength password={formData.password} />
             </div>
 
             <div>
@@ -299,40 +334,44 @@ const LandlordRegister = () => {
                   <Lock className="w-3.5 h-3.5" />
                 </span>
                 <input
+                  id="reg-confirm-password"
                   type={showConfirm ? 'text' : 'password'}
-                  name="confirm_password"
-                  value={form.confirm_password}
-                  onChange={handleInputChange}
-                  placeholder="Re-enter password"
+                  autoComplete="new-password"
+                  value={formData.confirm_password}
+                  onChange={(e) => handleChange('confirm_password', e.target.value)}
+                  placeholder="Repeat password"
                   className={`w-full px-3 py-2.5 pl-9 pr-9 border rounded-xl text-xs text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition ${
                     errors.confirm_password ? 'border-red-400 bg-red-50' : 'border-slate-200'
                   }`}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowConfirm((prev) => !prev)}
+                  onClick={() => setShowConfirm((p) => !p)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition cursor-pointer"
                 >
                   {showConfirm ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
               </div>
-              {errors.confirm_password && <p className="text-[10px] text-red-500 mt-0.5">{errors.confirm_password}</p>}
+              {errors.confirm_password && (
+                <p className="text-[10px] text-red-500 mt-0.5">{errors.confirm_password}</p>
+              )}
             </div>
           </div>
 
+          {/* Submit */}
           <button
             type="submit"
-            disabled={loading}
+            disabled={isSubmitting}
             className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold text-sm rounded-xl transition duration-150 shadow-lg shadow-blue-500/25 disabled:opacity-75 flex items-center justify-center gap-2 cursor-pointer mt-2"
           >
-            {loading ? (
+            {isSubmitting ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 <span>Creating account...</span>
               </>
             ) : (
               <>
-                <span>Register Space</span>
+                <span>Create Account</span>
                 <UserPlus className="w-4 h-4" />
               </>
             )}

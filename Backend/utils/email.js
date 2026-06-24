@@ -299,6 +299,14 @@ const sendAnnouncementEmail = async (toEmail, tenantName, title, messageBody) =>
 };
 
 const sendLandlordWelcomeEmail = async (toEmail, fullName, hostelName, landlordCode) => {
+  const hostelLine = hostelName
+    ? `<p>Your landlord account for <strong>${hostelName}</strong> has been created successfully.</p>`
+    : `<p>Your ProTech landlord account has been created successfully.</p>`;
+
+  const hostelTextLine = hostelName
+    ? `Your landlord account and hostel "${hostelName}" have been set up successfully.`
+    : `Your ProTech landlord account has been set up successfully.`;
+
   const htmlContent = `
     <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
       <div style="background:#0F2A5E;padding:24px;text-align:center;border-radius:12px 12px 0 0">
@@ -306,8 +314,7 @@ const sendLandlordWelcomeEmail = async (toEmail, fullName, hostelName, landlordC
       </div>
       <div style="background:#fff;padding:28px;border-radius:0 0 12px 12px">
         <p>Dear ${fullName},</p>
-        <p>Welcome to ProTech! Your landlord account for
-        <strong>${hostelName}</strong> has been created successfully.</p>
+        ${hostelLine}
 
         <div style="background:#FFFBEB;border:2px solid #F59E0B;
                     border-radius:12px;padding:20px;text-align:center;
@@ -341,7 +348,7 @@ const sendLandlordWelcomeEmail = async (toEmail, fullName, hostelName, landlordC
     </div>
   `;
 
-  const textContent = `Hello ${fullName},\n\nWelcome to ProTech! Your landlord account and hostel "${hostelName}" have been set up successfully.\n\nYour unique landlord code is: ${landlordCode}\n\nShare this code with your tenants so they can register.\n\n${emailFooter}`;
+  const textContent = `Hello ${fullName},\n\n${hostelTextLine}\n\nYour unique landlord code is: ${landlordCode}\n\nShare this code with your tenants so they can register.\n\n${emailFooter}`;
 
   try {
     await transporter.sendMail({
