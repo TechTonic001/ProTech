@@ -122,10 +122,16 @@ const register = async (req, res, next) => {
 
     if (role === 'landlord') {
       // Create properties entry for landlord's primary hostel
-      const propResult = await dbQuery(
-        'INSERT INTO properties (landlord_id, property_name, property_address) VALUES ($1, $2, $3) RETURNING property_id',
-        [user_id, hostel_name.trim(), hostel_address.trim()]
-      );
+      try {
+        await dbQuery(
+          'INSERT INTO properties (landlord_id, property_name, address) VALUES ($1, $2, $3) RETURNING property_id',
+          [user_id, hostel_name.trim(), hostel_address.trim()]
+        );
+        console.log('[PROPERTY CREATED] landlord:', user_id, 'hostel:', hostel_name);
+      } catch (propErr) {
+        // Non-fatal: log and continue — user is already created
+        console.error('[PROPERTY INSERT FAILED] landlord:', user_id, propErr.message);
+      }
 
       // Send Landlord Welcome email in background
       sendLandlordWelcomeEmail(email, full_name, hostel_name, dbLandlordCode)

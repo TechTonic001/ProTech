@@ -300,7 +300,7 @@ const Landing = () => {
               <li key={i} className="flex items-start gap-3 text-white/90 text-sm"><span className="text-green-400 mt-0.5">✓</span>{b}</li>
             ))}
           </ul>
-          <button onClick={() => navigate('/landlord/login')} className="px-8 py-3.5 bg-amber-400 text-slate-900 font-bold rounded-xl hover:bg-amber-300 transition">
+          <button onClick={() => navigate('/landlord/register')} className="px-8 py-3.5 bg-amber-400 text-slate-900 font-bold rounded-xl hover:bg-amber-300 transition">
             Start as Landlord
           </button>
         </div>

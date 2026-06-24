@@ -33,7 +33,7 @@ const LandlordLogin = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrors({});
-    
+
     if (!form.identifier || !form.password) {
       const nextErrors = {};
       if (!form.identifier) nextErrors.identifier = 'Email or Username is required';
@@ -106,9 +106,8 @@ const LandlordLogin = () => {
                 value={form.identifier}
                 onChange={handleInputChange}
                 placeholder="Enter email or username"
-                className={`w-full px-4 py-3 pl-11 border rounded-xl text-sm text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition placeholder:text-slate-400 ${
-                  errors.identifier ? 'border-red-400 bg-red-50' : 'border-slate-200'
-                }`}
+                className={`w-full px-4 py-3 pl-11 border rounded-xl text-sm text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition placeholder:text-slate-400 ${errors.identifier ? 'border-red-400 bg-red-50' : 'border-slate-200'
+                  }`}
               />
             </div>
             {errors.identifier && (
@@ -133,9 +132,8 @@ const LandlordLogin = () => {
                 value={form.password}
                 onChange={handleInputChange}
                 placeholder="Enter password"
-                className={`w-full px-4 py-3 pl-11 pr-11 border rounded-xl text-sm text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition placeholder:text-slate-400 ${
-                  errors.password ? 'border-red-400 bg-red-50' : 'border-slate-200'
-                }`}
+                className={`w-full px-4 py-3 pl-11 pr-11 border rounded-xl text-sm text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition placeholder:text-slate-400 ${errors.password ? 'border-red-400 bg-red-50' : 'border-slate-200'
+                  }`}
               />
               <button
                 type="button"
