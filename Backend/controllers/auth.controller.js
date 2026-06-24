@@ -1,7 +1,7 @@
 // controllers/auth.controller.js
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const pool = require('../config/db'); // imports { query, pool }
+const { query: dbQuery } = require('../config/db');
 const { 
   sendOTPEmail, 
   sendPasswordChangedEmail,
@@ -47,13 +47,13 @@ const register = async (req, res, next) => {
     }
 
     // Email uniqueness check
-    const emailCheck = await pool.query('SELECT user_id FROM users WHERE email = $1', [email]);
+    const emailCheck = await dbQuery('SELECT user_id FROM users WHERE email = $1', [email]);
     if (emailCheck.rows.length > 0) {
       return res.status(400).json({ error: 'Email is already registered.' });
     }
 
     // Username uniqueness check
-    const usernameCheck = await pool.query('SELECT user_id FROM users WHERE username = $1', [username]);
+    const usernameCheck = await dbQuery('SELECT user_id FROM users WHERE username = $1', [username]);
     if (usernameCheck.rows.length > 0) {
       return res.status(400).json({ error: 'Username is already taken.' });
     }
@@ -68,7 +68,7 @@ const register = async (req, res, next) => {
       if (!hostel_address || hostel_address.trim() === '') {
         return res.status(400).json({ error: 'Hostel address is required for landlords.' });
       }
-      landlordCode = await generateUniqueLandlordCode(pool);
+      landlordCode = await generateUniqueLandlordCode(dbQuery);
     } else if (role === 'tenant') {
       const { landlord_code } = req.body;
       if (!landlord_code || landlord_code.trim() === '') {
@@ -80,7 +80,7 @@ const register = async (req, res, next) => {
       // Clean the code — uppercase, trim spaces
       const cleanCode = landlord_code.trim().toUpperCase();
 
-      const landlordResult = await pool.query(
+      const landlordResult = await dbQuery(
         "SELECT user_id, email, full_name, hostel_name, username FROM users WHERE landlord_code = $1 AND role = 'landlord'",
         [cleanCode]
       );
@@ -101,7 +101,7 @@ const register = async (req, res, next) => {
     const is_approved = role === 'landlord' ? 1 : 0;
 
     // Create user
-    const result = await pool.query(
+    const result = await dbQuery(
       'INSERT INTO users (username, full_name, email, phone_number, password_hash, role, is_approved, hostel_name, hostel_address, landlord_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING user_id, landlord_code',
       [
         username.trim(),
@@ -122,7 +122,7 @@ const register = async (req, res, next) => {
 
     if (role === 'landlord') {
       // Create properties entry for landlord's primary hostel
-      const propResult = await pool.query(
+      const propResult = await dbQuery(
         'INSERT INTO properties (landlord_id, property_name, property_address) VALUES ($1, $2, $3) RETURNING property_id',
         [user_id, hostel_name.trim(), hostel_address.trim()]
       );
@@ -132,7 +132,7 @@ const register = async (req, res, next) => {
         .catch(err => console.error('[ERROR] Failed to send landlord welcome email:', err.message));
     } else if (role === 'tenant' && landlord) {
       // Find landlord's primary property
-      const propertyResult = await pool.query(
+      const propertyResult = await dbQuery(
         'SELECT property_id FROM properties WHERE landlord_id = $1 ORDER BY created_at ASC LIMIT 1',
         [landlord.user_id]
       );
@@ -141,7 +141,7 @@ const register = async (req, res, next) => {
 
       // Create pending registration approval log
       try {
-        await pool.query(
+        await dbQuery(
           'INSERT INTO tenant_approvals (tenant_id, landlord_id, property_id, status) VALUES ($1, $2, $3, $4)',
           [user_id, landlord.user_id, property_id, 'pending']
         );
@@ -203,7 +203,7 @@ const login = async (req, res, next) => {
       return res.status(400).json({ error: 'Identifier and password are required' });
     }
 
-    const result = await pool.query(
+    const result = await dbQuery(
       'SELECT * FROM users WHERE email = $1 OR username = $2',
       [identifier, identifier]
     );
@@ -261,7 +261,7 @@ const profile = async (req, res, next) => {
     const userId = req.user?.user_id;
     if (!userId) return res.status(400).json({ error: 'Unable to resolve user' });
 
-    const result = await pool.query(
+    const result = await dbQuery(
       'SELECT user_id, username, full_name, email, phone_number, role, is_approved, hostel_name, hostel_address, landlord_code FROM users WHERE user_id = $1',
       [userId]
     );
@@ -283,7 +283,7 @@ const updateProfile = async (req, res, next) => {
     const { full_name, phone_number, hostel_name, hostel_address } = req.body;
 
     // Get current user to check role
-    const result = await pool.query('SELECT role FROM users WHERE user_id = $1', [userId]);
+    const result = await dbQuery('SELECT role FROM users WHERE user_id = $1', [userId]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -321,10 +321,10 @@ const updateProfile = async (req, res, next) => {
     }
 
     values.push(userId);
-    await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE user_id = $${paramCount}`, values);
+    await dbQuery(`UPDATE users SET ${fields.join(', ')} WHERE user_id = $${paramCount}`, values);
 
     // Return updated user
-    const updatedResult = await pool.query(
+    const updatedResult = await dbQuery(
       'SELECT user_id, username, full_name, email, phone_number, role, is_approved, hostel_name, hostel_address, landlord_code FROM users WHERE user_id = $1',
       [userId]
     );
@@ -344,7 +344,7 @@ const forgotPassword = async (req, res, next) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const result = await dbQuery('SELECT * FROM users WHERE email = $1', [email]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User with this email not found' });
@@ -355,7 +355,7 @@ const forgotPassword = async (req, res, next) => {
 
     // Insert OTP record
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-    await pool.query(
+    await dbQuery(
       'INSERT INTO password_resets (email, otp_code, is_used, expires_at) VALUES ($1, $2, $3, $4)',
       [email, otpCode, 0, expiresAt]
     );
@@ -384,7 +384,7 @@ const resetPassword = async (req, res, next) => {
     }
 
     // Find OTP record
-    const result = await pool.query(
+    const result = await dbQuery(
       'SELECT * FROM password_resets WHERE email = $1 AND otp_code = $2 AND is_used = 0 AND expires_at > NOW()',
       [email, otpValue]
     );
@@ -407,19 +407,19 @@ const resetPassword = async (req, res, next) => {
     const password_hash = await bcrypt.hash(newPassword, salt);
 
     // Update user password
-    await pool.query('UPDATE users SET password_hash = $1 WHERE email = $2', [
+    await dbQuery('UPDATE users SET password_hash = $1 WHERE email = $2', [
       password_hash,
       email,
     ]);
 
     // Mark OTP as used
     const otpRecord = result.rows[0];
-    await pool.query('UPDATE password_resets SET is_used = 1 WHERE reset_id = $1', [
+    await dbQuery('UPDATE password_resets SET is_used = 1 WHERE reset_id = $1', [
       otpRecord.reset_id,
     ]);
 
     // Send confirmation email in background
-    const userResult = await pool.query('SELECT full_name FROM users WHERE email = $1', [email]);
+    const userResult = await dbQuery('SELECT full_name FROM users WHERE email = $1', [email]);
     if (userResult.rows.length > 0) {
       sendPasswordChangedEmail(email, userResult.rows[0].full_name)
         .catch(err => console.error('[ERROR] Failed to send password changed email:', err.message));

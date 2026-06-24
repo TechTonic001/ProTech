@@ -16,7 +16,7 @@ def build_png(size, color):
         return struct.pack('>I', len(data_bytes)) + type_bytes + data_bytes + struct.pack('>I', zlib.crc32(type_bytes + data_bytes) & 0xffffffff)
 
     png = b'\x89PNG\r\n\x1a\n'
-    ihdr = struct.pack('>IIBBBBB', width, height, 8, 6, 0, 0, 0)
+    ihdr = struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0)
     png += chunk(b'IHDR', ihdr)
     png += chunk(b'IDAT', compressed)
     png += chunk(b'IEND', b'')

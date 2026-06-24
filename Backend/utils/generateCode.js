@@ -23,7 +23,7 @@ const generateUniqueLandlordCode = async (db) => {
 
   while (!isUnique && attempts < 10) {
     code = generateLandlordCode();
-    const existing = await db.query(
+    const existing = await db(
       'SELECT user_id FROM users WHERE landlord_code = $1',
       [code]
     );
