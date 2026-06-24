@@ -20,9 +20,7 @@ const register = async (req, res, next) => {
       email, 
       phone_number, 
       password, 
-      role, 
-      hostel_name, 
-      hostel_address
+      role
     } = req.body;
 
     if (!username || !full_name || !email || !phone_number || !password || !role) {
@@ -62,12 +60,6 @@ const register = async (req, res, next) => {
     let landlord = null;
     let landlordCode = null;
     if (role === 'landlord') {
-      if (!hostel_name || hostel_name.trim() === '') {
-        return res.status(400).json({ error: 'Hostel name is required for landlords.' });
-      }
-      if (!hostel_address || hostel_address.trim() === '') {
-        return res.status(400).json({ error: 'Hostel address is required for landlords.' });
-      }
       landlordCode = await generateUniqueLandlordCode(dbQuery);
     } else if (role === 'tenant') {
       const { landlord_code } = req.body;
@@ -102,7 +94,7 @@ const register = async (req, res, next) => {
 
     // Create user
     const result = await dbQuery(
-      'INSERT INTO users (username, full_name, email, phone_number, password_hash, role, is_approved, hostel_name, hostel_address, landlord_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING user_id, landlord_code',
+      'INSERT INTO users (username, full_name, email, phone_number, password_hash, role, is_approved, landlord_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING user_id, landlord_code',
       [
         username.trim(),
         full_name.trim(),
@@ -111,8 +103,6 @@ const register = async (req, res, next) => {
         password_hash,
         role,
         is_approved,
-        role === 'landlord' ? hostel_name.trim() : null,
-        role === 'landlord' ? hostel_address.trim() : null,
         landlordCode
       ]
     );
@@ -121,20 +111,8 @@ const register = async (req, res, next) => {
     const dbLandlordCode = result.rows[0].landlord_code;
 
     if (role === 'landlord') {
-      // Create properties entry for landlord's primary hostel
-      try {
-        await dbQuery(
-          'INSERT INTO properties (landlord_id, property_name, address) VALUES ($1, $2, $3) RETURNING property_id',
-          [user_id, hostel_name.trim(), hostel_address.trim()]
-        );
-        console.log('[PROPERTY CREATED] landlord:', user_id, 'hostel:', hostel_name);
-      } catch (propErr) {
-        // Non-fatal: log and continue — user is already created
-        console.error('[PROPERTY INSERT FAILED] landlord:', user_id, propErr.message);
-      }
-
       // Send Landlord Welcome email in background
-      sendLandlordWelcomeEmail(email, full_name, hostel_name, dbLandlordCode)
+      sendLandlordWelcomeEmail(email, full_name, '', dbLandlordCode)
         .catch(err => console.error('[ERROR] Failed to send landlord welcome email:', err.message));
     } else if (role === 'tenant' && landlord) {
       // Find landlord's primary property
@@ -189,8 +167,6 @@ const register = async (req, res, next) => {
           full_name,
           role,
           is_approved,
-          hostel_name: hostel_name,
-          hostel_address: hostel_address,
           landlord_code: dbLandlordCode
         },
       },

@@ -9,12 +9,9 @@ import {
   EyeOff,
   AlertCircle,
   UserPlus,
-  Building2,
   User,
   Mail,
   Phone,
-  MapPin,
-  Star,
   CheckCircle2
 } from 'lucide-react';
 import AuthLayout from '../../components/shared/AuthLayout';
@@ -28,9 +25,7 @@ const LandlordRegister = () => {
     email: '',
     phone_number: '',
     password: '',
-    confirm_password: '',
-    hostel_name: '',
-    hostel_address: ''
+    confirm_password: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -72,12 +67,6 @@ const LandlordRegister = () => {
     if (form.confirm_password !== form.password) {
       nextErrors.confirm_password = 'Passwords do not match';
     }
-    if (!form.hostel_name || !form.hostel_name.trim()) {
-      nextErrors.hostel_name = 'Hostel name is required';
-    }
-    if (!form.hostel_address || !form.hostel_address.trim()) {
-      nextErrors.hostel_address = 'Hostel address is required';
-    }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -94,9 +83,7 @@ const LandlordRegister = () => {
         email: form.email,
         phone_number: form.phone_number,
         password: form.password,
-        role: 'landlord',
-        hostel_name: form.hostel_name,
-        hostel_address: form.hostel_address
+        role: 'landlord'
       });
 
       const resData = response.data?.data || response.data;
@@ -270,53 +257,6 @@ const LandlordRegister = () => {
               </div>
               {errors.phone_number && <p className="text-[10px] text-red-500 mt-0.5">{errors.phone_number}</p>}
             </div>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Hostel / Building Name
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                <Building2 className="w-3.5 h-3.5" />
-              </span>
-              <input
-                type="text"
-                name="hostel_name"
-                value={form.hostel_name}
-                onChange={handleInputChange}
-                placeholder="e.g. Halleluyah Court"
-                className={`w-full px-3 py-2.5 pl-9 border rounded-xl text-xs text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition ${
-                  errors.hostel_name ? 'border-red-400 bg-red-50' : 'border-slate-200'
-                }`}
-              />
-            </div>
-            <p className="text-[9px] text-amber-600 flex items-center gap-1 mt-0.5">
-              <Star className="w-3 h-3 text-amber-600" /> This appears on every tenant receipt
-            </p>
-            {errors.hostel_name && <p className="text-[10px] text-red-500 mt-0.5">{errors.hostel_name}</p>}
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Hostel Address
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-3 text-slate-400">
-                <MapPin className="w-3.5 h-3.5" />
-              </span>
-              <textarea
-                name="hostel_address"
-                value={form.hostel_address}
-                onChange={handleInputChange}
-                placeholder="No. 5 Oke-Ola Street, Ogbomoso"
-                rows={2}
-                className={`w-full px-3 py-2 pl-9 border rounded-xl text-xs text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition resize-none ${
-                  errors.hostel_address ? 'border-red-400 bg-red-50' : 'border-slate-200'
-                }`}
-              />
-            </div>
-            {errors.hostel_address && <p className="text-[10px] text-red-500 mt-0.5">{errors.hostel_address}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
