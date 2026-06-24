@@ -44,16 +44,10 @@ const register = async (req, res, next) => {
       });
     }
 
-    // Email uniqueness check
+    // Email uniqueness check — email is the sole unique identifier in this system
     const emailCheck = await dbQuery('SELECT user_id FROM users WHERE email = $1', [email]);
     if (emailCheck.rows.length > 0) {
       return res.status(400).json({ error: 'Email is already registered.' });
-    }
-
-    // Username uniqueness check
-    const usernameCheck = await dbQuery('SELECT user_id FROM users WHERE username = $1', [username]);
-    if (usernameCheck.rows.length > 0) {
-      return res.status(400).json({ error: 'Username is already taken.' });
     }
 
     // Role specific validation
