@@ -23,8 +23,12 @@ const register = async (req, res, next) => {
       role
     } = req.body;
 
-    if (!username || !full_name || !email || !phone_number || !password || !role) {
+    if (!username || !full_name || !email || !phone_number || !password) {
       return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    if (!role) {
+      return res.status(400).json({ error: 'Account role is required.' });
     }
 
     // Role validation: reject admin or invalid roles
