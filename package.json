@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "scripts": {
     "backend": "cd Backend && npm run dev",
     "frontend": "cd Cilent && npm run dev",
     "dev": "npx concurrently \"npm run backend\" \"npm run frontend\"",
-    "install:all": "cd Backend && npm install && cd ../Cilent && npm install"
+    "install:all": "cd Backend && npm install && cd ../Cilent && npm install",
+    "build": "cd Cilent && npm install && npm run build"
   },
   "devDependencies": {
     "concurrently": "^8.2.0"
