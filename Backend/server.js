@@ -93,7 +93,7 @@ app.use('/api/admin', require('./routes/admin.routes'));
 
 // Health and root
 app.get('/api/health', (req, res) => res.status(200).json({ status: 'UP', app: 'ProTech' }));
-app.get('/', (req, res) => res.status(200).json({ message: 'ProTech API is running', status: 'OK' }));
+app.get('/', (req, res) => res.status(200).json({ message: 'ProTech API is running', status: 'OK' }))
 
 // Catch-all: any route not matched above gets a proper JSON 404
 app.use((req, res) => {
