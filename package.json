@@ -10,9 +10,26 @@
     "frontend": "cd Cilent && npm run dev",
     "dev": "npx concurrently \"npm run backend\" \"npm run frontend\"",
     "install:all": "cd Backend && npm install && cd ../Cilent && npm install",
-    "build": "cd Cilent && npm install && npm run build"
+    "build": "echo 'No root build required for backend deployment'",
+    "start": "node api/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.19.2",
+    "express-validator": "^7.0.1",
+    "helmet": "^8.2.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.11.0",
+    "node-cron": "^4.5.0",
+    "nodemailer": "^9.0.1",
+    "pg": "^8.21.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
-    "concurrently": "^8.2.0"
+    "concurrently": "^8.2.0",
+    "nodemon": "^3.0.1"
   }
 }
