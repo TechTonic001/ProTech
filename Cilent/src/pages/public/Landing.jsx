@@ -73,7 +73,9 @@ const Landing = () => {
         </div>
       </nav>
 
+    
       {/* ═══ SECTION 2 — HERO ═══ */}
+      
       <section id="home" className="relative min-h-screen flex items-center pt-16" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #1e40af 100%)' }}>
         {/* Dot overlay */}
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
@@ -90,7 +92,7 @@ const Landing = () => {
               ProTech automates rent collection, payment tracking, and tenant notifications for Nigerian landlords and hostel operators  so you never miss a payment again.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <button onClick={() => navigate('/landlord/login')} className="px-8 py-4 bg-amber-400 text-slate-900 font-bold rounded-2xl text-lg hover:bg-amber-300 transition shadow-lg shadow-amber-400/20">
+              <button onClick={() => navigate('/landlord/register')} className="px-8 py-4 bg-amber-400 text-slate-900 font-bold rounded-2xl text-lg hover:bg-amber-300 transition shadow-lg shadow-amber-400/20">
                 Get Started as Landlord
               </button>
               <button onClick={() => navigate('/tenant/register')} className="px-8 py-4 border-2 border-white text-white font-bold rounded-2xl text-lg hover:bg-white/10 transition">
