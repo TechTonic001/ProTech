@@ -86,6 +86,9 @@ const LandlordRegister = () => {
         phone_number: formData.phone_number.trim(),
         password: formData.password,
         role: 'landlord',
+        accountType: 'landlord',
+        hostel_name: 'Default Hostel',
+        hostel_address: 'N/A',
       });
 
       const resData = response.data?.data || response.data;
