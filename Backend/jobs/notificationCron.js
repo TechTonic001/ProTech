@@ -19,11 +19,11 @@ const startNotificationCron = () => {
           u.full_name as tenant_name, u.email as tenant_email, u.phone_number,
           p.property_name, r.room_number,
           (MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER, EXTRACT(MONTH FROM CURRENT_DATE)::INTEGER, l.due_day::INTEGER) - CURRENT_DATE) AS days_until_due
-         FROM leases l
-         JOIN users u ON l.tenant_id = u.user_id
-         JOIN rooms r ON l.room_id = r.room_id
-         JOIN properties p ON r.property_id = p.property_id
-         WHERE l.lease_status = 'active'`
+            FROM leases l
+            JOIN users u ON l.tenant_id = u.user_id
+            JOIN rooms r ON l.room_id = r.room_id
+            JOIN properties p ON r.property_id = p.property_id
+            WHERE l.lease_status = 'active'`
       );
 
       const leases = leasesResult.rows;
