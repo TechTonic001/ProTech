@@ -2,6 +2,9 @@
   "name": "protech",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "backend": "cd Backend && npm run dev",
     "frontend": "cd Cilent && npm run dev",
