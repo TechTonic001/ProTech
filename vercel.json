@@ -1,21 +1,9 @@
 {
   "version": 2,
-  "buildCommand": "cd Cilent && npm install && npm run build",
-  "outputDirectory": "Cilent/dist",
-  "functions": {
-    "Backend/server.js": {
-      "runtime": "nodejs20.x",
-      "maxDuration": 30
-    }
-  },
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/Backend/server.js"
-    },
-    {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/Backend/server.js"
     }
   ]
 }
