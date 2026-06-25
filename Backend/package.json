@@ -4,7 +4,7 @@
   "description": "Web-Based Automated Rent Tracking and Notification System",
   "main": "server.js",
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
