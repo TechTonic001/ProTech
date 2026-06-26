@@ -1,11 +1,11 @@
 {
   "version": 2,
-  "installCommand": "cd Backend && npm install",
-  "buildCommand": "echo 'Backend deployment: no build step required'",
+  "buildCommand": "cd Cilent && npm install && npm run build",
+  "outputDirectory": "Cilent/dist",
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/api/index"
+      "destination": "/index.html"
     }
   ]
 }
