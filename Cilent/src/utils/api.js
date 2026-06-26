@@ -1,7 +1,7 @@
 // src/utils/api.js
 import axios from 'axios';
 
-const DEFAULT_BASE = '/api';
+const DEFAULT_BASE = 'https://protechbackend.vercel.app/api';
 let BASE_URL = import.meta.env.VITE_API_URL || DEFAULT_BASE;
 
 // If an env value points to a local host but the app is running on a public host,
