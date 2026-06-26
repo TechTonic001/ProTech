@@ -7,7 +7,9 @@ process.on('uncaughtException', (err) => {
   console.error('[UNCAUGHT EXCEPTION]', err.message);
 });
 
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ path: path.join(__dirname, '.env.local') });
 
 console.log('═══════════════════════════════════');
 console.log('[STARTUP CONFIG CHECK]');
@@ -33,12 +35,25 @@ startNotificationCron();
 
 const app = express();
 
-const allowedOrigins = new Set([
-  'https://pro-tech-one.vercel.app',
-  'http://localhost:3000',
-  'http://localhost:5173',
-  process.env.FRONTEND_URL
-].filter(Boolean));
+const readCorsOrigins = () => {
+  const defaults = [
+    'https://pro-tech-one.vercel.app',
+    'https://www.pro-tech-one.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173',
+  ];
+
+  const extraOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set([...defaults, ...extraOrigins]));
+};
+
+const allowedOrigins = new Set(readCorsOrigins());
 
 const corsOptions = {
   origin: (origin, callback) => {
