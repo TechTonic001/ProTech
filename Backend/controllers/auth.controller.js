@@ -178,12 +178,16 @@ const register = async (req, res, next) => {
         { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
       );
 
-      sendLandlordWelcomeEmail(
-        email,
-        full_name,
-        null,
-        createdLandlordCode
-      ).catch((err) => console.error('[EMAIL ERROR] Landlord welcome:', err.message));
+      try {
+        await sendLandlordWelcomeEmail(
+          email,
+          full_name,
+          null,
+          createdLandlordCode
+        );
+      } catch (emailErr) {
+        console.error('[EMAIL ERROR] Landlord welcome:', emailErr.message);
+      }
 
       return res.status(201).json({
         message: 'Landlord account created successfully.',
@@ -263,15 +267,22 @@ const register = async (req, res, next) => {
         console.error('[APPROVAL INSERT FAILED]', approvalErr.message);
       }
 
-      // Fire-and-forget emails
-      sendTenantWelcomeEmail(email, full_name, landlord.username)
-        .catch((err) => console.error('[EMAIL ERROR] Tenant welcome:', err.message));
+      // Send emails but do not fail registration if mail delivery fails
+      try {
+        await sendTenantWelcomeEmail(email, full_name, landlord.username);
+      } catch (emailErr) {
+        console.error('[EMAIL ERROR] Tenant welcome:', emailErr.message);
+      }
 
-      sendLandlordTenantRegistrationNotificationEmail(
-        landlord.email,
-        landlord.full_name,
-        full_name
-      ).catch((err) => console.error('[EMAIL ERROR] Landlord notification:', err.message));
+      try {
+        await sendLandlordTenantRegistrationNotificationEmail(
+          landlord.email,
+          landlord.full_name,
+          full_name
+        );
+      } catch (emailErr) {
+        console.error('[EMAIL ERROR] Landlord notification:', emailErr.message);
+      }
 
       return res.status(201).json({
         message: 'Tenant account created. Waiting for landlord approval.',
