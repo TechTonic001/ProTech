@@ -35,7 +35,7 @@ const getPool = () => {
       ssl: isLocal ? false : { rejectUnauthorized: false },
       max: 1,
       idleTimeoutMillis: 10000,
-      connectionTimeoutMillis: 15000,
+      connectionTimeoutMillis: 25000,
     })
 
     pool.on('error', (err) => {
