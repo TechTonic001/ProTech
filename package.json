@@ -7,7 +7,7 @@
   },
   "scripts": {
     "backend": "cd Backend && npm run dev",
-    "frontend": "cd Cilent && npm run dev",
+    "frontend": "cd Cilent && npm run dev",  
     "dev": "npx concurrently \"npm run backend\" \"npm run frontend\"",
     "install:all": "cd Backend && npm install && cd ../Cilent && npm install",
     "build": "echo 'No root build required for backend deployment'",
