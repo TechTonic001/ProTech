@@ -45,6 +45,23 @@ const normalizeLoginPayload = (body = {}) => {
   return { identifier, password, expectedRole };
 };
 
+const ensureLandlordCode = async (user) => {
+  if (!user || user.role !== 'landlord') return user;
+  if (user.landlord_code) return user;
+
+  const landlordCode = await generateUniqueLandlordCode(dbQuery);
+  try {
+    await dbQuery(
+      'UPDATE users SET landlord_code = $1 WHERE user_id = $2',
+      [landlordCode, user.user_id],
+    );
+    return { ...user, landlord_code: landlordCode };
+  } catch (error) {
+    console.error('[LANDLORD CODE] Failed to save landlord code:', error.message);
+    return { ...user, landlord_code: landlordCode };
+  }
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // REGISTER
 // Landlord: 5 fields only — username, full_name, email, phone_number, password
@@ -390,7 +407,7 @@ const profile = async (req, res, next) => {
 
     const result = await dbQuery(
       `SELECT user_id, username, full_name, email, phone_number, role,
-              is_approved, hostel_name, hostel_address
+              is_approved, hostel_name, hostel_address, landlord_code
        FROM users WHERE user_id = $1`,
       [userId]
     );

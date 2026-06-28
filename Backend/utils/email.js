@@ -37,6 +37,13 @@ if (isPlaceholderEmail) {
 }
 
 const emailFooter = 'ProTech Automated Rent System • Ogbomoso, Oyo State, Nigeria';
+const frontendUrl = (process.env.FRONTEND_URL || 'https://pro-tech-one.vercel.app').replace(/\/+$/, '');
+const sendFrom = process.env.EMAIL_FROM || (process.env.EMAIL_USER ? `"ProTech" <${process.env.EMAIL_USER}>` : '"ProTech" <noreply@protech.com>');
+const buildFrontEndLink = (path = '') => `${frontendUrl}/${String(path).replace(/^\/+/, '')}`;
+
+const logEmailAttempt = (label, toEmail, subject) => {
+  console.log(`[EMAIL] ${label}`, { toEmail, subject, from: sendFrom });
+};
 
 const sendOTPEmail = async (toEmail, otpCode) => {
   const htmlContent = `
@@ -60,8 +67,9 @@ const sendOTPEmail = async (toEmail, otpCode) => {
   const textContent = `Your ProTech password reset code is: ${otpCode}\n\nThis code expires in 10 minutes.\n\n${emailFooter}`;
 
   try {
+    logEmailAttempt('OTPEmail', toEmail, 'ProTech • Your Password Reset Code');
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: sendFrom,
       to: toEmail,
       subject: 'ProTech • Your Password Reset Code',
       html: htmlContent,
@@ -94,8 +102,9 @@ const sendPasswordChangedEmail = async (toEmail, fullName) => {
   const textContent = `Hello ${fullName},\n\nYour ProTech account password has been changed successfully.\n\nIf you did not make this change, please contact support immediately.\n\n${emailFooter}`;
 
   try {
+    logEmailAttempt('PasswordChangedEmail', toEmail, 'ProTech • Password Changed Successfully');
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: sendFrom,
       to: toEmail,
       subject: 'ProTech • Password Changed Successfully',
       html: htmlContent,
@@ -118,7 +127,7 @@ const sendApprovalEmail = async (toEmail, fullName, approved, propertyName) => {
     : `Unfortunately, your account request for ${propertyName} has not been approved at this time. Please contact the landlord for more information.`;
 
   const actionButton = approved
-    ? '<a href="' + process.env.FRONTEND_URL + '/login" style="background-color: #1a7f7e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 15px;">Log In Now</a>'
+    ? `<a href="${buildFrontEndLink('login')}" style="background-color: #1a7f7e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 15px;">Log In Now</a>`
     : '';
 
   const htmlContent = `
@@ -141,8 +150,9 @@ const sendApprovalEmail = async (toEmail, fullName, approved, propertyName) => {
   const textContent = `Hello ${fullName},\n\n${statusMessage}\n\n${emailFooter}`;
 
   try {
+    logEmailAttempt('ApprovalEmail', toEmail, subject);
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: sendFrom,
       to: toEmail,
       subject: subject,
       html: htmlContent,
@@ -189,7 +199,7 @@ const sendRentReminderEmail = async (
             <p style="color: #666; margin: 10px 0;"><strong>Due Date:</strong> ${dueDate}</p>
           </div>
           <div style="text-align: center; margin: 20px 0;">
-            <a href="${process.env.FRONTEND_URL}/pay" style="background-color: #1a7f7e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block;">Pay Now</a>
+            <a href="${buildFrontEndLink('pay')}" style="background-color: #1a7f7e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block;">Pay Now</a>
           </div>
           <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
           <p style="color: #999; font-size: 12px; text-align: center;">${emailFooter}</p>
@@ -201,8 +211,9 @@ const sendRentReminderEmail = async (
   const textContent = `Hello ${tenantName},\n\nRent Payment Reminder\n\nAmount: ₦${parseFloat(amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}\nProperty: ${propertyName}\nRoom: ${roomNumber}\nDue Date: ${dueDate}\n\nPlease pay your rent on time.\n\n${emailFooter}`;
 
   try {
+    logEmailAttempt('RentReminderEmail', toEmail, subject);
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: sendFrom,
       to: toEmail,
       subject: subject,
       html: htmlContent,
@@ -249,8 +260,9 @@ const sendPaymentConfirmationEmail = async (
   const textContent = `Hello ${tenantName},\n\nPayment Confirmed\n\nReceipt Number: ${receiptNumber}\nAmount Paid: ₦${parseFloat(amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}\nProperty: ${propertyName}\nRoom: ${roomNumber}\nPayment Date: ${paymentDate}\n\nKeep this receipt for your records.\n\n${emailFooter}`;
 
   try {
+    logEmailAttempt('PaymentConfirmationEmail', toEmail, `Payment Confirmed Receipt ${receiptNumber}`);
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: sendFrom,
       to: toEmail,
       subject: `Payment Confirmed Receipt ${receiptNumber}`,
       html: htmlContent,
@@ -284,8 +296,9 @@ const sendAnnouncementEmail = async (toEmail, tenantName, title, messageBody) =>
   const textContent = `Hello ${tenantName},\n\nNew Announcement\n\n${title}\n\n${messageBody}\n\n${emailFooter}`;
 
   try {
+    logEmailAttempt('AnnouncementEmail', toEmail, `ProTech Announcement: ${title}`);
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: sendFrom,
       to: toEmail,
       subject: `ProTech Announcement: ${title}`,
       html: htmlContent,
@@ -338,7 +351,7 @@ const sendLandlordWelcomeEmail = async (toEmail, fullName, hostelName, landlordC
           anyone else's code.
         </p>
 
-        <a href="https://pro-tech-one.vercel.app//login"
+        <a href="${buildFrontEndLink('login')}"
            style="display:inline-block;background:#1565C0;color:#fff;
                   padding:12px 28px;border-radius:8px;
                   text-decoration:none;font-weight:bold;margin-top:16px">
@@ -351,8 +364,9 @@ const sendLandlordWelcomeEmail = async (toEmail, fullName, hostelName, landlordC
   const textContent = `Hello ${fullName},\n\n${hostelTextLine}\n\nYour unique landlord code is: ${landlordCode}\n\nShare this code with your tenants so they can register.\n\n${emailFooter}`;
 
   try {
+    logEmailAttempt('LandlordWelcomeEmail', toEmail, `Welcome to ProTech — Your Code is ${landlordCode}`);
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: sendFrom,
       to: toEmail,
       subject: `Welcome to ProTech — Your Code is ${landlordCode}`,
       html: htmlContent,
@@ -383,8 +397,9 @@ const sendTenantWelcomeEmail = async (toEmail, tenantName, landlordName) => {
   const textContent = `Hello ${tenantName},\n\nWelcome to ProTech! Your account has been created and is currently awaiting approval from landlord @${landlordName}.\n\n${emailFooter}`;
 
   try {
+    logEmailAttempt('TenantWelcomeEmail', toEmail, 'Welcome to ProTech • Account Awaiting Approval');
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: sendFrom,
       to: toEmail,
       subject: 'Welcome to ProTech • Account Awaiting Approval',
       html: htmlContent,
@@ -406,7 +421,7 @@ const sendLandlordTenantRegistrationNotificationEmail = async (toEmail, landlord
           <p style="color: #666;">Hello ${landlordName},</p>
           <p style="color: #666;">A new tenant, <strong>${tenantName}</strong>, has registered on ProTech under your landlord space and is awaiting your approval.</p>
           <div style="text-align: center; margin: 25px 0;">
-            <a href="${process.env.FRONTEND_URL}/login" style="background-color: #1a7f7e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block;">Approve Requests</a>
+            <a href="${buildFrontEndLink('login')}" style="background-color: #1a7f7e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block;">Approve Requests</a>
           </div>
           <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
           <p style="color: #999; font-size: 12px; text-align: center;">${emailFooter}</p>
@@ -418,8 +433,9 @@ const sendLandlordTenantRegistrationNotificationEmail = async (toEmail, landlord
   const textContent = `Hello ${landlordName},\n\nNew Tenant Registration: ${tenantName} has registered under your space and is awaiting approval.\n\n${emailFooter}`;
 
   try {
+    logEmailAttempt('LandlordTenantRegistrationNotificationEmail', toEmail, 'ProTech Alert • New Tenant Requesting Approval');
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: sendFrom,
       to: toEmail,
       subject: 'ProTech Alert • New Tenant Requesting Approval',
       html: htmlContent,

@@ -46,11 +46,12 @@ const createAnnouncement = async (req, res, next) => {
       sendAnnouncementEmail(tenant.email, tenant.full_name, title, message_body)
         .catch((emailError) => console.error(`Error sending email for lease tenant ${tenant.user_id}:`, emailError.message));
 
+      const frontendUrl = (process.env.FRONTEND_URL || 'https://pro-tech-one.vercel.app').replace(/\/+$/, '');
       sendPushNotification(
         tenant.user_id,
         'New Announcement',
         title,
-        `${process.env.FRONTEND_URL}/announcements`
+        `${frontendUrl}/announcements`
       ).catch((pushError) => console.error(`Error sending push for tenant ${tenant.user_id}:`, pushError.message));
     });
 

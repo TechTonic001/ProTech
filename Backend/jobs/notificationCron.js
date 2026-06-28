@@ -103,11 +103,12 @@ const startNotificationCron = () => {
 
         // Send push notification
         try {
+          const frontendUrl = (process.env.FRONTEND_URL || 'https://pro-tech-one.vercel.app').replace(/\/+$/, '');
           await sendPushNotification(
             lease.tenant_id,
             'Rent Reminder',
             messageBody,
-            `${process.env.FRONTEND_URL}/pay`
+            `${frontendUrl}/pay`
           );
 
           await pool.query(

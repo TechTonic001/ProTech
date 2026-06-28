@@ -207,7 +207,7 @@ const TenantRegister = () => {
             {errors.landlord_code && <p className="text-xs text-red-500 mt-1">{errors.landlord_code}</p>}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
                 Username
@@ -253,7 +253,7 @@ const TenantRegister = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
                 Email Address
@@ -299,7 +299,7 @@ const TenantRegister = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
                 Password

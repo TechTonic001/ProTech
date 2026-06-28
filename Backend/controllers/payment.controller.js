@@ -127,7 +127,7 @@ const initiatePayment = async (req, res, next) => {
           reference,
           subaccount: lease.subaccount_code,
           bearer: 'subaccount',
-          callback_url: `${process.env.FRONTEND_URL}/payment/verify`,
+          callback_url: `${(process.env.FRONTEND_URL || 'https://pro-tech-one.vercel.app').replace(/\/+$/, '')}/payment/verify`,
           metadata: {
             lease_id,
             tenant_id,

@@ -35,6 +35,11 @@ startNotificationCron();
 
 const app = express();
 
+const normalizeOrigin = (value = '') => {
+  const trimmed = value.trim();
+  return trimmed.replace(/\/+$/, '');
+};
+
 const readCorsOrigins = () => {
   const defaults = [
     'https://pro-tech-one.vercel.app',
@@ -47,10 +52,10 @@ const readCorsOrigins = () => {
 
   const extraOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || '')
     .split(',')
-    .map((value) => value.trim())
+    .map((value) => normalizeOrigin(value))
     .filter(Boolean);
 
-  return Array.from(new Set([...defaults, ...extraOrigins]));
+  return Array.from(new Set([...defaults.map(normalizeOrigin), ...extraOrigins]));
 };
 
 const allowedOrigins = new Set(readCorsOrigins());

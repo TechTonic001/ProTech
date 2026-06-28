@@ -40,6 +40,8 @@ export const AuthProvider = ({ children }) => {
 
   const loadUser = async () => {
     const storedToken = localStorage.getItem('protech_token');
+    const storedUser = localStorage.getItem('protech_user');
+    const parsedStoredUser = storedUser ? JSON.parse(storedUser) : null;
     if (!storedToken) {
       setLoading(false);
       return;
@@ -48,8 +50,12 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.get('/auth/profile');
       if (response?.data?.user) {
-        setUser(response.data.user);
-        localStorage.setItem('protech_user', JSON.stringify(response.data.user));
+        const updatedUser = {
+          ...parsedStoredUser,
+          ...response.data.user,
+        };
+        setUser(updatedUser);
+        localStorage.setItem('protech_user', JSON.stringify(updatedUser));
       }
     } catch (error) {
       // The Axios interceptor in api.js already handles 401s (clears storage + redirects).
