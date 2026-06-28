@@ -48,6 +48,18 @@ api.interceptors.response.use(
         }
       }
     }
+
+    const isNetworkError =
+      !error.response &&
+      (error.message?.includes('Network Error') ||
+        error.message?.includes('timeout') ||
+        error.message?.includes('Network request failed'));
+
+    if (isNetworkError) {
+      const message = 'Please check your internet connection.';
+      return Promise.reject(new Error(message));
+    }
+
     const message =
       error.response?.data?.error ||
       error.response?.data?.message ||
