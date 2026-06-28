@@ -89,7 +89,7 @@ const Landing = () => {
               Manage Your Rental<br />Properties <span className="text-amber-400">Smarter.</span>
             </h1>
             <p className="text-lg text-slate-300 max-w-lg">
-              ProTech automates rent collection, payment tracking, and tenant notifications for Nigerian landlords and hostel operators  so you never miss a payment again.
+            Property Technology (ProTech) automates rent collection, payment tracking, and tenant notifications for Nigerian landlords and hostel operators  so you never miss a payment again.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <button onClick={() => navigate('/landlord/register')} className="px-8 py-4 bg-amber-400 text-slate-900 font-bold rounded-2xl text-lg hover:bg-amber-300 transition shadow-lg shadow-amber-400/20">
