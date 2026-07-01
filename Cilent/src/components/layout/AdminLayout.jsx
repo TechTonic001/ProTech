@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import logoDark from '../../assets/logo-dark.png';
 import { 
   LayoutDashboard, 
   Building2, 
@@ -48,12 +49,10 @@ const AdminLayout = () => {
     <div className="flex flex-col h-full bg-gradient-to-b from-slate-900 to-slate-950 text-white select-none">
       {/* Brand */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-white/5">
-        <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-xl font-bold">
-          🛡️
-        </div>
-        <div>
+        <img src={logoDark} alt="ProTech" className="h-8 object-contain" />
+        <div className="ml-2">
           <div className="text-lg font-black tracking-tight flex items-center gap-1.5">
-            ProTech
+            <span className="sr-only">ProTech</span>
             <span className="bg-red-500/20 text-red-400 border border-red-500/30 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
               Admin
             </span>

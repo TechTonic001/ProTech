@@ -1,4 +1,5 @@
 import React from 'react';
+import logoDark from '../../assets/logo-dark.png';
 
 const AuthLayout = ({
   children, accentColor = 'blue', roleLabel,
@@ -31,10 +32,10 @@ const AuthLayout = ({
 
         <div className="relative z-10 text-center max-w-md">
           <div className="w-20 h-20 bg-white/10 rounded-3xl flex items-center
-                          justify-center text-5xl mx-auto mb-6 border border-white/10 shadow-lg">
+                          justify-center mx-auto mb-6 border border-white/10 shadow-lg">
             {roleIcon}
           </div>
-          <h1 className="text-4xl font-black text-white tracking-tight">ProTech</h1>
+          <img src={logoDark} alt="ProTech" className="h-12 mx-auto" />
           <span className="inline-block mt-3 bg-amber-400 text-slate-900
                             text-xs font-bold px-3 py-1 rounded-full shadow-md">
             {roleLabel}

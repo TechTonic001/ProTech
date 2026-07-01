@@ -7,6 +7,7 @@ import { formatCurrency, formatDate } from '../../utils/formatters';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import StatCard from '../../components/ui/StatCard';
 import Badge from '../../components/ui/Badge';
+import RealTimeGreeting from '../../components/ui/RealTimeGreeting';
 import { 
   Home, 
   CreditCard, 
@@ -97,14 +98,11 @@ const TenantDashboard = () => {
     <div className="space-y-8 animate-fade-in">
       {/* Welcome Banner */}
       <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-700 rounded-2xl p-6 text-white shadow-md shadow-indigo-500/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div>
-          <h2 className="text-xl lg:text-2xl font-black">Welcome back, @{lease?.tenant_name || 'Tenant'} 👋</h2>
-          <p className="text-indigo-100 text-sm mt-1">
-            {lease ? `${lease.property_name} • Room ${lease.room_number}` : 'Awaiting Landlord Room Assignment'}
-          </p>
-          <p className="text-indigo-200/70 text-xs mt-1.5 font-semibold tracking-wider">
-            Ogbomoso, Oyo State, Nigeria
-          </p>
+        <div className="flex-1 min-w-0">
+          <RealTimeGreeting
+            name={lease?.tenant_name || 'Tenant'}
+            subtitle={lease ? `${lease.property_name} • Room ${lease.room_number}` : 'Awaiting Landlord Room Assignment'}
+          />
         </div>
 
         {/* Next due alert box */}

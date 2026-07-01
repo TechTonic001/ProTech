@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { approvalAPI } from '../../utils/api';
+import logoDark from '../../assets/logo-dark.png';
 import { 
   LayoutDashboard, 
   Building2, 
@@ -87,11 +88,8 @@ const LandlordLayout = () => {
     <div className="flex flex-col h-full bg-gradient-to-b from-[#0F2A5E] to-[#0A1628] text-white select-none">
       {/* Brand */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-white/5">
-        <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-xl font-bold">
-          🏢
-        </div>
-        <div>
-          <div className="text-lg font-black tracking-tight">ProTech</div>
+        <img src={logoDark} alt="ProTech" className="h-8 object-contain" />
+        <div className="ml-2">
           <div className="text-[10px] text-blue-300 font-bold uppercase tracking-wider">Landlord Portal</div>
         </div>
         <button className="lg:hidden ml-auto p-1 text-white/60 hover:text-white" onClick={() => setMobileMenuOpen(false)}>

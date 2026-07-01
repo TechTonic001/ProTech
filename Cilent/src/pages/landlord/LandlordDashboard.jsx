@@ -12,6 +12,7 @@ import { formatCurrency, formatDate } from "../../utils/formatters";
 import StatCard from "../../components/ui/StatCard";
 import Badge from "../../components/ui/Badge";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import RealTimeGreeting from "../../components/ui/RealTimeGreeting";
 import {
   Building2,
   Users,
@@ -194,20 +195,10 @@ const LandlordDashboard = () => {
       <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-2xl p-6 relative overflow-hidden shadow-md shadow-blue-500/10">
         <div className="grid gap-6 lg:grid-cols-[1.7fr_1fr] items-start">
           <div className="relative z-10">
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-white">
-              Good morning, @{user?.username} 👋
-            </h2>
-            <p className="text-blue-100 text-sm sm:text-base mt-3">
-              Here is your property overview for today.
-            </p>
-            <p className="text-blue-200/70 text-[11px] sm:text-xs mt-3 font-medium uppercase tracking-wider">
-              {new Date().toLocaleDateString("en-US", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </p>
+            <RealTimeGreeting
+              name={user?.full_name || `@${user?.username}`}
+              subtitle="Here is your property overview for today."
+            />
           </div>
 {/* {UNIQUE LANDLORD CODE} */}
           <div className="bg-amber-50 rounded-3xl border-2 border-amber-300 p-5 shadow-xs flex flex-col justify-between gap-4 min-h-[170px]">

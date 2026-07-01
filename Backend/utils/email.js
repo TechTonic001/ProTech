@@ -323,8 +323,8 @@ const sendLandlordWelcomeEmail = async (toEmail, fullName, hostelName, landlordC
   const htmlContent = `
     <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
       <div style="background:#0F2A5E;padding:24px;text-align:center;border-radius:12px 12px 0 0">
-        <h1 style="color:#fff;margin:0;font-size:20px">🏠 ProTech</h1>
-      </div>
+          <img src="https://pro-tech-one.vercel.app/logo192.png" alt="ProTech" width="60" style="display:block;margin:0 auto 12px" />
+        </div>
       <div style="background:#fff;padding:28px;border-radius:0 0 12px 12px">
         <p>Dear ${fullName},</p>
         ${hostelLine}
