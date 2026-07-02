@@ -2,10 +2,17 @@
 const express = require('express');
 const router = express.Router();
 
+// Auth guards — V6 fix: test routes must only be callable by authenticated admins
+const { verifyToken } = require('../middleware/auth.middleware');
+const { requireRole } = require('../middleware/role.middleware');
+
 // Import the email utility or use a custom send
 const { sendOTPEmail } = require('../utils/email');
 
-router.post('/test-email', async (req, res) => {
+// Guard: verifyToken ensures a valid JWT is present.
+// requireRole('admin') ensures only admin accounts can trigger test emails.
+// This prevents anonymous callers from abusing the SMTP account (OWASP A05 — V6).
+router.post('/test-email', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     const targetEmail = 'protech78902@gmail.com';
     const testOTP = '123456';
@@ -34,3 +41,4 @@ router.post('/test-email', async (req, res) => {
 });
 
 module.exports = router;
+

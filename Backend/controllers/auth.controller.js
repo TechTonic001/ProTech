@@ -134,7 +134,7 @@ const register = async (req, res, next) => {
       return res.status(400).json({ error: 'Username is already taken.' });
     }
 
-    const password_hash = await bcrypt.hash(password, 10);
+    const password_hash = await bcrypt.hash(password, 12);
 
     // ══════════════════════════════════════════════════════
     // LANDLORD PATH — no hostel info required at registration
@@ -483,27 +483,30 @@ const forgotPassword = async (req, res, next) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Only need user_id to confirm the account exists — nothing else
+    // NOTE: Always return the same 200 response regardless of whether the email
+    // exists in the database. This prevents user-enumeration attacks (OWASP A07)
+    // where an attacker can discover valid emails by observing different responses.
     const result = await dbQuery(
       'SELECT user_id, full_name FROM users WHERE email = $1',
       [email]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User with this email not found' });
+    if (result.rows.length > 0) {
+      // Only generate and send OTP if the account actually exists — but the
+      // caller (frontend) never learns whether the account exists or not.
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      await dbQuery(
+        'INSERT INTO password_resets (email, otp_code, is_used, expires_at) VALUES ($1, $2, $3, $4)',
+        [email, otpCode, 0, expiresAt]
+      );
+
+      sendOTPEmail(email, otpCode)
+        .catch((err) => console.error('[ERROR] Failed to send OTP email:', err.message));
     }
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    await dbQuery(
-      'INSERT INTO password_resets (email, otp_code, is_used, expires_at) VALUES ($1, $2, $3, $4)',
-      [email, otpCode, 0, expiresAt]
-    );
-
-    sendOTPEmail(email, otpCode)
-      .catch((err) => console.error('[ERROR] Failed to send OTP email:', err.message));
-
+    // Return identical 200 for both found and not-found accounts (V5 fix)
     return res.status(200).json({ message: 'OTP sent to your registered email address' });
   } catch (error) {
     console.error('[ERROR] Forgot password error:', error.message);
@@ -544,7 +547,7 @@ const resetPassword = async (req, res, next) => {
       });
     }
 
-    const password_hash = await bcrypt.hash(newPassword, 10);
+    const password_hash = await bcrypt.hash(newPassword, 12);
 
     await dbQuery('UPDATE users SET password_hash = $1 WHERE email = $2', [password_hash, email]);
 

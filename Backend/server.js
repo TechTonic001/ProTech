@@ -26,6 +26,8 @@ console.log('══════════════════════�
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const { testConnection } = require('./config/db');
 
@@ -34,6 +36,8 @@ const { startNotificationCron } = require('./jobs/notificationCron');
 startNotificationCron();
 
 const app = express();
+
+app.use(helmet());
 
 const normalizeOrigin = (value = '') => {
   const trimmed = value.trim();
@@ -44,11 +48,11 @@ const readCorsOrigins = () => {
   const defaults = [
     'https://pro-tech-one.vercel.app',
     'https://www.pro-tech-one.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:5173',
   ];
+
+  if (process.env.NODE_ENV !== 'production') {
+    defaults.push('http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:3000', 'http://127.0.0.1:5173');
+  }
 
   const extraOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || '')
     .split(',')
@@ -62,19 +66,16 @@ const allowedOrigins = new Set(readCorsOrigins());
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (e.g., Postman, server-to-server)
     if (!origin) return callback(null, true);
-
-    // Allow explicitly whitelisted origins
     if (allowedOrigins.has(origin)) return callback(null, true);
 
-    // Allow ANY localhost port for developer convenience
-    try {
-      const { hostname } = new URL(origin);
-      if (hostname === 'localhost' || hostname === '127.0.0.1') return callback(null, true);
-      // Allow LAN IPs (mobile device testing)
-      if (/^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(hostname)) return callback(null, true);
-    } catch (_) { /* invalid origin, fall through */ }
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        const { hostname } = new URL(origin);
+        if (hostname === 'localhost' || hostname === '127.0.0.1') return callback(null, true);
+        if (/^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(hostname)) return callback(null, true);
+      } catch (_) { /* invalid origin */ }
+    }
 
     console.warn('[CORS BLOCKED]', origin);
     return callback(new Error('Not allowed by CORS'));
@@ -86,7 +87,27 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Must pass cors() middleware, not raw options object
+app.options('*', cors(corsOptions));
+
+// ── Auth rate limiter: max 20 login/register attempts per IP per 15 minutes (V7)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP. Please try again after 15 minutes.' },
+  skip: () => process.env.NODE_ENV !== 'production',
+});
+
+// ── Stricter limiter for forgot-password: max 5 OTP requests per IP per hour (V7)
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many password reset requests. Please try again in an hour.' },
+  skip: () => process.env.NODE_ENV !== 'production',
+});
 
 // Mount Paystack webhook with raw body parser specifically
 app.use(
@@ -100,7 +121,9 @@ app.use(express.json());
 
 // Routes
 app.use('/api', require('./routes/test.routes'));
-app.use('/api/auth', require('./routes/auth.routes'));
+// Apply stricter forgot-password limiter BEFORE the broader auth limiter (order matters)
+app.use('/api/auth/forgot-password', forgotPasswordLimiter);
+app.use('/api/auth', authLimiter, require('./routes/auth.routes'));
 app.use('/api/payments', require('./routes/payment.routes'));
 app.use('/api/announcement', require('./routes/announcement.routes'));
 app.use('/api/approval', require('./routes/approval.routes'));

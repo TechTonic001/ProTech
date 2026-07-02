@@ -5,11 +5,19 @@ import api from '../utils/api';
 
 export const AuthContext = createContext(null);
 
+// Safe JSON.parse wrapper — prevents a SyntaxError crash if localStorage is
+// tampered with or contains invalid data (OWASP A03 / V8 fix).
+const safeParseJSON = (value) => {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    const storedUser = localStorage.getItem('protech_user');
-    return storedUser ? JSON.parse(storedUser) : null;
-  });
+  const [user, setUser] = useState(() => safeParseJSON(localStorage.getItem('protech_user')));
   const [token, setToken] = useState(() => localStorage.getItem('protech_token'));
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -40,8 +48,7 @@ export const AuthProvider = ({ children }) => {
 
   const loadUser = async () => {
     const storedToken = localStorage.getItem('protech_token');
-    const storedUser = localStorage.getItem('protech_user');
-    const parsedStoredUser = storedUser ? JSON.parse(storedUser) : null;
+    const parsedStoredUser = safeParseJSON(localStorage.getItem('protech_user'));
     if (!storedToken) {
       setLoading(false);
       return;
@@ -78,3 +85,4 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
