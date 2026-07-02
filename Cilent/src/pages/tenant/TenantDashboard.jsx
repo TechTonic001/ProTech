@@ -1,5 +1,5 @@
 // src/pages/tenant/TenantDashboard.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { leaseAPI, paymentAPI, approvalAPI } from '../../utils/api';
 import api from '../../utils/api';
@@ -58,40 +58,37 @@ const TenantDashboard = () => {
     }
   };
 
-  const getDaysRemaining = () => {
+  // useMemo: these three calculations depend only on lease data.
+  // Previously defined as plain functions called multiple times inside JSX.
+  const daysRemaining = useMemo(() => {
     if (!lease) return 0;
-    const now = new Date();
+    const now    = new Date();
     const dueDay = lease.due_day || 5;
-    const due = new Date(now.getFullYear(), now.getMonth(), dueDay);
-    if (now.getDate() > dueDay) {
-      due.setMonth(due.getMonth() + 1);
-    }
-    const diffTime = due - now;
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
+    const due    = new Date(now.getFullYear(), now.getMonth(), dueDay);
+    if (now.getDate() > dueDay) due.setMonth(due.getMonth() + 1);
+    return Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+  }, [lease]);
 
-  const getDaysRemainingPill = () => {
-    const days = getDaysRemaining();
-    if (days <= 0) return 'bg-red-400/20 text-red-200';
-    if (days <= 7) return 'bg-amber-400/20 text-amber-200';
+  const daysRemainingPillClass = useMemo(() => {
+    if (daysRemaining <= 0) return 'bg-red-400/20 text-red-200';
+    if (daysRemaining <= 7) return 'bg-amber-400/20 text-amber-200';
     return 'bg-green-400/20 text-green-200';
-  };
+  }, [daysRemaining]);
 
-  const getLeaseProgressPercent = () => {
+  const leaseProgressPercent = useMemo(() => {
     if (!lease || !lease.start_date || !lease.end_date) return 0;
-    const start = new Date(lease.start_date);
-    const end = new Date(lease.end_date);
-    const now = new Date();
-    const total = end - start;
+    const start   = new Date(lease.start_date);
+    const end     = new Date(lease.end_date);
+    const now     = new Date();
+    const total   = end - start;
     const elapsed = now - start;
     if (total <= 0) return 0;
-    const percent = Math.round((elapsed / total) * 100);
-    return Math.min(100, Math.max(0, percent));
-  };
+    return Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)));
+  }, [lease]);
 
   if (loading) return <LoadingSpinner fullPage size="lg" />;
 
-  const daysRemaining = lease ? getDaysRemaining() : 0;
+  // Derived from lease — computed after loading guard
   const nextRentAmount = lease ? parseFloat(lease.rent_amount) + 500 : 0;
 
   return (
@@ -113,7 +110,7 @@ const TenantDashboard = () => {
             <span className="text-[10px] text-indigo-150 mt-1 font-semibold uppercase">
               Due by {lease.due_day}th of month
             </span>
-            <span className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getDaysRemainingPill()}`}>
+            <span className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${daysRemainingPillClass}`}>
               {daysRemaining <= 0 ? 'Overdue' : `${daysRemaining} days remaining`}
             </span>
           </div>
@@ -243,12 +240,12 @@ const TenantDashboard = () => {
             <div className="space-y-1.5 pt-4 border-t border-slate-100 font-semibold">
               <div className="flex justify-between text-[10px] text-slate-400 uppercase tracking-wider">
                 <span>Lease Progress</span>
-                <span className="text-blue-600">{getLeaseProgressPercent()}% elapsed</span>
+                <span className="text-blue-600">{leaseProgressPercent}% elapsed</span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2">
                 <div 
                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${getLeaseProgressPercent()}%` }}
+                  style={{ width: `${leaseProgressPercent}%` }}
                 />
               </div>
             </div>

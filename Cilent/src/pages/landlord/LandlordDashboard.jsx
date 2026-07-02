@@ -1,5 +1,5 @@
 // src/pages/landlord/LandlordDashboard.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import {
@@ -40,26 +40,22 @@ import {
   Legend,
 } from "recharts";
 
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
 const LandlordDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    properties: 0,
-    activeTenants: 0,
-    monthlyRevenue: 0,
-    overdueTenants: 0,
-  });
-  const [recentPayments, setRecentPayments] = useState([]);
+
+  // Raw data from API — populated once
+  const [properties,   setProperties]   = useState([]);
+  const [leases,       setLeases]       = useState([]);
+  const [payments,     setPayments]     = useState([]);
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
-  const [revenueData, setRevenueData] = useState([]);
-  const [occupancyData, setOccupancyData] = useState([]);
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
+  // ─── Data Fetching ────────────────────────────────────────────────────────
+  // useCallback so the function reference is stable (safe to call from effects)
+  const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       const [propRes, leaseRes, payRes, approvalRes] = await Promise.all([
@@ -69,18 +65,39 @@ const LandlordDashboard = () => {
         approvalAPI.getPending(),
       ]);
 
-      const properties = propRes.data.data || [];
-      const leases = leaseRes.data.data || [];
-      const payments = payRes.data.data || [];
-      const approvals = approvalRes.data.data || [];
+      setProperties(propRes.data.data   || []);
+      setLeases(leaseRes.data.data      || []);
+      setPayments(payRes.data.data      || []);
+      setPendingApprovalsCount((approvalRes.data.data || []).length);
+    } catch (err) {
+      console.error("Failed to load dashboard statistics:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-      // Calculate stats
-      const activeLeases = leases.filter((l) => l.lease_status === "active");
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
-      const currentMonthRevenue = payments
+  // ─── Derived Stats ────────────────────────────────────────────────────────
+  // All computed values use useMemo so they only re-run when their inputs change,
+  // not on every component re-render.
+
+  const now = useMemo(() => new Date(), []);
+  const currentMonth = now.getMonth();
+  const currentYear  = now.getFullYear();
+
+  // Active leases — O(n)
+  const activeLeases = useMemo(
+    () => leases.filter((l) => l.lease_status === "active"),
+    [leases]
+  );
+
+  // Current month revenue — O(n)
+  const currentMonthRevenue = useMemo(
+    () =>
+      payments
         .filter((p) => {
           const pDate = new Date(p.payment_date);
           return (
@@ -89,104 +106,89 @@ const LandlordDashboard = () => {
             pDate.getFullYear() === currentYear
           );
         })
-        .reduce((sum, p) => sum + parseFloat(p.amount_paid), 0);
+        .reduce((sum, p) => sum + parseFloat(p.amount_paid), 0),
+    [payments, currentMonth, currentYear]
+  );
 
-      // Overdue is calculated if rent is overdue (e.g. status includes overdue or unpaid with past due dates)
-      const overdueCount = leases.filter((l) => {
-        if (l.lease_status !== "active") return false;
-        // Simple logic: if due date passed for current month and no payment is logged for it
-        const hasPaidCurrentMonth = payments.some((p) => {
-          const pDate = new Date(p.payment_date);
-          return (
-            p.lease_id === l.lease_id &&
-            p.payment_status === "success" &&
-            pDate.getMonth() === currentMonth &&
-            pDate.getFullYear() === currentYear
-          );
-        });
-        const todayDay = now.getDate();
-        return !hasPaidCurrentMonth && todayDay > (l.due_day || 5);
-      }).length;
+  // ── OPTIMIZED: Overdue count O(n²) → O(n) ─────────────────────────────────
+  // BEFORE: nested .some() inside .filter() — O(leases × payments) every render
+  // AFTER:  build a Set of paid lease keys in O(payments), then filter in O(leases)
+  const overdueCount = useMemo(() => {
+    const todayDay = now.getDate();
 
-      setStats({
-        properties: properties.length,
-        activeTenants: activeLeases.length,
-        monthlyRevenue: currentMonthRevenue,
-        overdueTenants: overdueCount,
-      });
-
-      setRecentPayments(payments.slice(0, 5));
-      setPendingApprovalsCount(approvals.length);
-
-      // BarChart Revenue logic (aggregate last 6 months)
-      const monthlySums = {};
-      const monthNames = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
-
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date();
-        d.setMonth(now.getMonth() - i);
-        const m = d.getMonth();
-        const y = d.getFullYear();
-        const label = `${monthNames[m]} ${y}`;
-        monthlySums[label] = { month: label, Revenue: 0 };
+    // Step 1: Build a lookup Set of "lease_id|month|year" for every successful
+    //         payment in the current month — O(payments)
+    const paidThisMonthSet = new Set();
+    for (const p of payments) {
+      if (p.payment_status !== "success") continue;
+      const pDate = new Date(p.payment_date);
+      if (pDate.getMonth() === currentMonth && pDate.getFullYear() === currentYear) {
+        paidThisMonthSet.add(p.lease_id);
       }
-
-      payments.forEach((p) => {
-        if (p.payment_status !== "success") return;
-        const pDate = new Date(p.payment_date);
-        const mLabel = `${monthNames[pDate.getMonth()]} ${pDate.getFullYear()}`;
-        if (monthlySums[mLabel]) {
-          monthlySums[mLabel].Revenue += parseFloat(p.amount_paid);
-        }
-      });
-      setRevenueData(Object.values(monthlySums));
-
-      // PieChart Occupancy logic
-      let totalRooms = properties.reduce(
-        (sum, p) => sum + (p.total_rooms || 0),
-        0,
-      );
-      let occupiedRooms = activeLeases.length;
-      let vacantRooms = Math.max(0, totalRooms - occupiedRooms);
-
-      // Default if no rooms exist
-      if (totalRooms === 0) {
-        totalRooms = 10;
-        vacantRooms = 10;
-      }
-
-      setOccupancyData([
-        { name: "Occupied", value: occupiedRooms, color: "#1565C0" },
-        { name: "Vacant", value: vacantRooms, color: "#E3F2FD" },
-      ]);
-    } catch (err) {
-      console.error("Failed to load dashboard statistics:", err.message);
-    } finally {
-      setLoading(false);
     }
-  };
 
-  const currentOccupancyPercent = () => {
-    const total = occupancyData.reduce((sum, d) => sum + d.value, 0);
-    const occupied =
-      occupancyData.find((d) => d.name === "Occupied")?.value || 0;
+    // Step 2: Filter active leases — O(leases), each lookup is O(1)
+    return activeLeases.filter((l) => {
+      const isPastDue = todayDay > (l.due_day || 5);
+      return isPastDue && !paidThisMonthSet.has(l.lease_id);
+    }).length;
+  }, [activeLeases, payments, currentMonth, currentYear, now]);
+
+  // Stats object assembled from already-memoized values
+  const stats = useMemo(
+    () => ({
+      properties:     properties.length,
+      activeTenants:  activeLeases.length,
+      monthlyRevenue: currentMonthRevenue,
+      overdueTenants: overdueCount,
+    }),
+    [properties.length, activeLeases.length, currentMonthRevenue, overdueCount]
+  );
+
+  // Recent payments — take only the first 5 from the current page
+  const recentPayments = useMemo(() => payments.slice(0, 5), [payments]);
+
+  // BarChart revenue data — last 6 months aggregation — O(payments)
+  const revenueData = useMemo(() => {
+    const monthlySums = {};
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(now.getMonth() - i);
+      const label = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+      monthlySums[label] = { month: label, Revenue: 0 };
+    }
+    for (const p of payments) {
+      if (p.payment_status !== "success") continue;
+      const pDate  = new Date(p.payment_date);
+      const mLabel = `${MONTH_NAMES[pDate.getMonth()]} ${pDate.getFullYear()}`;
+      if (monthlySums[mLabel]) {
+        monthlySums[mLabel].Revenue += parseFloat(p.amount_paid);
+      }
+    }
+    return Object.values(monthlySums);
+  }, [payments, now]);
+
+  // PieChart occupancy data
+  const occupancyData = useMemo(() => {
+    let totalRooms   = properties.reduce((sum, p) => sum + (p.total_rooms || 0), 0);
+    let occupiedRooms = activeLeases.length;
+    let vacantRooms   = Math.max(0, totalRooms - occupiedRooms);
+    if (totalRooms === 0) { totalRooms = 10; vacantRooms = 10; occupiedRooms = 0; }
+    return [
+      { name: "Occupied", value: occupiedRooms, color: "#1565C0" },
+      { name: "Vacant",   value: vacantRooms,   color: "#E3F2FD" },
+    ];
+  }, [properties, activeLeases]);
+
+  // Occupancy percentage — derived from already-memoized occupancyData
+  const currentOccupancyPercent = useMemo(() => {
+    const total    = occupancyData.reduce((sum, d) => sum + d.value, 0);
+    const occupied = occupancyData.find((d) => d.name === "Occupied")?.value || 0;
     if (total === 0 || total === 10) return "0%";
     return `${Math.round((occupied / total) * 100)}%`;
-  };
+  }, [occupancyData]);
 
+  // ─── Render ───────────────────────────────────────────────────────────────
   if (loading) return <LoadingSpinner fullPage />;
 
   return (
@@ -434,7 +436,7 @@ const LandlordDashboard = () => {
             </ResponsiveContainer>
             <div className="absolute flex flex-col items-center justify-center">
               <span className="text-xl font-black text-slate-900 leading-none">
-                {currentOccupancyPercent()}
+                {currentOccupancyPercent}
               </span>
               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                 Occupied

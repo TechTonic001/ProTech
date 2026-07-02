@@ -12,9 +12,9 @@ const requestApproval = async (req, res, next) => {
       return res.status(400).json({ error: 'Landlord ID and property ID are required' });
     }
 
-    // Check if approval already exists
+    // Only need the row's existence — select only primary key columns
     const existingResult = await pool.query(
-      'SELECT * FROM tenant_approvals WHERE tenant_id = $1 AND property_id = $2 AND status = $3',
+      'SELECT approval_id FROM tenant_approvals WHERE tenant_id = $1 AND property_id = $2 AND status = $3',
       [tenant_id, property_id, 'pending']
     );
 
@@ -42,21 +42,35 @@ const requestApproval = async (req, res, next) => {
 const getPendingApprovals = async (req, res, next) => {
   try {
     const landlord_id = req.user.user_id;
+    const page   = Math.max(1, parseInt(req.query.page,  10) || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const offset = (page - 1) * limit;
 
-    const result = await pool.query(
-      `SELECT ta.*, u.username, u.full_name, u.email, u.phone_number, p.property_name, r.room_number
-       FROM tenant_approvals ta
-       JOIN users u ON ta.tenant_id = u.user_id
-       LEFT JOIN properties p ON ta.property_id = p.property_id
-       LEFT JOIN rooms r ON p.property_id = r.property_id
-       WHERE ta.landlord_id = $1 AND ta.status = 'pending'
-       ORDER BY ta.created_at DESC`,
-      [landlord_id]
-    );
+    const [countResult, result] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*) FROM tenant_approvals WHERE landlord_id = $1 AND status = 'pending'`,
+        [landlord_id]
+      ),
+      pool.query(
+        `SELECT ta.approval_id, ta.tenant_id, ta.landlord_id, ta.property_id, ta.status, ta.created_at,
+                u.username, u.full_name, u.email, u.phone_number,
+                p.property_name,
+                r.room_number
+         FROM tenant_approvals ta
+         JOIN users u              ON ta.tenant_id  = u.user_id
+         LEFT JOIN properties p    ON ta.property_id = p.property_id
+         LEFT JOIN rooms r         ON p.property_id  = r.property_id
+         WHERE ta.landlord_id = $1 AND ta.status = 'pending'
+         ORDER BY ta.created_at DESC
+         LIMIT $2 OFFSET $3`,
+        [landlord_id, limit, offset]
+      ),
+    ]);
 
     return res.status(200).json({
       message: 'Pending approvals retrieved successfully',
-      data: result.rows,
+      data:    result.rows,
+      meta: { total: parseInt(countResult.rows[0].count), page, limit },
     });
   } catch (error) {
     next(error);
@@ -133,18 +147,34 @@ const processApproval = async (req, res, next) => {
 const getApprovedApprovals = async (req, res, next) => {
   try {
     const landlord_id = req.user.user_id;
-    const result = await pool.query(
-      `SELECT ta.*, u.username, u.full_name, u.email, u.phone_number, p.property_name
-       FROM tenant_approvals ta
-       JOIN users u ON ta.tenant_id = u.user_id
-       LEFT JOIN properties p ON ta.property_id = p.property_id
-       WHERE ta.landlord_id = $1 AND ta.status = 'approved'
-       ORDER BY ta.approved_at DESC`,
-      [landlord_id]
-    );
+    const page   = Math.max(1, parseInt(req.query.page,  10) || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const offset = (page - 1) * limit;
+
+    const [countResult, result] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*) FROM tenant_approvals WHERE landlord_id = $1 AND status = 'approved'`,
+        [landlord_id]
+      ),
+      pool.query(
+        `SELECT ta.approval_id, ta.tenant_id, ta.landlord_id, ta.property_id,
+                ta.status, ta.created_at, ta.approved_at,
+                u.username, u.full_name, u.email, u.phone_number,
+                p.property_name
+         FROM tenant_approvals ta
+         JOIN users u           ON ta.tenant_id  = u.user_id
+         LEFT JOIN properties p ON ta.property_id = p.property_id
+         WHERE ta.landlord_id = $1 AND ta.status = 'approved'
+         ORDER BY ta.approved_at DESC
+         LIMIT $2 OFFSET $3`,
+        [landlord_id, limit, offset]
+      ),
+    ]);
+
     return res.status(200).json({
       message: 'Approved tenants retrieved successfully',
-      data: result.rows
+      data:    result.rows,
+      meta: { total: parseInt(countResult.rows[0].count), page, limit },
     });
   } catch (error) {
     next(error);

@@ -12,9 +12,9 @@ const createAnnouncement = async (req, res, next) => {
       return res.status(400).json({ error: 'Property ID, title, and message body are required' });
     }
 
-    // Verify property belongs to landlord
+    // Only need to confirm ownership — select only the primary key
     const propertiesResult = await pool.query(
-      'SELECT * FROM properties WHERE property_id = $1 AND landlord_id = $2',
+      'SELECT property_id FROM properties WHERE property_id = $1 AND landlord_id = $2',
       [property_id, landlord_id]
     );
 
@@ -69,33 +69,57 @@ const createAnnouncement = async (req, res, next) => {
 
 const getAnnouncements = async (req, res, next) => {
   try {
-    let queryText, params;
+    const page   = Math.max(1, parseInt(req.query.page,  10) || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const offset = (page - 1) * limit;
+
+    let countText, queryText, params;
 
     if (req.user.role === 'tenant') {
-      // Get announcements for tenant's active leases
-      queryText = `SELECT a.*, p.property_name FROM announcements a
-               JOIN properties p ON a.property_id = p.property_id
-               WHERE p.property_id IN (
-                 SELECT r.property_id FROM rooms r
-                 JOIN leases l ON r.room_id = l.room_id
-                 WHERE l.tenant_id = $1 AND l.lease_status = 'active'
-               )
-               ORDER BY a.created_at DESC`;
-      params = [req.user.user_id];
+      countText = `
+        SELECT COUNT(*) FROM announcements a
+        WHERE a.property_id IN (
+          SELECT r.property_id FROM rooms r
+          JOIN leases l ON r.room_id = l.room_id
+          WHERE l.tenant_id = $1 AND l.lease_status = 'active'
+        )`;
+      queryText = `
+        SELECT a.announcement_id, a.landlord_id, a.property_id,
+               a.title, a.message_body, a.created_at,
+               p.property_name
+        FROM announcements a
+        JOIN properties p ON a.property_id = p.property_id
+        WHERE a.property_id IN (
+          SELECT r.property_id FROM rooms r
+          JOIN leases l ON r.room_id = l.room_id
+          WHERE l.tenant_id = $1 AND l.lease_status = 'active'
+        )
+        ORDER BY a.created_at DESC
+        LIMIT $2 OFFSET $3`;
+      params = [req.user.user_id, limit, offset];
     } else {
-      // Landlord or admin - get their announcements
-      queryText = `SELECT a.*, p.property_name FROM announcements a
-               JOIN properties p ON a.property_id = p.property_id
-               WHERE a.landlord_id = $1
-               ORDER BY a.created_at DESC`;
-      params = [req.user.user_id];
+      countText = `SELECT COUNT(*) FROM announcements WHERE landlord_id = $1`;
+      queryText = `
+        SELECT a.announcement_id, a.landlord_id, a.property_id,
+               a.title, a.message_body, a.created_at,
+               p.property_name
+        FROM announcements a
+        JOIN properties p ON a.property_id = p.property_id
+        WHERE a.landlord_id = $1
+        ORDER BY a.created_at DESC
+        LIMIT $2 OFFSET $3`;
+      params = [req.user.user_id, limit, offset];
     }
 
-    const result = await pool.query(queryText, params);
+    const [countResult, result] = await Promise.all([
+      pool.query(countText, [req.user.user_id]),
+      pool.query(queryText, params),
+    ]);
 
     return res.status(200).json({
       message: 'Announcements retrieved successfully',
-      data: result.rows,
+      data:    result.rows,
+      meta: { total: parseInt(countResult.rows[0].count), page, limit },
     });
   } catch (error) {
     next(error);
@@ -107,8 +131,9 @@ const deleteAnnouncement = async (req, res, next) => {
     const { id } = req.params;
     const landlord_id = req.user.user_id;
     
+    // Only need the row to confirm ownership — select primary key only
     const checkResult = await pool.query(
-      'SELECT * FROM announcements WHERE announcement_id = $1 AND landlord_id = $2',
+      'SELECT announcement_id FROM announcements WHERE announcement_id = $1 AND landlord_id = $2',
       [id, landlord_id]
     );
 

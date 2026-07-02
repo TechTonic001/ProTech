@@ -328,8 +328,13 @@ const login = async (req, res, next) => {
       return res.status(400).json({ error: 'Identifier and password are required' });
     }
 
+    // Explicit columns — avoids leaking password_hash, tokens, and internal fields
     const result = await dbQuery(
-      'SELECT * FROM users WHERE email = $1 OR username = $2',
+      `SELECT user_id, username, email, full_name, phone_number,
+              role, is_approved, hostel_name, hostel_address,
+              landlord_code, subaccount_code, password_hash
+       FROM users
+       WHERE email = $1 OR username = $2`,
       [identifier, identifier]
     );
 
@@ -478,7 +483,11 @@ const forgotPassword = async (req, res, next) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    const result = await dbQuery('SELECT * FROM users WHERE email = $1', [email]);
+    // Only need user_id to confirm the account exists — nothing else
+    const result = await dbQuery(
+      'SELECT user_id, full_name FROM users WHERE email = $1',
+      [email]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User with this email not found' });
@@ -515,8 +524,10 @@ const resetPassword = async (req, res, next) => {
       return res.status(400).json({ error: 'Email, OTP code, and new password are required' });
     }
 
+    // Only need reset_id to mark as used — no wildcard
     const result = await dbQuery(
-      `SELECT * FROM password_resets
+      `SELECT reset_id
+       FROM password_resets
        WHERE email = $1 AND otp_code = $2 AND is_used = 0 AND expires_at > NOW()`,
       [email, otpValue]
     );

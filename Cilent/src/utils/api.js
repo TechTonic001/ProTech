@@ -80,10 +80,10 @@ export const authAPI = {
 };
 
 export const propertyAPI = {
-  getAll: () => api.get('/property'),
-  create: (data) => api.post('/property', data),
-  update: (id, data) => api.put(`/property/${id}`, data),
-  delete: (id) => api.delete(`/property/${id}`),
+  getAll:  (params) => api.get('/property', { params }),
+  create:  (data)  => api.post('/property', data),
+  update:  (id, data) => api.put(`/property/${id}`, data),
+  delete:  (id)    => api.delete(`/property/${id}`),
 };
 
 export const roomAPI = {
@@ -94,41 +94,41 @@ export const roomAPI = {
 };
 
 export const leaseAPI = {
-  getAll: () => api.get('/lease/landlord/active'),
-  getMine: () => api.get('/lease/tenant/active'),
-  create: (data) => api.post('/lease', data),
-  getById: (id) => api.get(`/lease/${id}`),
-  update: (id, data) => api.put(`/lease/${id}`, data),
-  terminate: (id) => api.patch(`/lease/${id}/terminate`),
+  getAll:   (params) => api.get('/lease/landlord/active', { params }),
+  getMine:  (params) => api.get('/lease/tenant/active',   { params }),
+  create:   (data)   => api.post('/lease', data),
+  getById:  (id)     => api.get(`/lease/${id}`),
+  update:   (id, data) => api.put(`/lease/${id}`, data),
+  terminate: (id)    => api.patch(`/lease/${id}/terminate`),
 };
 
 export const paymentAPI = {
-  initiate: (leaseId) => api.post('/payments/initiate', { lease_id: leaseId }),
-  getHistory: () => api.get('/payments/history'),
-  getReceipt: (ref) => api.get(`/payments/receipt/${ref}`),
-  createSubaccount: (data) => api.post('/payments/subaccount', data),
-  getBanks: () => api.get('/payments/banks'),
+  initiate:        (leaseId) => api.post('/payments/initiate', { lease_id: leaseId }),
+  getHistory:      (params)  => api.get('/payments/history', { params }),
+  getReceipt:      (ref)     => api.get(`/payments/receipt/${ref}`),
+  createSubaccount: (data)   => api.post('/payments/subaccount', data),
+  getBanks:        ()        => api.get('/payments/banks'),
 };
 
 export const approvalAPI = {
-  request: (data) => api.post('/approval/request', data),
-  getPending: () => api.get('/approval/pending'),
-  getApproved: () => api.get('/approval/approved'),
-  process: (id, data) => api.put(`/approval/${id}`, data),
+  request:    (data)      => api.post('/approval/request', data),
+  getPending: (params)    => api.get('/approval/pending', { params }),
+  getApproved: (params)   => api.get('/approval/approved', { params }),
+  process:    (id, data)  => api.put(`/approval/${id}`, data),
 };
 
 export const announcementAPI = {
-  getAll: () => api.get('/announcement'),
-  create: (data) => api.post('/announcement', data),
-  delete: (id) => api.delete(`/announcement/${id}`),
+  getAll:  (params) => api.get('/announcement', { params }),
+  create:  (data)   => api.post('/announcement', data),
+  delete:  (id)     => api.delete(`/announcement/${id}`),
 };
 
 export const adminAPI = {
-  getStats: () => api.get('/admin/stats'),
-  getLandlords: () => api.get('/admin/landlords'),
-  getTenants: () => api.get('/admin/tenants'),
-  getPayments: () => api.get('/admin/payments'),
-  getProperties: () => api.get('/admin/properties'),
+  getStats:      ()       => api.get('/admin/stats'),
+  getLandlords:  (params) => api.get('/admin/landlords',  { params }),
+  getTenants:    (params) => api.get('/admin/tenants',    { params }),
+  getPayments:   (params) => api.get('/admin/payments',   { params }),
+  getProperties: (params) => api.get('/admin/properties', { params }),
 };
 
 export default api;

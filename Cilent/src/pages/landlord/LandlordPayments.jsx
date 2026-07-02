@@ -1,5 +1,5 @@
 // src/pages/landlord/LandlordPayments.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { paymentAPI } from '../../utils/api';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -58,22 +58,32 @@ const LandlordPayments = () => {
     window.print();
   };
 
-  const filteredPayments = payments.filter((p) => {
-    const matchesSearch = 
-      (p.tenant_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.paystack_ref || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.hostel_name || p.property_name || '').toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = 
-      statusFilter === 'all' || 
-      p.payment_status?.toLowerCase() === statusFilter.toLowerCase();
+  // useMemo: filteredPayments re-computes only when payments, searchQuery, or statusFilter change.
+  // Previously re-ran on every render, including when receiptLoading toggled.
+  const filteredPayments = useMemo(() =>
+    payments.filter((p) => {
+      const matchesSearch =
+        (p.tenant_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.paystack_ref || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.hostel_name || p.property_name || '').toLowerCase().includes(searchQuery.toLowerCase());
 
-    return matchesSearch && matchesStatus;
-  });
+      const matchesStatus =
+        statusFilter === 'all' ||
+        p.payment_status?.toLowerCase() === statusFilter.toLowerCase();
 
-  const totalRevenue = payments
-    .filter(p => p.payment_status === 'success')
-    .reduce((sum, p) => sum + parseFloat(p.amount_paid), 0);
+      return matchesSearch && matchesStatus;
+    }),
+    [payments, searchQuery, statusFilter]
+  );
+
+  // useMemo: totalRevenue depends only on payments — not filters
+  const totalRevenue = useMemo(
+    () =>
+      payments
+        .filter(p => p.payment_status === 'success')
+        .reduce((sum, p) => sum + parseFloat(p.amount_paid), 0),
+    [payments]
+  );
 
   if (loading) return <LoadingSpinner fullPage />;
 

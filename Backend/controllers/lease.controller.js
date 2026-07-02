@@ -49,21 +49,34 @@ const createLease = async (req, res, next) => {
 const getLeasesByLandlord = async (req, res, next) => {
   try {
     const landlord_id = req.user.user_id;
+    const page   = Math.max(1, parseInt(req.query.page,  10) || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const offset = (page - 1) * limit;
 
-    const result = await pool.query(
-      `SELECT l.lease_id, l.tenant_id, l.room_id, l.landlord_id, l.start_date, l.end_date, l.rent_amount, l.due_day, l.lease_status, l.created_at, u.full_name as tenant_name, u.email as tenant_email, r.room_number, p.property_name
-       FROM leases l
-       JOIN users u ON l.tenant_id = u.user_id
-       JOIN rooms r ON l.room_id = r.room_id
-       JOIN properties p ON r.property_id = p.property_id
-       WHERE l.landlord_id = $1
-       ORDER BY l.created_at DESC`,
-      [landlord_id]
-    );
+    const [countResult, result] = await Promise.all([
+      pool.query('SELECT COUNT(*) FROM leases WHERE landlord_id = $1', [landlord_id]),
+      pool.query(
+        `SELECT l.lease_id, l.tenant_id, l.room_id, l.landlord_id,
+                l.start_date, l.end_date, l.rent_amount, l.due_day,
+                l.lease_status, l.created_at,
+                u.full_name AS tenant_name, u.email AS tenant_email,
+                r.room_number,
+                p.property_name
+         FROM leases l
+         JOIN users u      ON l.tenant_id   = u.user_id
+         JOIN rooms r      ON l.room_id     = r.room_id
+         JOIN properties p ON r.property_id = p.property_id
+         WHERE l.landlord_id = $1
+         ORDER BY l.created_at DESC
+         LIMIT $2 OFFSET $3`,
+        [landlord_id, limit, offset]
+      ),
+    ]);
 
     return res.status(200).json({
       message: 'Leases retrieved successfully',
-      data: result.rows,
+      data:    result.rows,
+      meta: { total: parseInt(countResult.rows[0].count), page, limit },
     });
   } catch (error) {
     next(error);
@@ -73,21 +86,35 @@ const getLeasesByLandlord = async (req, res, next) => {
 const getLeasesByTenant = async (req, res, next) => {
   try {
     const tenant_id = req.user.user_id;
+    const page   = Math.max(1, parseInt(req.query.page,  10) || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const offset = (page - 1) * limit;
 
-    const result = await pool.query(
-      `SELECT l.lease_id, l.tenant_id, l.room_id, l.landlord_id, l.start_date, l.end_date, l.rent_amount, l.due_day, l.lease_status, l.created_at, u.full_name as landlord_name, u.email as landlord_email, r.room_number, r.monthly_rent, p.property_name
-       FROM leases l
-       JOIN users u ON l.landlord_id = u.user_id
-       JOIN rooms r ON l.room_id = r.room_id
-       JOIN properties p ON r.property_id = p.property_id
-       WHERE l.tenant_id = $1
-       ORDER BY l.created_at DESC`,
-      [tenant_id]
-    );
+    const [countResult, result] = await Promise.all([
+      pool.query('SELECT COUNT(*) FROM leases WHERE tenant_id = $1', [tenant_id]),
+      pool.query(
+        `SELECT l.lease_id, l.tenant_id, l.room_id, l.landlord_id,
+                l.start_date, l.end_date, l.rent_amount, l.due_day,
+                l.lease_status, l.created_at,
+                u.full_name    AS landlord_name,
+                u.email        AS landlord_email,
+                r.room_number, r.monthly_rent,
+                p.property_name
+         FROM leases l
+         JOIN users u      ON l.landlord_id = u.user_id
+         JOIN rooms r      ON l.room_id     = r.room_id
+         JOIN properties p ON r.property_id = p.property_id
+         WHERE l.tenant_id = $1
+         ORDER BY l.created_at DESC
+         LIMIT $2 OFFSET $3`,
+        [tenant_id, limit, offset]
+      ),
+    ]);
 
     return res.status(200).json({
       message: 'Leases retrieved successfully',
-      data: result.rows,
+      data:    result.rows,
+      meta: { total: parseInt(countResult.rows[0].count), page, limit },
     });
   } catch (error) {
     next(error);

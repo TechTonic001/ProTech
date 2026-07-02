@@ -1,5 +1,5 @@
 // src/pages/admin/AdminPayments.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../../utils/api';
 import { formatCurrency, formatDate } from '../../utils/formatters';
@@ -39,9 +39,14 @@ const AdminPayments = () => {
 
   if (loading) return <LoadingSpinner fullPage size="lg" />;
 
-  const totalCollected = payments
-    .filter(p => p.payment_status === 'success')
-    .reduce((sum, p) => sum + parseFloat(p.amount_paid || 0), 0);
+  // useMemo: totalCollected only recalculates when the payments array reference changes
+  const totalCollected = useMemo(
+    () =>
+      payments
+        .filter(p => p.payment_status === 'success')
+        .reduce((sum, p) => sum + parseFloat(p.amount_paid || 0), 0),
+    [payments]
+  );
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-fade-in p-2">

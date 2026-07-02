@@ -1,5 +1,4 @@
-// src/pages/admin/AdminDashboard.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../../utils/api';
 import { formatCurrency } from '../../utils/formatters';
@@ -59,21 +58,26 @@ const AdminDashboard = () => {
 
   if (loading) return <LoadingSpinner fullPage size="lg" />;
 
-  // Chart data
-  const roleData = [
+  // useMemo: these arrays are derived from stats and only need to rebuild when
+  // stats changes — not on every unrelated state update or re-render
+  const roleData = useMemo(() => [
     { name: 'Landlords', value: stats?.total_landlords || 0, color: '#3B82F6' },
-    { name: 'Tenants', value: stats?.total_tenants || 0, color: '#8B5CF6' }
-  ];
+    { name: 'Tenants',   value: stats?.total_tenants   || 0, color: '#8B5CF6' },
+  ], [stats?.total_landlords, stats?.total_tenants]);
 
-  // Revenue chart mock trend over months since neon holds transactional logs
-  const revenueTrendData = [
+  const revenueTrendData = useMemo(() => [
     { month: 'Jan', revenue: (stats?.total_revenue || 0) * 0.15 },
     { month: 'Feb', revenue: (stats?.total_revenue || 0) * 0.30 },
     { month: 'Mar', revenue: (stats?.total_revenue || 0) * 0.45 },
     { month: 'Apr', revenue: (stats?.total_revenue || 0) * 0.60 },
     { month: 'May', revenue: (stats?.total_revenue || 0) * 0.85 },
-    { month: 'Jun', revenue: stats?.total_revenue || 0 }
-  ];
+    { month: 'Jun', revenue: stats?.total_revenue || 0 },
+  ], [stats?.total_revenue]);
+
+  const totalUsers = useMemo(
+    () => roleData.reduce((acc, curr) => acc + curr.value, 0),
+    [roleData]
+  );
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -175,7 +179,7 @@ const AdminDashboard = () => {
             </ResponsiveContainer>
             <div className="absolute text-center">
               <span className="block text-2xl font-black text-slate-800 leading-none">
-                {roleData.reduce((acc, curr) => acc + curr.value, 0)}
+                {totalUsers}
               </span>
               <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1 block">Total Users</span>
             </div>
