@@ -49,13 +49,13 @@ const TenantLogin = () => {
       });
 
       const resData = response.data?.data || response.data;
-      const { token, user } = resData;
+      const { accessToken, user } = resData;
 
-      if (token && user) {
+      if (accessToken && user) {
         if (user.role !== 'tenant') {
           throw new Error('This account is not a tenant account');
         }
-        login(token, user);
+        login(accessToken, user);
         toast.success('Welcome back, Tenant!');
         navigate('/tenant/dashboard');
       } else {

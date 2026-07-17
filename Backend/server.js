@@ -22,10 +22,13 @@ console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
 //     : 'MISSING'
 // );
 console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
+console.log('JWT_REFRESH_SECRET exists:', !!process.env.JWT_REFRESH_SECRET);
 console.log('═══════════════════════════════════');
 
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
@@ -88,6 +91,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+
+// Parse cookies — required to read the HttpOnly refresh token cookie
+app.use(cookieParser());
 
 // ── Auth rate limiter: max 20 login/register attempts per IP per 15 minutes (V7)
 const authLimiter = rateLimit({

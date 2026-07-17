@@ -92,10 +92,10 @@ const LandlordRegister = () => {
       });
 
       const resData = response.data?.data || response.data;
-      const { token, user } = resData;
+      const { accessToken, user } = resData;
 
-      if (token && user) {
-        login(token, user);
+      if (accessToken && user) {
+        login(accessToken, user);
         setLandlordCode(user.landlord_code);
         toast.success('Account created successfully!');
         setTimeout(() => navigate('/landlord/dashboard'), 5000);

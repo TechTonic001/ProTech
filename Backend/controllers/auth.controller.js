@@ -11,6 +11,12 @@ const {
 } = require('../utils/email');
 const { generateUniqueLandlordCode } = require('../utils/generateCode');
 const { validatePassword } = require('../utils/validatePassword');
+const {
+  generateAccessToken,
+  generateRefreshToken,
+  setRefreshCookie,
+  clearRefreshCookie,
+} = require('../utils/tokenUtils');
 
 const normalizeText = (value) => {
   if (typeof value !== 'string') return '';
@@ -137,7 +143,7 @@ const register = async (req, res, next) => {
     const password_hash = await bcrypt.hash(password, 12);
 
     // ══════════════════════════════════════════════════════
-    // LANDLORD PATH — no hostel info required at registration
+    // LANDLORD PATH — dual-token issued on successful registration
     // ══════════════════════════════════════════════════════
     if (role === 'landlord') {
       let landlordCode;
@@ -184,16 +190,18 @@ const register = async (req, res, next) => {
       const newLandlord = result.rows[0];
       const createdLandlordCode = landlordCodeColumnExists?.rows?.length > 0 ? (newLandlord.landlord_code || landlordCode) : landlordCode;
 
-      const token = jwt.sign(
-        {
-          user_id: newLandlord.user_id,
-          email,
-          username,
-          role: 'landlord',
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-      );
+      // ── Issue dual tokens ──
+      const tokenPayload = {
+        user_id: newLandlord.user_id,
+        email,
+        username,
+        role: 'landlord',
+      };
+      const accessToken  = generateAccessToken(tokenPayload);
+      const refreshToken = generateRefreshToken(tokenPayload);
+
+      // Set the refresh token as a secure HttpOnly cookie
+      setRefreshCookie(res, refreshToken);
 
       try {
         await sendLandlordWelcomeEmail(
@@ -209,7 +217,7 @@ const register = async (req, res, next) => {
       return res.status(201).json({
         message: 'Landlord account created successfully.',
         data: {
-          token,
+          accessToken,
           user: {
             user_id: newLandlord.user_id,
             username,
@@ -227,7 +235,7 @@ const register = async (req, res, next) => {
     }
 
     // ══════════════════════════════════════════════════════
-    // TENANT PATH — unchanged, still requires landlord_code
+    // TENANT PATH — NO token issued (account is pending approval)
     // ══════════════════════════════════════════════════════
     if (role === 'tenant') {
       const cleanCode = landlord_code.toUpperCase();
@@ -366,21 +374,23 @@ const login = async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign(
-      {
-        user_id: user.user_id,
-        email: user.email,
-        username: user.username,
-        role: user.role,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
+    // ── Issue dual tokens ──
+    const tokenPayload = {
+      user_id: user.user_id,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+    };
+    const accessToken  = generateAccessToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
+
+    // Set the refresh token as a secure HttpOnly cookie
+    setRefreshCookie(res, refreshToken);
 
     return res.status(200).json({
       message: 'Login successful',
       data: {
-        token,
+        accessToken,
         user: {
           user_id: user.user_id,
           username: user.username,
@@ -400,6 +410,61 @@ const login = async (req, res, next) => {
     console.error('[ERROR] Login error:', error.message);
     next(error);
   }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REFRESH TOKEN
+// Reads the HttpOnly refresh token cookie, verifies it, and issues a new
+// short-lived access token. The refresh token cookie itself is not rotated
+// here (stateless approach) — add DB-based token rotation for higher security.
+// ─────────────────────────────────────────────────────────────────────────────
+const refreshToken = (req, res, next) => {
+  try {
+    const token = req.cookies?.refreshToken;
+
+    if (!token) {
+      return res.status(401).json({ error: 'No refresh token provided. Please log in again.' });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET, {
+        algorithms: ['HS256'],
+      });
+    } catch (verifyErr) {
+      // Refresh token is invalid or expired — force re-login
+      clearRefreshCookie(res);
+      return res.status(401).json({ error: 'Refresh token expired or invalid. Please log in again.' });
+    }
+
+    // Build a clean payload — strip JWT metadata fields (iat, exp) before re-signing
+    const newPayload = {
+      user_id: decoded.user_id,
+      email: decoded.email,
+      username: decoded.username,
+      role: decoded.role,
+    };
+
+    const newAccessToken = generateAccessToken(newPayload);
+
+    return res.status(200).json({
+      message: 'Token refreshed successfully.',
+      accessToken: newAccessToken,
+    });
+  } catch (error) {
+    console.error('[ERROR] Refresh token error:', error.message);
+    next(error);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOGOUT
+// Clears the HttpOnly refresh token cookie on the server side.
+// The frontend is responsible for discarding the access token from memory/storage.
+// ─────────────────────────────────────────────────────────────────────────────
+const logout = (req, res) => {
+  clearRefreshCookie(res);
+  return res.status(200).json({ message: 'Logged out successfully.' });
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -574,6 +639,8 @@ const resetPassword = async (req, res, next) => {
 module.exports = {
   register,
   login,
+  refreshToken,
+  logout,
   forgotPassword,
   resetPassword,
   profile,
