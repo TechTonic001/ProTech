@@ -34,6 +34,8 @@ const BankSetup = lazy(() => import('./pages/landlord/BankSetup'));
 const Announcements = lazy(() => import('./pages/landlord/Announcements'));
 const LandlordNotifications = lazy(() => import('./pages/landlord/LandlordNotifications'));
 const LandlordProfile = lazy(() => import('./pages/landlord/LandlordProfile'));
+const NotificationSettings = lazy(() => import('./pages/landlord/NotificationSettings'));
+const RecycleBin = lazy(() => import('./pages/landlord/RecycleBin'));
 
 // Tenant pages
 const TenantDashboard = lazy(() => import('./pages/tenant/TenantDashboard'));
@@ -89,7 +91,9 @@ const App = () => {
               <Route path="bank-setup" element={<BankSetup />} />
               <Route path="announcements" element={<Announcements />} />
               <Route path="notifications" element={<LandlordNotifications />} />
+              <Route path="notifications/settings" element={<NotificationSettings />} />
               <Route path="profile" element={<LandlordProfile />} />
+              <Route path="recycle-bin" element={<RecycleBin />} />
             </Route>
           </Route>
 

@@ -448,6 +448,208 @@ const sendLandlordTenantRegistrationNotificationEmail = async (toEmail, landlord
   }
 };
 
+// ── Tenant rent reminder email (Issue 1B — cron notification engine) ──────────
+// Called by runNotificationEngine for each lease that needs a notification.
+const sendTenantRentReminderEmail = async ({
+  toEmail, tenantName, hostelName, roomNumber,
+  rentAmount, amountPaid, dueDate, daysUntilDue,
+}) => {
+  const balance = parseFloat(rentAmount) - parseFloat(amountPaid || 0);
+  const balanceStr = `₦${balance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+  const rentStr   = `₦${parseFloat(rentAmount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+
+  let subjectLine, statusBadge, headlineText, statusColor;
+
+  if (daysUntilDue > 0) {
+    subjectLine   = `Rent Reminder: ${daysUntilDue} Day${daysUntilDue === 1 ? '' : 's'} Until Your Rent is Due`;
+    statusBadge   = `${daysUntilDue} DAY${daysUntilDue === 1 ? '' : 'S'} REMAINING`;
+    headlineText  = `Your rent is due in <strong>${daysUntilDue} day${daysUntilDue === 1 ? '' : 's'}</strong>.`;
+    statusColor   = '#1565C0';
+  } else if (daysUntilDue === 0) {
+    subjectLine   = 'Action Required: Your Rent is Due Today';
+    statusBadge   = 'DUE TODAY';
+    headlineText  = 'Your rent is <strong>due today</strong>. Please make your payment now to avoid late fees.';
+    statusColor   = '#e65100';
+  } else {
+    const overdueDays = Math.abs(daysUntilDue);
+    subjectLine   = `OVERDUE: Your Rent is ${overdueDays} Day${overdueDays === 1 ? '' : 's'} Past Due`;
+    statusBadge   = `${overdueDays} DAY${overdueDays === 1 ? '' : 'S'} OVERDUE`;
+    headlineText  = `Your rent is <strong>${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue</strong>. Please pay immediately.`;
+    statusColor   = '#c62828';
+  }
+
+  const htmlContent = `
+    <html>
+      <body style="font-family: 'Segoe UI', Arial, sans-serif; background-color: #f0f4f8; padding: 24px; margin: 0;">
+        <div style="max-width: 600px; margin: 0 auto;">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #1565C0 0%, #0D47A1 100%); border-radius: 16px 16px 0 0; padding: 32px; text-align: center;">
+            <h1 style="color: #fff; font-size: 22px; margin: 0; font-weight: 800; letter-spacing: -0.5px;">ProTech Rent System</h1>
+            <p style="color: rgba(255,255,255,0.75); font-size: 13px; margin: 6px 0 0;">Automated Rent Tracking & Notification</p>
+          </div>
+
+          <!-- Status Badge -->
+          <div style="background: ${statusColor}; text-align: center; padding: 14px;">
+            <span style="color: #fff; font-size: 13px; font-weight: 900; letter-spacing: 2px;">${statusBadge}</span>
+          </div>
+
+          <!-- Body -->
+          <div style="background: #fff; border-radius: 0 0 16px 16px; padding: 32px; border: 1px solid #e2e8f0; border-top: none;">
+            <p style="color: #1e293b; font-size: 16px; font-weight: 700; margin: 0 0 8px;">Hello ${tenantName},</p>
+            <p style="color: #475569; font-size: 14px; margin: 0 0 24px; line-height: 1.6;">${headlineText}</p>
+
+            <!-- Details Card -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <tr>
+                  <td style="color: #94a3b8; padding: 6px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Hostel</td>
+                  <td style="color: #1e293b; padding: 6px 0; font-weight: 700; text-align: right;">${hostelName || 'N/A'}</td>
+                </tr>
+                <tr>
+                  <td style="color: #94a3b8; padding: 6px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Room</td>
+                  <td style="color: #1e293b; padding: 6px 0; font-weight: 700; text-align: right;">Room ${roomNumber}</td>
+                </tr>
+                <tr>
+                  <td style="color: #94a3b8; padding: 6px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Monthly Rent</td>
+                  <td style="color: #1e293b; padding: 6px 0; font-weight: 700; text-align: right;">${rentStr}</td>
+                </tr>
+                <tr style="border-top: 1px solid #e2e8f0;">
+                  <td style="color: #94a3b8; padding: 10px 0 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Balance Due</td>
+                  <td style="color: ${statusColor}; padding: 10px 0 6px; font-weight: 900; text-align: right; font-size: 16px;">${balanceStr}</td>
+                </tr>
+                <tr>
+                  <td style="color: #94a3b8; padding: 6px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Due Date</td>
+                  <td style="color: #1e293b; padding: 6px 0; font-weight: 700; text-align: right;">${dueDate}</td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- CTA -->
+            <div style="text-align: center; margin: 28px 0;">
+              <a href="${buildFrontEndLink('tenant/login')}"
+                 style="background-color: #1565C0; color: #fff; padding: 14px 36px; text-decoration: none;
+                        border-radius: 10px; font-weight: 800; font-size: 14px; display: inline-block;
+                        letter-spacing: 0.5px; box-shadow: 0 4px 14px rgba(21,101,192,0.4);">
+                Pay Rent Now →
+              </a>
+            </div>
+
+            <p style="color: #94a3b8; font-size: 12px; text-align: center; margin-top: 24px;">
+              This is an automated reminder from ProTech. If you have already paid, please ignore this message.
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <p style="color: #94a3b8; font-size: 11px; text-align: center; margin-top: 20px;">${emailFooter}</p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const textContent = `${subjectLine}\n\nHello ${tenantName},\n\nHostel: ${hostelName}\nRoom: ${roomNumber}\nBalance Due: ${balanceStr}\nDue Date: ${dueDate}\n\nPay at: ${buildFrontEndLink('tenant/login')}\n\n${emailFooter}`;
+
+  try {
+    logEmailAttempt('TenantRentReminderEmail', toEmail, subjectLine);
+    await transporter.sendMail({
+      from: sendFrom,
+      to: toEmail,
+      subject: subjectLine,
+      html: htmlContent,
+      text: textContent,
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('[ERROR] Tenant rent reminder email error:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+// ── Landlord rent alert email (Issue 1B — cron notification engine) ───────────
+// Brief informational alert to the landlord when a tenant's rent is due/overdue.
+const sendLandlordRentAlertEmail = async ({
+  toEmail, landlordName, tenantName, tenantUsername,
+  roomNumber, hostelName, rentAmount, amountPaid,
+  dueDate, daysUntilDue,
+}) => {
+  const balance  = parseFloat(rentAmount) - parseFloat(amountPaid || 0);
+  const balanceStr = `₦${balance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+
+  const dayLabel = daysUntilDue >= 0
+    ? `${daysUntilDue} day${daysUntilDue === 1 ? '' : 's'} until due`
+    : `${Math.abs(daysUntilDue)} day${Math.abs(daysUntilDue) === 1 ? '' : 's'} OVERDUE`;
+
+  const subjectLine = `Tenant Rent Alert: ${tenantName} — ${dayLabel}`;
+  const headerColor = daysUntilDue < 0 ? '#c62828' : daysUntilDue === 0 ? '#e65100' : '#1565C0';
+
+  const htmlContent = `
+    <html>
+      <body style="font-family: 'Segoe UI', Arial, sans-serif; background-color: #f0f4f8; padding: 24px; margin: 0;">
+        <div style="max-width: 560px; margin: 0 auto;">
+          <div style="background: ${headerColor}; border-radius: 12px 12px 0 0; padding: 24px 28px;">
+            <h1 style="color: #fff; font-size: 18px; margin: 0; font-weight: 800;">Rent Status Alert</h1>
+            <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin: 4px 0 0;">ProTech Landlord Notification</p>
+          </div>
+          <div style="background: #fff; border-radius: 0 0 12px 12px; padding: 28px; border: 1px solid #e2e8f0; border-top: none;">
+            <p style="color: #1e293b; font-size: 15px; font-weight: 700; margin: 0 0 6px;">Hello ${landlordName},</p>
+            <p style="color: #475569; font-size: 13px; margin: 0 0 20px;">This is an automated alert about one of your tenants' rent status.</p>
+
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin-bottom: 20px;">
+              <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+                <tr>
+                  <td style="color: #94a3b8; padding: 5px 0; font-weight: 600; text-transform: uppercase;">Tenant</td>
+                  <td style="color: #1e293b; font-weight: 700; text-align: right;">${tenantName}</td>
+                </tr>
+                <tr>
+                  <td style="color: #94a3b8; padding: 5px 0; font-weight: 600; text-transform: uppercase;">Username</td>
+                  <td style="color: #475569; font-weight: 600; text-align: right;">@${tenantUsername}</td>
+                </tr>
+                <tr>
+                  <td style="color: #94a3b8; padding: 5px 0; font-weight: 600; text-transform: uppercase;">Room</td>
+                  <td style="color: #1e293b; font-weight: 700; text-align: right;">${hostelName} — Room ${roomNumber}</td>
+                </tr>
+                <tr style="border-top: 1px solid #e2e8f0;">
+                  <td style="color: #94a3b8; padding: 8px 0 5px; font-weight: 600; text-transform: uppercase;">Balance Due</td>
+                  <td style="color: ${headerColor}; font-weight: 900; font-size: 15px; text-align: right;">${balanceStr}</td>
+                </tr>
+                <tr>
+                  <td style="color: #94a3b8; padding: 5px 0; font-weight: 600; text-transform: uppercase;">Due Date</td>
+                  <td style="color: #1e293b; font-weight: 700; text-align: right;">${dueDate}</td>
+                </tr>
+                <tr>
+                  <td style="color: #94a3b8; padding: 5px 0; font-weight: 600; text-transform: uppercase;">Status</td>
+                  <td style="color: ${headerColor}; font-weight: 800; text-align: right; text-transform: uppercase;">${dayLabel}</td>
+                </tr>
+              </table>
+            </div>
+
+            <p style="color: #94a3b8; font-size: 11px; text-align: center;">
+              A reminder has also been sent to the tenant. No action required on your part unless rent remains unpaid.
+            </p>
+          </div>
+          <p style="color: #94a3b8; font-size: 11px; text-align: center; margin-top: 16px;">${emailFooter}</p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const textContent = `${subjectLine}\n\nHello ${landlordName},\n\nTenant: ${tenantName} (@${tenantUsername})\nRoom: ${hostelName} - Room ${roomNumber}\nBalance Due: ${balanceStr}\nDue Date: ${dueDate}\nStatus: ${dayLabel}\n\n${emailFooter}`;
+
+  try {
+    logEmailAttempt('LandlordRentAlertEmail', toEmail, subjectLine);
+    await transporter.sendMail({
+      from: sendFrom,
+      to: toEmail,
+      subject: subjectLine,
+      html: htmlContent,
+      text: textContent,
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('[ERROR] Landlord rent alert email error:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendOTPEmail,
   sendPasswordChangedEmail,
@@ -458,4 +660,6 @@ module.exports = {
   sendLandlordWelcomeEmail,
   sendTenantWelcomeEmail,
   sendLandlordTenantRegistrationNotificationEmail,
+  sendTenantRentReminderEmail,
+  sendLandlordRentAlertEmail,
 };

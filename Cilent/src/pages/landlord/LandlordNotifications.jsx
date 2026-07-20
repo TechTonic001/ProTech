@@ -1,11 +1,12 @@
 // src/pages/landlord/LandlordNotifications.jsx
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../utils/api';
 import { formatDate, formatRelativeTime } from '../../utils/formatters';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import EmptyState from '../../components/ui/EmptyState';
 import Badge from '../../components/ui/Badge';
-import { Bell, Mail, Smartphone, Clock, ShieldCheck } from 'lucide-react';
+import { Bell, Mail, Smartphone, Clock, ShieldCheck, Settings2, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usePWA } from '../../hooks/usePWA';
 
@@ -41,6 +42,26 @@ const LandlordNotifications = () => {
 
   return (
     <div className="space-y-6">
+      {/* Settings shortcut banner */}
+      <Link
+        to="/landlord/notifications/settings"
+        className="flex items-center justify-between gap-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl
+                   hover:bg-blue-100 transition group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white">
+            <Settings2 className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-xs font-black text-blue-900 uppercase tracking-wider">Notification Settings</p>
+            <p className="text-[11px] text-blue-700 font-medium">
+              Configure when &amp; how often your tenants receive rent reminders
+            </p>
+          </div>
+        </div>
+        <ArrowRight className="w-4 h-4 text-blue-500 group-hover:translate-x-1 transition-transform" />
+      </Link>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-2.5">

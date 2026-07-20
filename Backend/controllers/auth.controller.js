@@ -190,6 +190,23 @@ const register = async (req, res, next) => {
       const newLandlord = result.rows[0];
       const createdLandlordCode = landlordCodeColumnExists?.rows?.length > 0 ? (newLandlord.landlord_code || landlordCode) : landlordCode;
 
+      // ── Step 3: Seed default notification settings for this new landlord ──
+      // The migration runner handles existing landlords at startup; new landlords
+      // registered after the migration must be seeded here immediately.
+      // ON CONFLICT DO NOTHING makes this safe to run even if the row exists.
+      try {
+        await dbQuery(
+          `INSERT INTO notification_settings (landlord_id)
+           VALUES ($1)
+           ON CONFLICT (landlord_id) DO NOTHING`,
+          [newLandlord.user_id]
+        );
+        console.log('[REGISTER] Notification settings seeded for landlord:', newLandlord.user_id);
+      } catch (nsErr) {
+        // Non-fatal: the settings row will be auto-created on first GET /api/notification/settings
+        console.error('[REGISTER] Failed to seed notification settings:', nsErr.message);
+      }
+
       // ── Issue dual tokens ──
       const tokenPayload = {
         user_id: newLandlord.user_id,

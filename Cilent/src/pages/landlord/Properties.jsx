@@ -6,6 +6,7 @@ import { formatCurrency } from '../../utils/formatters';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import EmptyState from '../../components/ui/EmptyState';
 import Modal from '../../components/ui/Modal';
+import DeleteConfirmModal from '../../components/ui/DeleteConfirmModal';
 import { 
   Building2, 
   MapPin, 
@@ -38,6 +39,9 @@ const Properties = () => {
   });
   const [submitLoading, setSubmitLoading] = useState(false);
   const [formError, setFormError] = useState('');
+
+  // Delete confirm modal state
+  const [deleteModal, setDeleteModal] = useState({ open: false, property: null, loading: false });
 
   useEffect(() => {
     fetchProperties();
@@ -128,17 +132,21 @@ const Properties = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this property? This will delete all rooms associated with it.')) {
-      return;
-    }
+  const handleDelete = (property) => {
+    setDeleteModal({ open: true, property, loading: false });
+  };
 
+  const handleDeleteConfirm = async (reason) => {
+    const { property } = deleteModal;
+    setDeleteModal((prev) => ({ ...prev, loading: true }));
     try {
-      await propertyAPI.delete(id);
-      toast.success('Property deleted successfully');
+      await propertyAPI.delete(property.property_id, reason);
+      toast.success(`"${property.property_name}" moved to recycle bin. Recovery available for 30 days.`);
+      setDeleteModal({ open: false, property: null, loading: false });
       fetchProperties();
     } catch (err) {
       toast.error(err.message || 'Failed to delete property');
+      setDeleteModal((prev) => ({ ...prev, loading: false }));
     }
   };
 
@@ -248,9 +256,10 @@ const Properties = () => {
                   Announce
                 </button>
                 <button
-                  onClick={() => handleDelete(prop.property_id)}
+                  onClick={() => handleDelete(prop)}
                   disabled={prop.isOptimistic}
                   className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition ml-auto disabled:opacity-50"
+                  title="Move to recycle bin"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -349,6 +358,16 @@ const Properties = () => {
           </button>
         </form>
       </Modal>
+
+      {/* Soft Delete Confirm Modal (Issue 1D) */}
+      <DeleteConfirmModal
+        isOpen={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, property: null, loading: false })}
+        onConfirm={handleDeleteConfirm}
+        itemType="property"
+        itemName={deleteModal.property?.property_name || ''}
+        isLoading={deleteModal.loading}
+      />
     </div>
   );
 };

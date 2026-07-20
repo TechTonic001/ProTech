@@ -17,7 +17,9 @@ import {
   LogOut,
   Search,
   Menu,
-  X
+  X,
+  Trash2,
+  Settings2,
 } from 'lucide-react';
 
 const LandlordLayout = () => {
@@ -25,11 +27,16 @@ const LandlordLayout = () => {
   const navigate = useNavigate();
   const [pendingCount, setPendingCount] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [recycleBinCount, setRecycleBinCount] = useState(0);
 
   useEffect(() => {
     fetchPendingCount();
+    fetchRecycleBinCount();
     // Poll every 60 seconds
-    const interval = setInterval(fetchPendingCount, 60000);
+    const interval = setInterval(() => {
+      fetchPendingCount();
+      fetchRecycleBinCount();
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -39,6 +46,21 @@ const LandlordLayout = () => {
       setPendingCount(res.data.data?.length || 0);
     } catch (err) {
       console.error('Failed to fetch approvals count:', err.message);
+    }
+  };
+
+  const fetchRecycleBinCount = async () => {
+    try {
+      const { propertyAPI, tenantAPI } = await import('../../utils/api');
+      const [tenantRes, propRes] = await Promise.all([
+        tenantAPI.getDeleted().catch(() => ({ data: { data: [] } })),
+        propertyAPI.getDeleted().catch(() => ({ data: { data: [] } })),
+      ]);
+      const count =
+        (tenantRes.data.data?.length || 0) + (propRes.data.data?.length || 0);
+      setRecycleBinCount(count);
+    } catch (err) {
+      // Silently ignore — recycle bin badge is non-critical
     }
   };
 
@@ -73,13 +95,21 @@ const LandlordLayout = () => {
       title: 'COMMUNICATE',
       items: [
         { label: 'Announcements', path: 'announcements', icon: Megaphone },
-        { label: 'Notifications', path: 'notifications', icon: Bell }
+        { label: 'Notifications', path: 'notifications', icon: Bell },
+        { label: 'Notif. Settings', path: 'notifications/settings', icon: Settings2 },
       ]
     },
     {
       title: 'ACCOUNT',
       items: [
-        { label: 'My Profile', path: 'profile', icon: UserCircle }
+        { label: 'My Profile', path: 'profile', icon: UserCircle },
+        { 
+          label: 'Recycle Bin', 
+          path: 'recycle-bin', 
+          icon: Trash2,
+          badge: recycleBinCount > 0 ? recycleBinCount : null,
+          badgeColor: 'bg-red-500',
+        },
       ]
     }
   ];
@@ -131,7 +161,7 @@ const LandlordLayout = () => {
                   <item.icon className="w-4 h-4 flex-shrink-0" />
                   <span>{item.label}</span>
                   {item.badge && (
-                    <span className="ml-auto bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                    <span className={`ml-auto text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ${item.badgeColor || 'bg-red-500'}`}>
                       {item.badge}
                     </span>
                   )}

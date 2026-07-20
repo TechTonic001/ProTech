@@ -189,10 +189,13 @@ export const authAPI = {
 };
 
 export const propertyAPI = {
-  getAll:  (params) => api.get('/property', { params }),
-  create:  (data)   => api.post('/property', data),
-  update:  (id, data) => api.put(`/property/${id}`, data),
-  delete:  (id)     => api.delete(`/property/${id}`),
+  getAll:      (params)   => api.get('/property', { params }),
+  create:      (data)     => api.post('/property', data),
+  update:      (id, data) => api.put(`/property/${id}`, data),
+  // Soft delete — sends to recycle bin for 30 days
+  delete:      (id)       => api.delete(`/property/${id}`),
+  getDeleted:  ()         => api.get('/property/deleted'),
+  restore:     (id)       => api.post(`/property/${id}/restore`),
 };
 
 export const roomAPI = {
@@ -203,12 +206,13 @@ export const roomAPI = {
 };
 
 export const leaseAPI = {
-  getAll:   (params)   => api.get('/lease/landlord/active', { params }),
-  getMine:  (params)   => api.get('/lease/tenant/active',   { params }),
-  create:   (data)     => api.post('/lease', data),
-  getById:  (id)       => api.get(`/lease/${id}`),
-  update:   (id, data) => api.put(`/lease/${id}`, data),
-  terminate: (id)      => api.patch(`/lease/${id}/terminate`),
+  getAll:    (params)   => api.get('/lease/landlord/active', { params }),
+  getMine:   (params)   => api.get('/lease/tenant/active',   { params }),
+  create:    (data)     => api.post('/lease', data),
+  getById:   (id)       => api.get(`/lease/${id}`),
+  update:    (id, data) => api.put(`/lease/${id}`, data),
+  terminate: (id)       => api.patch(`/lease/${id}/terminate`),
+  getOverdue: ()        => api.get('/lease/overdue'),
 };
 
 export const paymentAPI = {
@@ -238,6 +242,18 @@ export const adminAPI = {
   getTenants:    (params) => api.get('/admin/tenants',    { params }),
   getPayments:   (params) => api.get('/admin/payments',   { params }),
   getProperties: (params) => api.get('/admin/properties', { params }),
+};
+
+export const notificationAPI = {
+  getSettings:    ()     => api.get('/notification/settings'),
+  updateSettings: (data) => api.put('/notification/settings', data),
+};
+
+export const tenantAPI = {
+  // Landlord-side soft-delete operations
+  getDeleted: ()                  => api.get('/tenants/deleted'),
+  softDelete: (id, reason)        => api.delete(`/tenants/${id}`, { data: { reason } }),
+  restore:    (id)                => api.post(`/tenants/${id}/restore`),
 };
 
 export default api;

@@ -1,9 +1,24 @@
 // src/components/ui/StatCard.jsx
 import React from 'react';
 
-const StatCard = ({ label, value, subtext, icon: Icon, iconColor = 'text-blue-600', iconBg = 'bg-blue-50', trendValue, trendDirection }) => {
+const StatCard = ({
+  label,
+  value,
+  subtext,
+  icon: Icon,
+  iconColor = 'text-blue-600',
+  iconBg = 'bg-blue-50',
+  trendValue,
+  trendDirection,
+  // extraBadge: optional React node rendered as an absolute-positioned overlay
+  // (used for the pulsing red dot on the Overdue card — Issue 1C)
+  extraBadge,
+}) => {
   return (
-    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition duration-200">
+    <div className="relative bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition duration-200">
+      {/* Absolute badge overlay (e.g. pulsing red dot) */}
+      {extraBadge}
+
       <div className="flex justify-between items-start">
         <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</span>
         {Icon && (

@@ -52,23 +52,26 @@ const LandlordDashboard = () => {
   const [leases,       setLeases]       = useState([]);
   const [payments,     setPayments]     = useState([]);
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+  const [overdueLeases, setOverdueLeases] = useState([]);
 
   // ─── Data Fetching ────────────────────────────────────────────────────────
   // useCallback so the function reference is stable (safe to call from effects)
   const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      const [propRes, leaseRes, payRes, approvalRes] = await Promise.all([
+      const [propRes, leaseRes, payRes, approvalRes, overdueRes] = await Promise.all([
         propertyAPI.getAll(),
         leaseAPI.getAll(),
         paymentAPI.getHistory(),
         approvalAPI.getPending(),
+        leaseAPI.getOverdue().catch(() => ({ data: { data: [] } })),
       ]);
 
       setProperties(propRes.data.data   || []);
       setLeases(leaseRes.data.data      || []);
       setPayments(payRes.data.data      || []);
       setPendingApprovalsCount((approvalRes.data.data || []).length);
+      setOverdueLeases(overdueRes.data.data || []);
     } catch (err) {
       console.error("Failed to load dashboard statistics:", err.message);
     } finally {
@@ -365,8 +368,57 @@ const LandlordDashboard = () => {
               : null
           }
           trendDirection="down"
+          extraBadge={
+            stats.overdueTenants > 0 ? (
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+            ) : null
+          }
         />
       </div>
+
+      {/* ── Overdue Tenants Section (Issue 1C) ─────────────────────────────── */}
+      {overdueLeases.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-500" />
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">Overdue Tenants</h3>
+            <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+              {overdueLeases.length}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {overdueLeases.map((lease) => (
+              <div
+                key={lease.lease_id}
+                className="bg-white border-2 border-red-200 rounded-2xl p-4 shadow-sm shadow-red-50 hover:shadow-red-100 transition"
+              >
+                {/* Tenant header */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center text-sm font-black text-red-600">
+                    {lease.tenant_name?.charAt(0).toUpperCase() || 'T'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-slate-900 truncate">{lease.tenant_name}</p>
+                    <p className="text-[10px] text-slate-500 font-semibold truncate">
+                      {lease.property_name} — Room {lease.room_number}
+                    </p>
+                  </div>
+                  <span className="flex-shrink-0 text-[10px] font-black text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+                    {lease.days_overdue}d overdue
+                  </span>
+                </div>
+                {/* Balance */}
+                <div className="flex justify-between items-center pt-2 border-t border-red-100">
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Balance Due</span>
+                  <span className="text-sm font-black text-red-600">
+                    ₦{parseFloat(lease.balance_due || lease.rent_amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

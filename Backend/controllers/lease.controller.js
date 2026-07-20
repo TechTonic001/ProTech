@@ -221,6 +221,53 @@ const terminateLease = async (req, res, next) => {
   }
 };
 
+// ── GET overdue leases for the authenticated landlord (Issue 1C) ──────────────
+// Route: GET /api/lease/overdue
+// Auth:  verifyToken + requireRole('landlord')
+// Returns all active leases where due date has passed AND rent is not fully paid
+const getOverdueLeases = async (req, res, next) => {
+  try {
+    const landlord_id = req.user.user_id;
+
+    // Calculate overdue based on due_day vs today's date in Africa/Lagos
+    const result = await pool.query(
+      `SELECT
+         l.lease_id,
+         l.tenant_id,
+         l.room_id,
+         l.rent_amount,
+         l.due_day,
+         COALESCE(l.amount_paid_this_cycle, 0) AS amount_paid_this_cycle,
+         (l.rent_amount - COALESCE(l.amount_paid_this_cycle, 0)) AS balance_due,
+         u.full_name  AS tenant_name,
+         u.username   AS tenant_username,
+         u.email      AS tenant_email,
+         r.room_number,
+         p.property_name,
+         -- Days overdue: how many days past the due_day this month
+         (EXTRACT(DAY FROM (NOW() AT TIME ZONE 'Africa/Lagos'))::INTEGER - l.due_day::INTEGER) AS days_overdue
+       FROM leases l
+       JOIN users u      ON l.tenant_id   = u.user_id
+       JOIN rooms r      ON l.room_id     = r.room_id
+       JOIN properties p ON r.property_id = p.property_id
+       WHERE l.landlord_id = $1
+         AND l.lease_status = 'active'
+         AND l.due_day < EXTRACT(DAY FROM (NOW() AT TIME ZONE 'Africa/Lagos'))::INTEGER
+         AND COALESCE(l.amount_paid_this_cycle, 0) < l.rent_amount
+         AND u.deleted_at IS NULL
+       ORDER BY days_overdue DESC`,
+      [landlord_id]
+    );
+
+    return res.status(200).json({
+      message: 'Overdue leases retrieved successfully',
+      data: result.rows,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createLease,
   getLeasesByLandlord,
@@ -228,4 +275,5 @@ module.exports = {
   getLeaseById,
   updateLease,
   terminateLease,
+  getOverdueLeases,
 };

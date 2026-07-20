@@ -7,15 +7,20 @@ const {
   getProperties,
   getPropertyById,
   updateProperty,
-  deleteProperty,
+  softDeleteProperty,
+  restoreProperty,
+  getDeletedProperties,
 } = require('../controllers/property.controller');
 
 const router = express.Router();
 
 router.post('/', verifyToken, requireRole('landlord'), createProperty);
 router.get('/', verifyToken, requireRole('landlord'), getProperties);
+// Static routes before dynamic :id routes
+router.get('/deleted', verifyToken, requireRole('landlord'), getDeletedProperties);
 router.get('/:id', verifyToken, requireRole('landlord'), getPropertyById);
 router.put('/:id', verifyToken, requireRole('landlord'), updateProperty);
-router.delete('/:id', verifyToken, requireRole('landlord'), deleteProperty);
+router.delete('/:id', verifyToken, requireRole('landlord'), softDeleteProperty);
+router.post('/:id/restore', verifyToken, requireRole('landlord'), restoreProperty);
 
 module.exports = router;

@@ -11,16 +11,14 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 require('dotenv').config({ path: path.join(__dirname, '.env.local') });
 
+// ── Issue 2: Paystack mode detection ─────────────────────────────────────────
+const paystackMode = process.env.PAYSTACK_SECRET_KEY?.startsWith('sk_live_') ? 'LIVE' : 'TEST';
+console.log(`[PAYSTACK] Running in ${paystackMode} mode`);
+
 console.log('═══════════════════════════════════');
 console.log('[STARTUP CONFIG CHECK]');
 console.log('PORT:', process.env.PORT);
 console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
-// console.log(
-//   'DATABASE_URL host:',
-//   process.env.DATABASE_URL
-//     ? process.env.DATABASE_URL.split('@')[1]?.split('/')[0]
-//     : 'MISSING'
-// );
 console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
 console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
 console.log('JWT_REFRESH_SECRET exists:', !!process.env.JWT_REFRESH_SECRET);
@@ -31,12 +29,11 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const cron = require('node-cron');
 
 const { testConnection } = require('./config/db');
-
-// Start notifications cron scheduler
-const { startNotificationCron } = require('./jobs/notificationCron');
-startNotificationCron();
+const { runMigrations }  = require('./config/migrate');
+const { runNotificationEngine } = require('./utils/notificationEngine');
 
 const app = express();
 
@@ -122,7 +119,6 @@ app.use(
   require('./routes/payment.webhook.routes')
 );
 
-
 app.use(express.json());
 
 // Routes
@@ -139,6 +135,8 @@ app.use('/api/property', require('./routes/property.routes'));
 app.use('/api/pwa', require('./routes/pwa.routes'));
 app.use('/api/room', require('./routes/room.routes'));
 app.use('/api/admin', require('./routes/admin.routes'));
+// Issue 1D: Tenant soft-delete management (landlord-only)
+app.use('/api/tenants', require('./routes/landlord.routes'));
 
 // Health and root
 app.get('/api/health', (req, res) => res.status(200).json({ status: 'UP', app: 'ProTech' }));
@@ -159,6 +157,53 @@ app.use((err, req, res, next) => {
   });
 });
 
+// ── Issue 1B: Hourly notification cron (replaces old 6 AM daily cron) ────────
+// Runs every hour on the hour, Africa/Lagos timezone.
+// The engine internally filters by each landlord's preferred send_time hour,
+// so landlords who set 08:00 only get notifications processed at 08:xx WAT.
+cron.schedule('0 * * * *', async () => {
+  const currentHour = new Date()
+    .toLocaleString('en-NG', {
+      timeZone: 'Africa/Lagos',
+      hour: '2-digit',
+      hour12: false,
+    })
+    .padStart(2, '0');
+  console.log(`[CRON TICK] Hour: ${currentHour}:00 WAT`);
+  await runNotificationEngine(currentHour);
+}, { timezone: 'Africa/Lagos' });
+
+console.log('[CRON] Hourly notification engine scheduled (Africa/Lagos timezone)');
+
+// ── Issue 1D: Daily midnight permanent deletion cron ──────────────────────────
+// Permanently deletes tenants and properties that have been in the recycle bin
+// for more than 30 days.
+cron.schedule('0 0 * * *', async () => {
+  try {
+    const db = require('./config/db');
+    const tenantResult = await db.query(
+      `DELETE FROM users
+       WHERE deleted_at IS NOT NULL
+         AND NOW() - deleted_at > INTERVAL '30 days'
+         AND role = 'tenant'
+       RETURNING user_id`
+    );
+    const propResult = await db.query(
+      `DELETE FROM properties
+       WHERE deleted_at IS NOT NULL
+         AND NOW() - deleted_at > INTERVAL '30 days'
+       RETURNING property_id`
+    );
+    console.log(
+      `[CRON] Permanent deletion complete — Tenants: ${tenantResult.rows.length} | Properties: ${propResult.rows.length}`
+    );
+  } catch (err) {
+    console.error('[CRON] Permanent deletion error:', err.message);
+  }
+}, { timezone: 'Africa/Lagos' });
+
+console.log('[CRON] Midnight permanent deletion scheduled (Africa/Lagos timezone)');
+
 const seedAdmin = require('./config/seedAdmin');
 
 // Only start HTTP server when running locally (not on Vercel serverless)
@@ -167,11 +212,15 @@ if (require.main === module) {
   app.listen(PORT, async () => {
     console.log(`✅ Server running on http://localhost:${PORT}`);
     await testConnection();
+    // 1. Run schema migrations first — always safe to re-run
+    await runMigrations();
+    // 2. Seed admin account after migrations are confirmed ready
     await seedAdmin();
   });
 } else {
-  // Serverless: run DB check + seed once on cold start without binding a port
+  // Serverless (Vercel): run DB check + migrations + seed once on cold start
   testConnection().catch(console.error);
+  runMigrations().catch(console.error);
   seedAdmin().catch(console.error);
 }
 
