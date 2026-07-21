@@ -72,9 +72,9 @@ const Landing = () => {
         </div>
       </nav>
 
-    
+
       {/* ═══ SECTION 2 — HERO ═══ */}
-      
+
       <section id="home" className="relative min-h-screen flex items-center pt-16" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #1e40af 100%)' }}>
         {/* Dot overlay */}
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
@@ -88,7 +88,7 @@ const Landing = () => {
               Manage Your Rental<br />Properties <span className="text-amber-400">Smarter.</span>
             </h1>
             <p className="text-lg text-slate-300 max-w-lg">
-            Property Technology (ProTech) automates rent collection, payment tracking, and tenant notifications for Nigerian landlords and hostel operators  so you never miss a payment again.
+              Property Technology (ProTech) automates rent collection, payment tracking, and tenant notifications for Nigerian landlords and hostel operators  so you never miss a payment again.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <button onClick={() => navigate('/landlord/register')} className="px-8 py-4 bg-amber-400 text-slate-900 font-bold rounded-2xl text-lg hover:bg-amber-300 transition shadow-lg shadow-amber-400/20">
@@ -336,14 +336,14 @@ const Landing = () => {
             <p className="text-xs font-bold text-amber-500 uppercase tracking-widest mb-2">About This Project</p>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-6">Built at SQI College of ICT, Ogbomoso</h2>
             <div className="space-y-4 text-sm text-slate-600 leading-relaxed">
-              <p>ProTech is a final-year capstone project developed by Amoo Halleluyah as part of the National Innovation Diploma (NID 2) programme at SQI College of ICT, Ogbomoso, Oyo State, Nigeria.</p>
-              <p>The system was designed to solve real operational problems observed in student hostel management across Ogbomoso where most landlords still rely on paper records and informal bank transfers for rent collection.</p>
+              <p>ProTech is a final-year capstone project developed by Amoo Halleluyah as part of the National Diploma programme at SQI College of ICT, Ogbomoso, Oyo State, Nigeria.</p>
+              <p>The system was designed to solve real operational problems observed in student hostel management across Nigerian where most landlords still rely on paper records and informal bank transfers for rent collection.</p>
             </div>
             <div className="flex flex-wrap gap-3 mt-8">
               {[
                 { icon: '📍', text: 'SQI College of ICT, Ogbomoso' },
-                { icon: '🎓', text: 'NID 2  Computer Science' },
-                { icon: '📅', text: 'June 2026' },
+                { icon: '🎓', text: 'ND  Computer Science' },
+                { icon: '📅', text: 'AUGUST 2026' },
               ].map((b, i) => (
                 <span key={i} className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-full text-xs font-medium text-slate-600">{b.icon} {b.text}</span>
               ))}
@@ -353,14 +353,13 @@ const Landing = () => {
           <div id="contact">
             <p className="text-xs font-bold text-amber-500 uppercase tracking-widest mb-2">Contact</p>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-4">Get in Touch</h2>
-            <p className="text-sm text-slate-500 mb-8">For enquiries about this project, collaboration, or to request a demo of the ProTech system.</p>
+            <p className="text-sm text-slate-500 mb-8">For enquiries about this project, collaboration.</p>
             <div className="grid sm:grid-cols-2 gap-4">
               {[
                 { icon: '👤', label: 'Developer', value: 'Amoo Halleluyah' },
-                { icon: '🎓', label: 'Matric Number', value: '241295' },
+                // { icon: '🎓', label: 'Matric Number', value: '241295' },
                 { icon: '🏫', label: 'Institution', value: 'SQI College of ICT, Ogbomoso, Oyo State' },
                 { icon: '📧', label: 'Email', value: 'amooolamilekan307@gmail.com', href: 'mailto:amooolamilekan307@gmail.com' },
-
                 { icon: '🌐', label: 'Department', value: 'Computer Science' },
               ].map((c, i) => (
                 <div key={i} className="border border-slate-200 rounded-xl p-4">
@@ -397,8 +396,8 @@ const Landing = () => {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-                <img src={logoLight} alt="ProTech" className="h-8 brightness-0 invert" />
-              </div>
+              <img src={logoLight} alt="ProTech" className="h-8 brightness-0 invert" />
+            </div>
             <p className="text-sm mb-4">Automated Rent Tracking for Nigerian Landlords and Tenants</p>
             {/* <span className="inline-block px-3 py-1 text-[10px] font-bold bg-amber-400/20 text-amber-400 rounded-full">PWA No App Download Required</span> */}
             <p className="text-xs text-slate-500 mt-4">A SQI College of ICT Final Year Project 2026</p>
@@ -429,7 +428,7 @@ const Landing = () => {
             <ul className="space-y-2 text-sm">
               <li>Student: Amoo Halleluyah</li>
               <li>Matric: 241295</li>
-              <li>Programme: NID 2</li>
+              <li>Programme: ND 2</li>
               <li>Department: Computer Science</li>
               <li>Institution: SQI College of ICT</li>
               <li>Supervisor: Ms. Oduleke O. Janet</li>
@@ -440,7 +439,7 @@ const Landing = () => {
         {/* Bottom bar */}
         <div className="border-t border-slate-800 pt-6">
           <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
-            <p>© 2026 ProTech  Amoo Halleluyah. NID 2 Final Year Project.</p>
+            <p>© 2026 ProTech  Amoo Halleluyah. ND 2 Final Year Project.</p>
             <p>SQI College of ICT, Ogbomoso, Oyo State, Nigeria.</p>
           </div>
         </div>
