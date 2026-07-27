@@ -1,8 +1,9 @@
 // src/pages/landlord/LandlordPayments.jsx
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { paymentAPI } from '../../utils/api';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import SkeletonCard from '../../components/ui/SkeletonCard';
 import EmptyState from '../../components/ui/EmptyState';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
@@ -26,11 +27,7 @@ const LandlordPayments = () => {
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
 
-  useEffect(() => {
-    fetchPayments();
-  }, []);
-
-  const fetchPayments = async () => {
+  const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
       const res = await paymentAPI.getHistory();
@@ -40,7 +37,11 @@ const LandlordPayments = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchPayments();
+  }, [fetchPayments]);
 
   const openReceipt = async (paystackRef) => {
     setReceiptLoading(true);
@@ -85,7 +86,15 @@ const LandlordPayments = () => {
     [payments]
   );
 
-  if (loading) return <LoadingSpinner fullPage />;
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <SkeletonCard key={i} lines={3} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -43,4 +43,4 @@ const StatCard = ({
   );
 };
 
-export default StatCard;
+export default React.memo(StatCard);

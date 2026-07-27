@@ -5,6 +5,7 @@ import { leaseAPI, paymentAPI, approvalAPI } from '../../utils/api';
 import api from '../../utils/api';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import SkeletonCard from '../../components/ui/SkeletonCard';
 import StatCard from '../../components/ui/StatCard';
 import Badge from '../../components/ui/Badge';
 import RealTimeGreeting from '../../components/ui/RealTimeGreeting';
@@ -32,10 +33,6 @@ const TenantDashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
 
-  useEffect(() => {
-    loadTenantData();
-  }, []);
-
   const loadTenantData = async () => {
     try {
       setLoading(true);
@@ -57,6 +54,11 @@ const TenantDashboard = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadTenantData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // useMemo: these three calculations depend only on lease data.
   // Previously defined as plain functions called multiple times inside JSX.
@@ -86,7 +88,15 @@ const TenantDashboard = () => {
     return Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)));
   }, [lease]);
 
-  if (loading) return <LoadingSpinner fullPage size="lg" />;
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <SkeletonCard key={i} lines={3} />
+        ))}
+      </div>
+    );
+  }
 
   // Derived from lease — computed after loading guard
   const nextRentAmount = lease ? parseFloat(lease.rent_amount) + 500 : 0;
@@ -215,12 +225,12 @@ const TenantDashboard = () => {
                   { label: 'Hostel Name', value: lease.property_name },
                   { label: 'Hostel Address', value: lease.property_address },
                   { label: 'Room Number', value: `${lease.room_number} (${lease.room_type || 'Single'})` },
-                  { label: 'Monthly Rent', value: formatCurrency(lease.rent_amount), blue: true },
+                  { label: 'Yearly Rent', value: formatCurrency(lease.rent_amount), blue: true },
                   { label: 'Agreement Period', value: `${formatDate(lease.start_date)} — ${formatDate(lease.end_date)}` },
                   { label: 'Rent Due Day', value: `Every ${lease.due_day}th of the month` },
                   { label: 'Landlord Email', value: lease.landlord_email }
-                ].map((item, idx) => (
-                  <div key={idx} className="flex justify-between py-3">
+                ].map((item) => (
+                  <div key={item.label} className="flex justify-between py-3">
                     <span className="text-slate-400 font-bold uppercase tracking-wider">{item.label}</span>
                     <span className={`text-right max-w-[60%] truncate ${item.blue ? 'text-blue-600 font-black text-sm' : 'text-slate-800'}`}>
                       {item.value || '—'}

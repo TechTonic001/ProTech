@@ -3,25 +3,80 @@ const pool = require('../config/db');
 
 const createProperty = async (req, res, next) => {
   try {
-    const { property_name, address, city, total_rooms } = req.body;
-    const landlord_id = req.user.user_id;
+    const {
+      property_name,
+      address,
+      city,
+      total_rooms,
+      default_room_type,
+      default_yearly_rent,
+    } = req.body;
+    const landlordId = req.user.user_id;
 
-    if (!property_name || !address) {
-      return res.status(400).json({ error: 'Property name and address are required' });
+    if (!property_name || !address || !city) {
+      return res.status(400).json({
+        error: 'Property name, address, and city are required.',
+      });
     }
 
-    const result = await pool.query(
-      'INSERT INTO properties (landlord_id, property_name, address, city, total_rooms) VALUES ($1, $2, $3, $4, $5) RETURNING property_id',
-      [landlord_id, property_name, address, city || 'Ogbomoso', total_rooms || 0]
+    const numRooms = parseInt(total_rooms, 10);
+    if (!numRooms || numRooms < 1 || numRooms > 500) {
+      return res.status(400).json({
+        error: 'Total rooms must be a number between 1 and 500.',
+      });
+    }
+
+    const yearlyRent = parseFloat(default_yearly_rent) || 0;
+    if (yearlyRent < 0) {
+      return res.status(400).json({
+        error: 'Yearly rent cannot be negative.',
+      });
+    }
+
+    const validRoomTypes = ['single', 'shared', 'self_contain'];
+    const roomType = validRoomTypes.includes(default_room_type) ? default_room_type : 'single';
+
+    const propertyResult = await pool.query(
+      `INSERT INTO properties
+        (landlord_id, property_name, address, city, total_rooms)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING property_id, property_name, address, city, total_rooms`,
+      [landlordId, property_name, address, city, numRooms]
+    );
+
+    const property = propertyResult.rows[0];
+
+    const valuePlaceholders = [];
+    const valueParams = [];
+    let paramIndex = 1;
+
+    for (let roomIndex = 1; roomIndex <= numRooms; roomIndex += 1) {
+      valuePlaceholders.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3})`);
+      valueParams.push(
+        property.property_id,
+        `Room ${roomIndex}`,
+        roomType,
+        yearlyRent
+      );
+      paramIndex += 4;
+    }
+
+    await pool.query(
+      `INSERT INTO rooms
+        (property_id, room_number, room_type, monthly_rent)
+       VALUES ${valuePlaceholders.join(', ')}`,
+      valueParams
     );
 
     return res.status(201).json({
-      message: 'Property created successfully',
-      data: {
-        property_id: result.rows[0].property_id,
-        property_name,
-        address,
-        city: city || 'Ogbomoso',
+      message: `Property created with ${numRooms} rooms generated automatically.`,
+      property: {
+        property_id: property.property_id,
+        property_name: property.property_name,
+        address: property.address,
+        city: property.city,
+        total_rooms: property.total_rooms,
+        rooms_created: numRooms,
       },
     });
   } catch (error) {

@@ -18,8 +18,7 @@ export const usePWA = () => {
       return;
     }
     try {
-      const registration = await navigator.serviceWorker.register('/service-worker.js');
-      console.log('[PWA] Service worker registered', registration);
+      await navigator.serviceWorker.register('/service-worker.js');
     } catch (err) {
       console.error('[PWA] Service worker registration failed', err);
     }

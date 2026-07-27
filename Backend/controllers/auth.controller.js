@@ -201,7 +201,6 @@ const register = async (req, res, next) => {
            ON CONFLICT (landlord_id) DO NOTHING`,
           [newLandlord.user_id]
         );
-        console.log('[REGISTER] Notification settings seeded for landlord:', newLandlord.user_id);
       } catch (nsErr) {
         // Non-fatal: the settings row will be auto-created on first GET /api/notification/settings
         console.error('[REGISTER] Failed to seed notification settings:', nsErr.message);
@@ -304,7 +303,6 @@ const register = async (req, res, next) => {
            VALUES ($1, $2, $3, 'pending')`,
           [newTenantId, landlord.user_id, property_id]
         );
-        console.log('[APPROVAL CREATED] tenant:', newTenantId, 'landlord:', landlord.user_id);
       } catch (approvalErr) {
         console.error('[APPROVAL INSERT FAILED]', approvalErr.message);
       }

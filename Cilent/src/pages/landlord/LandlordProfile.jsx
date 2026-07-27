@@ -98,7 +98,7 @@ const LandlordProfile = () => {
         </div>
 
         {/* ── Hostel Setup Prompt (shown when hostel_name is not yet set) ── */}
-        {!profile?.hostel_name && (
+        {/* {!profile?.hostel_name && (
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5">
             <p className="text-sm font-bold text-blue-800">
               🏠 Add Your Hostel Details
@@ -114,7 +114,7 @@ const LandlordProfile = () => {
               ✏️ Add Hostel Info
             </button>
           </div>
-        )}
+        )} */}
 
         {/* Profile Card */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -183,7 +183,7 @@ const LandlordProfile = () => {
             </div>
 
             {/* Hostel Details */}
-            <div className="border-t border-slate-100 pt-6">
+            {/* <div className="border-t border-slate-100 pt-6">
               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">🏠 Hostel Details</h3>
               <div className="space-y-4">
                 <div>
@@ -206,7 +206,7 @@ const LandlordProfile = () => {
                   )}
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* Save / Cancel */}
             {editing && (

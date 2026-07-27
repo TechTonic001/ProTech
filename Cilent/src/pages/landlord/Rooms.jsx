@@ -1,191 +1,167 @@
-// src/pages/landlord/Rooms.jsx
-import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { propertyAPI, roomAPI, approvalAPI, leaseAPI } from '../../utils/api';
-import { formatCurrency, formatDate } from '../../utils/formatters';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { formatCurrency } from '../../utils/formatters';
 import EmptyState from '../../components/ui/EmptyState';
 import Modal from '../../components/ui/Modal';
 import Badge from '../../components/ui/Badge';
-import { 
-  DoorOpen, 
-  Plus, 
-  Calendar, 
-  Clock, 
-  Tag, 
-  Building2, 
-  Loader2,
-  Trash2
+import SkeletonCard from '../../components/ui/SkeletonCard';
+import {
+  DoorOpen,
+  Calendar,
+  Clock,
+  Tag,
+  Building2,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  PencilLine,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+const DEFAULT_VISIBLE_COUNT = 50;
+
+const compareRoomNumbers = (roomA, roomB) => {
+  const numericA = Number.parseInt(String(roomA.room_number || '').replace(/\D/g, ''), 10);
+  const numericB = Number.parseInt(String(roomB.room_number || '').replace(/\D/g, ''), 10);
+
+  if (Number.isFinite(numericA) && Number.isFinite(numericB) && numericA !== numericB) {
+    return numericA - numericB;
+  }
+
+  return String(roomA.room_number || '').localeCompare(String(roomB.room_number || ''));
+};
 
 const Rooms = () => {
-  const location = useLocation();
-  const queryParams = new URLSearchParams(location.search);
-  const initialPropertyId = queryParams.get('property_id');
+  const navigate = useNavigate();
 
-  const [activePropertyId, setActivePropertyId] = useState(initialPropertyId || '');
-  
-  // Modal states
-  const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
+  const [properties, setProperties] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [leases, setLeases] = useState([]);
+  const [approvedTenants, setApprovedTenants] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const [visibleCounts, setVisibleCounts] = useState({});
+
   const [isLeaseModalOpen, setIsLeaseModalOpen] = useState(false);
-  
-  // Selected Room for lease assignment
   const [selectedRoom, setSelectedRoom] = useState(null);
+  const [editingRoomId, setEditingRoomId] = useState(null);
+  const [editingRoomNumber, setEditingRoomNumber] = useState('');
+  const [formError, setFormError] = useState('');
 
-  // Add Room form state
-  const [roomForm, setRoomForm] = useState({
-    room_number: '',
-    room_type: 'Single',
-    monthly_rent: '',
-  });
-
-  // Assign Tenant (Lease Creation) form state
   const [leaseForm, setLeaseForm] = useState({
     tenant_id: '',
     start_date: '',
     end_date: '',
-    rent_amount: '',
     due_day: 5,
   });
 
-  const [formError, setFormError] = useState('');
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
 
-  const queryClient = useQueryClient();
+      const propertyRes = await propertyAPI.getAll();
+      const propertyList = propertyRes.data.data || [];
+      setProperties(propertyList);
 
-  // Load properties list
-  const { data: properties = [], isLoading: loading } = useQuery({
-    queryKey: ['properties'],
-    queryFn: () => propertyAPI.getAll().then(res => res.data.data || [])
-  });
-
-  // Auto-select first property once properties finish loading
-  useEffect(() => {
-    if (properties.length > 0 && !activePropertyId) {
-      const activeId = initialPropertyId && properties.some(p => String(p.property_id) === String(initialPropertyId))
-        ? initialPropertyId 
-        : properties[0].property_id;
-      setActivePropertyId(activeId);
-    }
-  }, [properties, activePropertyId, initialPropertyId]);
-
-  // Load rooms data: rooms, active leases, and approved tenants
-  const { data: roomsData = { rooms: [], leases: [], approvedTenants: [] }, isLoading: roomsLoading } = useQuery({
-    queryKey: ['roomsData', activePropertyId],
-    queryFn: async () => {
-      if (!activePropertyId) return { rooms: [], leases: [], approvedTenants: [] };
-      const [roomRes, leaseRes, approvedRes] = await Promise.all([
-        roomAPI.getAll(activePropertyId),
+      const [leaseRes, approvedRes, roomResponses] = await Promise.all([
         leaseAPI.getAll(),
-        approvalAPI.getApproved ? approvalAPI.getApproved() : approvalAPI.getPending()
+        approvalAPI.getApproved ? approvalAPI.getApproved() : approvalAPI.getPending(),
+        Promise.all(
+          propertyList.map(async (property) => {
+            try {
+              const res = await roomAPI.getAll(property.property_id);
+              return (res.data.data || []).map((room) => ({
+                ...room,
+                property_id: property.property_id,
+                property_name: property.property_name,
+              }));
+            } catch {
+              return [];
+            }
+          })
+        ),
       ]);
-      return {
-        rooms: roomRes.data.data || [],
-        leases: leaseRes.data.data || [],
-        approvedTenants: approvedRes.data.data || []
-      };
-    },
-    enabled: !!activePropertyId
-  });
 
-  const rooms = roomsData.rooms;
-  const leases = roomsData.leases;
-  const approvedTenants = roomsData.approvedTenants;
+      setRooms(roomResponses.flat());
+      setLeases(leaseRes.data.data || []);
+      setApprovedTenants(approvedRes.data.data || []);
 
-  // Add Room Mutation with Optimistic UI updates
-  const addRoomMutation = useMutation({
-    mutationFn: (newRoom) => roomAPI.create(newRoom),
-    onMutate: async (newRoom) => {
-      await queryClient.cancelQueries({ queryKey: ['roomsData', activePropertyId] });
-      const previousRoomsData = queryClient.getQueryData(['roomsData', activePropertyId]);
-
-      const tempRoom = {
-        room_id: `temp-${Date.now()}`,
-        ...newRoom,
-        is_occupied: 0,
-        isOptimistic: true
-      };
-
-      queryClient.setQueryData(['roomsData', activePropertyId], (old) => {
-        if (!old) return { rooms: [tempRoom], leases: [], approvedTenants: [] };
-        return {
-          ...old,
-          rooms: [...old.rooms, tempRoom]
-        };
+      setExpandedGroups((current) => {
+        if (Object.keys(current).length > 0) return current;
+        return propertyList.reduce((accumulator, property) => {
+          accumulator[property.property_name] = true;
+          return accumulator;
+        }, {});
       });
-
-      return { previousRoomsData };
-    },
-    onError: (err, newRoom, context) => {
-      queryClient.setQueryData(['roomsData', activePropertyId], context.previousRoomsData);
-      setFormError(err.message || 'Failed to create room');
-    },
-    onSuccess: () => {
-      toast.success('Room created successfully');
-      setIsRoomModalOpen(false);
-      setRoomForm({ room_number: '', room_type: 'Single', monthly_rent: '' });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['roomsData', activePropertyId] });
+    } catch (err) {
+      toast.error(err.message || 'Failed to load rooms');
+    } finally {
+      setLoading(false);
     }
-  });
+  }, []);
 
-  // Assign Tenant Mutation
-  const assignTenantMutation = useMutation({
-    mutationFn: (newLease) => leaseAPI.create(newLease),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['roomsData', activePropertyId] });
-      toast.success('Tenant assigned and lease created!');
-      setIsLeaseModalOpen(false);
-    },
-    onError: (err) => {
-      setFormError(err.message || 'Failed to assign tenant');
-    }
-  });
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  // Delete Room Mutation
-  const deleteRoomMutation = useMutation({
-    mutationFn: (roomId) => roomAPI.delete(roomId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['roomsData', activePropertyId] });
-      toast.success('Room deleted successfully');
-    },
-    onError: (err) => {
-      toast.error(err.message || 'Failed to delete room');
-    }
-  });
+  const groupedRooms = useMemo(() => {
+    return rooms.reduce((accumulator, room) => {
+      const groupName = room.property_name || 'Unassigned';
+      if (!accumulator[groupName]) accumulator[groupName] = [];
+      accumulator[groupName].push(room);
+      return accumulator;
+    }, {});
+  }, [rooms]);
 
-  const handleRoomSubmit = (e) => {
-    e.preventDefault();
-    if (!roomForm.room_number || !roomForm.monthly_rent) {
-      setFormError('Room Number and Rent are required');
-      return;
-    }
-    setFormError('');
-    addRoomMutation.mutate({
-      property_id: activePropertyId,
-      room_number: roomForm.room_number,
-      room_type: roomForm.room_type,
-      monthly_rent: Number(roomForm.monthly_rent),
-    });
+  const getRoomLease = useCallback(
+    (roomId) => leases.find((lease) => lease.room_id === roomId && lease.lease_status === 'active'),
+    [leases]
+  );
+
+  const toggleGroup = (groupName) => {
+    setExpandedGroups((current) => ({
+      ...current,
+      [groupName]: !current[groupName],
+    }));
   };
 
-  const handleLeaseSubmit = (e) => {
-    e.preventDefault();
-    if (!leaseForm.tenant_id || !leaseForm.start_date || !leaseForm.end_date || !leaseForm.rent_amount) {
-      setFormError('All fields are required');
+  const getVisibleCount = (groupName) => visibleCounts[groupName] || DEFAULT_VISIBLE_COUNT;
+
+  const incrementVisibleCount = (groupName) => {
+    setVisibleCounts((current) => ({
+      ...current,
+      [groupName]: (current[groupName] || DEFAULT_VISIBLE_COUNT) + DEFAULT_VISIBLE_COUNT,
+    }));
+  };
+
+  const beginRoomEdit = (room) => {
+    setEditingRoomId(room.room_id);
+    setEditingRoomNumber(room.room_number || '');
+  };
+
+  const saveRoomEdit = async (room) => {
+    const nextName = editingRoomNumber.trim() || room.room_number;
+    if (!nextName) {
+      setEditingRoomId(null);
+      setEditingRoomNumber('');
       return;
     }
-    setFormError('');
-    assignTenantMutation.mutate({
-      tenant_id: leaseForm.tenant_id,
-      room_id: selectedRoom.room_id,
-      start_date: leaseForm.start_date,
-      end_date: leaseForm.end_date,
-      rent_amount: Number(leaseForm.rent_amount),
-      due_day: Number(leaseForm.due_day),
-    });
+
+    try {
+      await roomAPI.update(room.room_id, { room_number: nextName });
+      setRooms((current) => current.map((item) => (
+        item.room_id === room.room_id
+          ? { ...item, room_number: nextName }
+          : item
+      )));
+      toast.success('Room updated successfully');
+    } catch (err) {
+      toast.error(err.message || 'Failed to update room');
+    } finally {
+      setEditingRoomId(null);
+      setEditingRoomNumber('');
+    }
   };
 
   const openAssignModal = (room) => {
@@ -194,276 +170,250 @@ const Rooms = () => {
       tenant_id: '',
       start_date: '',
       end_date: '',
-      rent_amount: room.monthly_rent || '',
       due_day: 5,
     });
     setFormError('');
     setIsLeaseModalOpen(true);
   };
 
-  const handleDeleteRoom = (roomId) => {
+  const handleLeaseSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!leaseForm.tenant_id || !leaseForm.start_date || !leaseForm.end_date) {
+      setFormError('All fields are required');
+      return;
+    }
+
+    setFormError('');
+    try {
+      await leaseAPI.create({
+        tenant_id: leaseForm.tenant_id,
+        room_id: selectedRoom.room_id,
+        start_date: leaseForm.start_date,
+        end_date: leaseForm.end_date,
+        rent_amount: Number(selectedRoom.yearly_rent || 0),
+        due_day: Number(leaseForm.due_day),
+      });
+
+      setRooms((current) => current.map((room) => (
+        room.room_id === selectedRoom.room_id
+          ? { ...room, is_occupied: 1 }
+          : room
+      )));
+      toast.success('Tenant assigned and lease created!');
+      setIsLeaseModalOpen(false);
+    } catch (err) {
+      setFormError(err.message || 'Failed to assign tenant');
+      toast.error(err.message || 'Failed to assign tenant');
+    }
+  };
+
+  const handleDeleteRoom = async (roomId) => {
     if (!window.confirm('Are you sure you want to delete this room? This cannot be undone.')) {
       return;
     }
-    deleteRoomMutation.mutate(roomId);
-  };
 
-  const getRoomLease = (roomId) => {
-    return leases.find(l => l.room_id === roomId && l.lease_status === 'active');
-  };
-
-  const getDaysLeft = (leaseItem) => {
-    if (!leaseItem) return '';
-    const now = new Date();
-    const dueDay = leaseItem.due_day || 5;
-    const due = new Date(now.getFullYear(), now.getMonth(), dueDay);
-    
-    if (now.getDate() > dueDay) {
-      due.setMonth(due.getMonth() + 1);
+    try {
+      await roomAPI.delete(roomId);
+      setRooms((current) => current.filter((room) => room.room_id !== roomId));
+      toast.success('Room deleted successfully');
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete room');
     }
-
-    const diffTime = due - now;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays <= 0) return 'Overdue';
-    return `${diffDays} days left`;
   };
 
-  const getDaysLeftColor = (leaseItem) => {
-    const text = getDaysLeft(leaseItem);
-    if (text === 'Overdue') return 'text-red-600 font-bold';
-    const match = text.match(/\d+/);
-    if (match) {
-      const days = parseInt(match[0]);
-      if (days <= 7) return 'text-amber-600 font-bold animate-pulse';
-    }
-    return 'text-green-600 font-semibold';
-  };
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <SkeletonCard key={i} lines={3} />
+        ))}
+      </div>
+    );
+  }
 
-  if (loading) return <LoadingSpinner fullPage />;
+  if (properties.length === 0) {
+    return (
+      <EmptyState
+        icon={Building2}
+        title="No hostels registered"
+        message="You need to create a property before the rooms for it can be generated automatically."
+        actionText="Add Hostel"
+        onActionClick={() => navigate('/landlord/properties')}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-4">
         <div className="flex items-center gap-2">
           <h2 className="text-xl lg:text-2xl font-black text-slate-900">Rooms Management</h2>
+          <span className="bg-slate-200 text-slate-700 text-xs font-black px-2 py-0.5 rounded-full">
+            {rooms.length}
+          </span>
         </div>
-        {activePropertyId && (
-          <button
-            onClick={() => setIsRoomModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition hover:shadow-lg hover:shadow-blue-500/25 active:scale-95"
-          >
-            <Plus className="w-4 h-4" />
-            Add Room
-          </button>
-        )}
       </div>
 
-      {properties.length === 0 ? (
+      {Object.keys(groupedRooms).length === 0 ? (
         <EmptyState
-          icon={Building2}
-          title="No hostels registered"
-          message="You need to create a property before adding rooms."
-          actionText="Add Hostel"
+          icon={DoorOpen}
+          title="No rooms yet"
+          message="Create a property with a room count to auto-generate Room 1, Room 2, and so on."
+          actionText="Add Property"
           onActionClick={() => navigate('/landlord/properties')}
         />
       ) : (
-        <>
-          {/* Property Filter Tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-2 border-b border-slate-100 select-none">
-            {properties.map(p => (
-              <button
-                key={p.property_id}
-                onClick={() => setActivePropertyId(p.property_id)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 border
-                  ${activePropertyId === p.property_id
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                  }`}
-              >
-                {p.property_name}
-              </button>
-            ))}
-          </div>
+        <div>
+          {Object.entries(groupedRooms).map(([propertyName, propertyRooms]) => {
+            const isExpanded = expandedGroups[propertyName] !== false;
+            const visibleCount = getVisibleCount(propertyName);
 
-          {roomsLoading ? (
-            <LoadingSpinner />
-          ) : rooms.length === 0 ? (
-            <EmptyState
-              icon={DoorOpen}
-              title="No rooms in this hostel"
-              message="This property does not have any units yet. Create a room to assign tenants."
-              actionText="Add Room"
-              onActionClick={() => setIsRoomModalOpen(true)}
-            />
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {rooms.map(room => {
-                const activeLease = getRoomLease(room.room_id);
-                const isOccupied = room.is_occupied || !!activeLease;
-                
-                // Color border based on lease
-                let borderColor = 'border-slate-200';
-                if (isOccupied) {
-                  const daysLeftText = getDaysLeft(activeLease);
-                  if (daysLeftText === 'Overdue') {
-                    borderColor = 'border-red-300';
-                  } else {
-                    borderColor = 'border-green-200';
-                  }
-                }
+            return (
+              <div key={propertyName} className="mb-4">
+                <button
+                  onClick={() => toggleGroup(propertyName)}
+                  className="w-full flex justify-between items-center bg-slate-100 px-5 py-3 rounded-xl font-bold text-slate-900 text-sm"
+                >
+                  <span>{propertyName}</span>
+                  <span className="text-slate-400 flex items-center gap-2">
+                    {propertyRooms.length} rooms
+                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </span>
+                </button>
 
-                return (
-                  <div
-                    key={room.room_id}
-                    className={`bg-white rounded-2xl border-2 p-5 flex flex-col justify-between shadow-xs hover:shadow-md transition duration-200 ${borderColor}`}
-                  >
-                    <div>
-                      <div className="flex justify-between items-start">
-                        <span className="text-2xl font-black text-slate-900 leading-none">
-                          {room.room_number}
-                        </span>
-                        <Badge status={isOccupied ? 'paid' : 'pending'}>
-                          {isOccupied ? 'Occupied' : 'Vacant'}
-                        </Badge>
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5 flex items-center gap-1">
-                        <Tag className="w-3 h-3" />
-                        {room.room_type} Room
-                      </div>
-                      <div className="text-lg font-black text-blue-600 mt-3">
-                        {formatCurrency(room.monthly_rent)}
-                        <span className="text-slate-400 text-xs font-semibold"> / month</span>
-                      </div>
+                {isExpanded && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-3 px-1">
+                    {propertyRooms
+                      .slice()
+                      .sort(compareRoomNumbers)
+                      .slice(0, visibleCount)
+                      .map((room) => {
+                      const activeLease = getRoomLease(room.room_id);
+                      const isOccupied = room.is_occupied || !!activeLease;
 
-                      {/* Lease/Tenant Section */}
-                      {isOccupied && activeLease && (
-                        <div className="border-t border-slate-100 mt-4 pt-4 space-y-2.5">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">
-                              {activeLease.tenant_name?.charAt(0).toUpperCase()}
+                      return (
+                        <div key={room.room_id} className="bg-white rounded-2xl border-2 border-slate-200 p-4 flex flex-col justify-between shadow-xs hover:shadow-md transition duration-200">
+                          <div>
+                            <div className="flex justify-between items-start gap-2">
+                              <div className="min-w-0">
+                                {editingRoomId === room.room_id ? (
+                                  <input
+                                    autoFocus
+                                    value={editingRoomNumber}
+                                    onChange={(event) => setEditingRoomNumber(event.target.value)}
+                                    onBlur={() => saveRoomEdit(room)}
+                                    onKeyDown={(event) => {
+                                      if (event.key === 'Enter') {
+                                        event.preventDefault();
+                                        saveRoomEdit(room);
+                                      }
+                                      if (event.key === 'Escape') {
+                                        setEditingRoomId(null);
+                                        setEditingRoomNumber('');
+                                      }
+                                    }}
+                                    className="w-full text-lg font-black text-slate-900 border border-blue-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                  />
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => beginRoomEdit(room)}
+                                    className="text-left inline-flex items-center gap-1 text-lg font-black text-slate-900 leading-none hover:text-blue-600"
+                                  >
+                                    {room.room_number}
+                                    <PencilLine className="w-3.5 h-3.5 text-slate-300" />
+                                  </button>
+                                )}
+                                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5 flex items-center gap-1">
+                                  <Tag className="w-3 h-3" />
+                                  {room.room_type} Room
+                                </div>
+                              </div>
+                              <Badge status={isOccupied ? 'paid' : 'pending'}>
+                                {isOccupied ? 'Occupied' : 'Vacant'}
+                              </Badge>
                             </div>
-                            <div className="text-xs">
-                              <div className="font-bold text-slate-800 leading-none">{activeLease.tenant_name}</div>
-                              <div className="text-[10px] text-slate-400">@{activeLease.tenant_email?.split('@')[0]}</div>
+
+                            <div className="text-lg font-black text-blue-600 mt-3">
+                              {formatCurrency(room.yearly_rent)}
+                              <span className="text-slate-400 text-xs font-semibold"> / year</span>
                             </div>
-                          </div>
-                          
-                          <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
-                            <span className="flex items-center gap-1 text-[10px] text-slate-400 uppercase font-bold">
-                              <Calendar className="w-3.5 h-3.5" /> Due day
-                            </span>
-                            <span className="font-bold text-slate-800">{activeLease.due_day}th of month</span>
+
+                            {isOccupied && activeLease && (
+                              <div className="border-t border-slate-100 mt-4 pt-4 space-y-2.5">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                                    {activeLease.tenant_name?.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div className="text-xs min-w-0">
+                                    <div className="font-bold text-slate-800 leading-none truncate">{activeLease.tenant_name}</div>
+                                    <div className="text-[10px] text-slate-400 truncate">@{activeLease.tenant_username || activeLease.tenant_email?.split('@')[0]}</div>
+                                    <div className="text-[10px] text-slate-500 truncate">{activeLease.tenant_email}</div>
+                                  </div>
+                                </div>
+
+                                <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
+                                  <span className="flex items-center gap-1 text-[10px] text-slate-400 uppercase font-bold">
+                                    <Calendar className="w-3.5 h-3.5" /> Due day
+                                  </span>
+                                  <span className="font-bold text-slate-800">{activeLease.due_day}th of month</span>
+                                </div>
+
+                                <div className="flex justify-between items-center text-xs font-medium">
+                                  <span className="flex items-center gap-1 text-[10px] text-slate-400 uppercase font-bold">
+                                    <Clock className="w-3.5 h-3.5" /> Status
+                                  </span>
+                                  <span className="text-green-600 font-semibold">Active</span>
+                                </div>
+                              </div>
+                            )}
                           </div>
 
-                          <div className="flex justify-between items-center text-xs font-medium">
-                            <span className="flex items-center gap-1 text-[10px] text-slate-400 uppercase font-bold">
-                              <Clock className="w-3.5 h-3.5" /> Status
-                            </span>
-                            <span className={getDaysLeftColor(activeLease)}>
-                              {getDaysLeft(activeLease)}
-                            </span>
+                          <div className="mt-5 pt-3 border-t border-slate-50 flex gap-2 items-center">
+                            {!isOccupied ? (
+                              <button
+                                onClick={() => openAssignModal(room)}
+                                className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition"
+                              >
+                                Assign Tenant
+                              </button>
+                            ) : (
+                              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 p-2 rounded-lg text-center w-full">
+                                Lease Active
+                              </div>
+                            )}
+
+                            {!isOccupied && (
+                              <button
+                                onClick={() => handleDeleteRoom(room.room_id)}
+                                className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                                title="Delete Room"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </div>
-                      )}
-                    </div>
+                      );
+                    })}
 
-                    {/* Actions */}
-                    <div className="mt-5 pt-3 border-t border-slate-50 flex gap-2 items-center">
-                      {!isOccupied ? (
-                        <button
-                          onClick={() => openAssignModal(room)}
-                          className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition animate-pulse-once"
-                        >
-                          Assign Tenant
-                        </button>
-                      ) : (
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 p-2 rounded-lg text-center w-full">
-                          Lease Active
-                        </div>
-                      )}
-                      
-                      {!isOccupied && (
-                        <button
-                          onClick={() => handleDeleteRoom(room.room_id)}
-                          className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
-                          title="Delete Room"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
+                    {propertyRooms.length > visibleCount && (
+                      <button
+                        onClick={() => incrementVisibleCount(propertyName)}
+                        className="col-span-full w-full py-2 text-sm text-blue-600 font-bold border border-blue-200 rounded-xl mt-2 hover:bg-blue-50"
+                      >
+                        Show {Math.min(DEFAULT_VISIBLE_COUNT, propertyRooms.length - visibleCount)} more rooms
+                      </button>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
 
-      {/* Add Room Modal */}
-      <Modal isOpen={isRoomModalOpen} onClose={() => setIsRoomModalOpen(false)} title="Add New Room">
-        <form onSubmit={handleRoomSubmit} className="p-6 space-y-4">
-          {formError && (
-            <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-xl p-3 animate-slide-down">
-              {formError}
-            </p>
-          )}
-
-          <div>
-            <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest block mb-1.5">
-              Room Number / Label
-            </label>
-            <input
-              type="text"
-              value={roomForm.room_number}
-              onChange={(e) => setRoomForm(prev => ({ ...prev, room_number: e.target.value }))}
-              placeholder="e.g. Room 101, Flat B"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest block mb-1.5">
-                Room Type
-              </label>
-              <select
-                value={roomForm.room_type}
-                onChange={(e) => setRoomForm(prev => ({ ...prev, room_type: e.target.value }))}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition"
-              >
-                <option value="Single">Single</option>
-                <option value="Double">Double</option>
-                <option value="Ensuite">Ensuite</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest block mb-1.5">
-                Monthly Rent (₦)
-              </label>
-              <input
-                type="number"
-                value={roomForm.monthly_rent}
-                onChange={(e) => setRoomForm(prev => ({ ...prev, monthly_rent: e.target.value }))}
-                placeholder="e.g. 15000"
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={addRoomMutation.isPending}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition duration-150 flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-blue-500/25 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {addRoomMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Room'}
-          </button>
-        </form>
-      </Modal>
-
-      {/* Assign Tenant (Create Lease) Modal */}
       <Modal isOpen={isLeaseModalOpen} onClose={() => setIsLeaseModalOpen(false)} title={`Assign Tenant — Room ${selectedRoom?.room_number}`}>
         <form onSubmit={handleLeaseSubmit} className="p-6 space-y-4">
           {formError && (
@@ -483,13 +433,13 @@ const Rooms = () => {
             ) : (
               <select
                 value={leaseForm.tenant_id}
-                onChange={(e) => setLeaseForm(prev => ({ ...prev, tenant_id: e.target.value }))}
+                onChange={(event) => setLeaseForm((current) => ({ ...current, tenant_id: event.target.value }))}
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition"
               >
                 <option value="">-- Choose Tenant --</option>
-                {approvedTenants.map(t => (
-                  <option key={t.tenant_id} value={t.tenant_id}>
-                    {t.full_name} (@{t.username})
+                {approvedTenants.map((tenant) => (
+                  <option key={tenant.tenant_id} value={tenant.tenant_id}>
+                    {tenant.full_name} (@{tenant.username})
                   </option>
                 ))}
               </select>
@@ -504,7 +454,7 @@ const Rooms = () => {
               <input
                 type="date"
                 value={leaseForm.start_date}
-                onChange={(e) => setLeaseForm(prev => ({ ...prev, start_date: e.target.value }))}
+                onChange={(event) => setLeaseForm((current) => ({ ...current, start_date: event.target.value }))}
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition"
               />
             </div>
@@ -515,45 +465,25 @@ const Rooms = () => {
               <input
                 type="date"
                 value={leaseForm.end_date}
-                onChange={(e) => setLeaseForm(prev => ({ ...prev, end_date: e.target.value }))}
+                onChange={(event) => setLeaseForm((current) => ({ ...current, end_date: event.target.value }))}
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest block mb-1.5">
-                Rent Amount (₦)
-              </label>
-              <input
-                type="number"
-                value={leaseForm.rent_amount}
-                onChange={(e) => setLeaseForm(prev => ({ ...prev, rent_amount: e.target.value }))}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest block mb-1.5">
-                Monthly Due Day (1-28)
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={28}
-                value={leaseForm.due_day}
-                onChange={(e) => setLeaseForm(prev => ({ ...prev, due_day: e.target.value }))}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition"
-              />
-            </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <p className="text-sm font-bold text-blue-700">Annual Rent</p>
+            <p className="text-sm text-blue-600 mt-1">
+              {selectedRoom ? formatCurrency(selectedRoom.yearly_rent || 0) : '—'} will be used automatically for this lease.
+            </p>
           </div>
 
           <button
             type="submit"
-            disabled={assignTenantMutation.isPending || !leaseForm.tenant_id}
+            disabled={!leaseForm.tenant_id}
             className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition duration-150 flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-blue-500/25 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {assignTenantMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Assign Tenant & Create Lease'}
+            Assign Tenant & Create Lease
           </button>
         </form>
       </Modal>

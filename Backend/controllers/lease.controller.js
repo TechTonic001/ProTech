@@ -10,6 +10,19 @@ const createLease = async (req, res, next) => {
       return res.status(400).json({ error: 'All required fields must be provided' });
     }
 
+    const existingTenantLease = await pool.query(
+      `SELECT lease_id
+       FROM leases
+       WHERE tenant_id = $1
+         AND lease_status = 'active'
+       LIMIT 1`,
+      [tenant_id]
+    );
+
+    if (existingTenantLease.rows.length > 0) {
+      return res.status(400).json({ error: 'This tenant already has an active room assignment' });
+    }
+
     // Verify room belongs to landlord's property
     const roomsResult = await pool.query(
       'SELECT r.room_id, r.is_occupied, p.landlord_id FROM rooms r JOIN properties p ON r.property_id = p.property_id WHERE r.room_id = $1',
@@ -59,7 +72,7 @@ const getLeasesByLandlord = async (req, res, next) => {
         `SELECT l.lease_id, l.tenant_id, l.room_id, l.landlord_id,
                 l.start_date, l.end_date, l.rent_amount, l.due_day,
                 l.lease_status, l.created_at,
-                u.full_name AS tenant_name, u.email AS tenant_email,
+                u.full_name AS tenant_name, u.username AS tenant_username, u.email AS tenant_email,
                 r.room_number,
                 p.property_name
          FROM leases l
@@ -98,10 +111,12 @@ const getLeasesByTenant = async (req, res, next) => {
                 l.lease_status, l.created_at,
                 u.full_name    AS landlord_name,
                 u.email        AS landlord_email,
-                r.room_number, r.monthly_rent,
+            t.username     AS tenant_username,
+            r.room_number, r.monthly_rent AS yearly_rent,
                 p.property_name
          FROM leases l
          JOIN users u      ON l.landlord_id = u.user_id
+          JOIN users t      ON l.tenant_id   = t.user_id
          JOIN rooms r      ON l.room_id     = r.room_id
          JOIN properties p ON r.property_id = p.property_id
          WHERE l.tenant_id = $1
@@ -126,7 +141,7 @@ const getLeaseById = async (req, res, next) => {
     const { lease_id } = req.params;
 
     const result = await pool.query(
-      `SELECT l.lease_id, l.tenant_id, l.room_id, l.landlord_id, l.start_date, l.end_date, l.rent_amount, l.due_day, l.lease_status, l.created_at, u.full_name as landlord_name, u.email as landlord_email, t.full_name as tenant_name, t.email as tenant_email, r.room_number, p.property_name
+      `SELECT l.lease_id, l.tenant_id, l.room_id, l.landlord_id, l.start_date, l.end_date, l.rent_amount, l.due_day, l.lease_status, l.created_at, u.full_name as landlord_name, u.email as landlord_email, t.full_name as tenant_name, t.username as tenant_username, t.email as tenant_email, r.room_number, r.monthly_rent AS yearly_rent, p.property_name
        FROM leases l
        JOIN users u ON l.landlord_id = u.user_id
        JOIN users t ON l.tenant_id = t.user_id

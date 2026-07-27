@@ -13,7 +13,8 @@ const getNotifications = async (req, res, next) => {
     if (role === 'landlord') {
       // Landlords see activity feed of reminders/alerts sent to all their tenants
       queryText = `
-        SELECT n.*, l.rent_amount, r.room_number, p.property_name, u.full_name as tenant_name
+        SELECT n.notification_id, n.lease_id, n.tenant_id, n.message_body, n.channel, n.sent_at, n.notification_type,
+               l.rent_amount, r.room_number, p.property_name, u.full_name as tenant_name
         FROM notifications n
         JOIN leases l ON n.lease_id = l.lease_id
         JOIN rooms r ON l.room_id = r.room_id
@@ -25,7 +26,8 @@ const getNotifications = async (req, res, next) => {
     } else {
       // Tenants see only their own notifications
       queryText = `
-        SELECT n.*, l.rent_amount, r.room_number, p.property_name 
+        SELECT n.notification_id, n.lease_id, n.tenant_id, n.message_body, n.channel, n.sent_at, n.notification_type,
+               l.rent_amount, r.room_number, p.property_name 
         FROM notifications n
         JOIN leases l ON n.lease_id = l.lease_id
         JOIN rooms r ON l.room_id = r.room_id
@@ -55,7 +57,7 @@ const getNotificationSettings = async (req, res, next) => {
 
     // Try to find existing settings
     let result = await db.query(
-      'SELECT * FROM notification_settings WHERE landlord_id = $1',
+      'SELECT setting_id, landlord_id, remind_30_days, remind_14_days, remind_7_days, remind_3_days, remind_1_day, remind_on_due, send_time, frequency_overdue, created_at, updated_at FROM notification_settings WHERE landlord_id = $1',
       [landlord_id]
     );
 
@@ -72,7 +74,7 @@ const getNotificationSettings = async (req, res, next) => {
       // Re-fetch in case ON CONFLICT returned nothing (row already existed)
       if (result.rows.length === 0) {
         result = await db.query(
-          'SELECT * FROM notification_settings WHERE landlord_id = $1',
+          'SELECT setting_id, landlord_id, remind_30_days, remind_14_days, remind_7_days, remind_3_days, remind_1_day, remind_on_due, send_time, frequency_overdue, created_at, updated_at FROM notification_settings WHERE landlord_id = $1',
           [landlord_id]
         );
       }

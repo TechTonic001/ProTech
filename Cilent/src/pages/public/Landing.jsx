@@ -204,7 +204,7 @@ const Landing = () => {
             {/* Connector line (desktop) */}
             <div className="hidden md:block absolute top-10 left-[16%] right-[16%] h-0.5 bg-slate-200" />
             {[
-              { step: '1', title: 'Register Your Hostel', body: 'Create a landlord account with your hostel name and address. Add your properties, define your rooms, set monthly rent amounts, and connect your bank account through our secure Paystack integration.' },
+              { step: '1', title: 'Register Your Hostel', body: 'Create a landlord account with your hostel name and address. Add your properties, define your rooms, set yearly rent amounts, and connect your bank account through our secure Paystack integration.' },
               { step: '2', title: 'Onboard Your Tenants', body: 'Tenants register themselves with their email address. You receive a notification and approve their account with one click. They receive a confirmation email immediately and can start using the portal.' },
               { step: '3', title: 'Everything Runs Automatically', body: 'ProTech sends rent reminders, processes payments, generates receipts, and updates your dashboard without any manual work. You collect your rent, we handle the administration.' },
             ].map((s, i) => (

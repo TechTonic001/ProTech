@@ -29,6 +29,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
 const cron = require('node-cron');
 
 const { testConnection } = require('./config/db');
@@ -38,6 +39,7 @@ const { runNotificationEngine } = require('./utils/notificationEngine');
 const app = express();
 
 app.use(helmet());
+app.use(compression());
 
 const normalizeOrigin = (value = '') => {
   const trimmed = value.trim();
@@ -132,8 +134,10 @@ app.use('/api/approval', require('./routes/approval.routes'));
 app.use('/api/lease', require('./routes/lease.routes'));
 app.use('/api/notification', require('./routes/notification.routes'));
 app.use('/api/property', require('./routes/property.routes'));
+app.use('/api/dashboard', require('./routes/dashboard.routes'));
 app.use('/api/pwa', require('./routes/pwa.routes'));
 app.use('/api/room', require('./routes/room.routes'));
+app.use('/api/rooms', require('./routes/room.routes'));
 app.use('/api/admin', require('./routes/admin.routes'));
 // Issue 1D: Tenant soft-delete management (landlord-only)
 app.use('/api/tenants', require('./routes/landlord.routes'));

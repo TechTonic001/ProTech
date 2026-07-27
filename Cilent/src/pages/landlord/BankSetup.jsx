@@ -264,7 +264,7 @@ const BankSetup = () => {
               </div>
             </div>
 
-            <div>
+            {/* <div>
               <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest block mb-1.5">
                 Splitting Percentage (Landlord Share)
               </label>
@@ -281,7 +281,7 @@ const BankSetup = () => {
               <p className="text-[10px] text-slate-400 mt-1 font-semibold leading-relaxed">
                 Percentage charge split defined in Paystack payouts (typically 1.0% shared).
               </p>
-            </div>
+            </div> */}
 
             <button
               type="submit"

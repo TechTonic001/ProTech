@@ -15,7 +15,7 @@ webpush.setVapidDetails(
 const sendPushNotification = async (userId, title, body, url = '/') => {
   try {
     const result = await pool.query(
-      'SELECT * FROM pwa_subscriptions WHERE user_id = $1 AND is_active = 1',
+      'SELECT subscription_id, user_id, endpoint, p256dh_key, auth_key, device_info, is_active FROM pwa_subscriptions WHERE user_id = $1 AND is_active = 1',
       [userId]
     );
 

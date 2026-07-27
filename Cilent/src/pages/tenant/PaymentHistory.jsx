@@ -1,7 +1,8 @@
 // src/pages/tenant/PaymentHistory.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
+import SkeletonCard from '../../components/ui/SkeletonCard';
 
 const PaymentHistory = () => {
   const [payments, setPayments] = useState([]);
@@ -9,11 +10,7 @@ const PaymentHistory = () => {
   const [receipt, setReceipt] = useState(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
 
-  useEffect(() => {
-    fetchPayments();
-  }, []);
-
-  const fetchPayments = async () => {
+  const fetchPayments = useCallback(async () => {
     try {
       const res = await api.get('/payments/history');
       setPayments(res.data.data || []);
@@ -22,7 +19,11 @@ const PaymentHistory = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchPayments();
+  }, [fetchPayments]);
 
   const openReceipt = async (paystack_ref) => {
     setReceiptLoading(true);
@@ -50,8 +51,10 @@ const PaymentHistory = () => {
         <p className="text-slate-500">See your rent payment records and download receipts.</p>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <SkeletonCard key={i} lines={3} />
+            ))}
           </div>
         ) : payments.length === 0 ? (
           <div className="bg-white rounded-2xl p-10 text-center text-slate-400 shadow-sm">

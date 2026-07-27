@@ -1,9 +1,9 @@
 // src/pages/landlord/Properties.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { propertyAPI } from '../../utils/api';
-import { formatCurrency } from '../../utils/formatters';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import SkeletonCard from '../../components/ui/SkeletonCard';
 import EmptyState from '../../components/ui/EmptyState';
 import Modal from '../../components/ui/Modal';
 import DeleteConfirmModal from '../../components/ui/DeleteConfirmModal';
@@ -35,19 +35,17 @@ const Properties = () => {
     property_name: '',
     address: '',
     city: 'Ogbomoso',
-    total_rooms: 0,
+    default_room_type: 'single',
+    default_yearly_rent: '',
   });
+  const [totalRooms, setTotalRooms] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
   const [formError, setFormError] = useState('');
 
   // Delete confirm modal state
   const [deleteModal, setDeleteModal] = useState({ open: false, property: null, loading: false });
 
-  useEffect(() => {
-    fetchProperties();
-  }, []);
-
-  const fetchProperties = async () => {
+  const fetchProperties = useCallback(async () => {
     try {
       setLoading(true);
       const res = await propertyAPI.getAll();
@@ -57,15 +55,21 @@ const Properties = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchProperties();
+  }, [fetchProperties]);
 
   const openCreateModal = () => {
     setForm({
       property_name: '',
       address: '',
       city: 'Ogbomoso',
-      total_rooms: 0,
+      default_room_type: 'single',
+      default_yearly_rent: '',
     });
+    setTotalRooms('');
     setFormError('');
     setModalMode('create');
     setIsModalOpen(true);
@@ -76,8 +80,10 @@ const Properties = () => {
       property_name: prop.property_name || '',
       address: prop.address || '',
       city: prop.city || 'Ogbomoso',
-      total_rooms: prop.total_rooms || 0,
+      default_room_type: 'single',
+      default_yearly_rent: '',
     });
+    setTotalRooms(prop.total_rooms || '');
     setSelectedPropertyId(prop.property_id);
     setFormError('');
     setModalMode('edit');
@@ -96,35 +102,42 @@ const Properties = () => {
       return;
     }
 
+    if (modalMode === 'create' && (!totalRooms || Number(totalRooms) < 1)) {
+      setFormError('Please enter the number of rooms.');
+      return;
+    }
+
     setFormError('');
     setSubmitLoading(true);
-    const oldProperties = [...properties];
-    if (modalMode === 'create') {
-      const optimisticProperty = {
-        property_id: `temp-${Date.now()}`,
-        property_name: form.property_name,
-        address: form.address,
-        city: form.city || 'Ogbomoso',
-        total_rooms: parseInt(form.total_rooms) || 0,
-        isOptimistic: true
-      };
-      setProperties(prev => [optimisticProperty, ...prev]);
-    }
 
     try {
       if (modalMode === 'create') {
-        await propertyAPI.create(form);
-        toast.success('Property created successfully');
+        const res = await propertyAPI.create({
+          property_name: form.property_name,
+          address: form.address,
+          city: form.city,
+          total_rooms: totalRooms,
+          default_room_type: form.default_room_type,
+          default_yearly_rent: form.default_yearly_rent,
+        });
+        setProperties((prev) => [...prev, res.data.property]);
+        toast.success(`Property created! ${totalRooms} rooms generated automatically.`);
       } else {
-        await propertyAPI.update(selectedPropertyId, form);
+        await propertyAPI.update(selectedPropertyId, {
+          property_name: form.property_name,
+          address: form.address,
+          city: form.city,
+          total_rooms: Number(totalRooms) || 0,
+        });
+        setProperties((prev) => prev.map((property) => (
+          property.property_id === selectedPropertyId
+            ? { ...property, property_name: form.property_name, address: form.address, city: form.city, total_rooms: Number(totalRooms) || property.total_rooms }
+            : property
+        )));
         toast.success('Property updated successfully');
       }
       setIsModalOpen(false);
-      fetchProperties();
     } catch (err) {
-      if (modalMode === 'create') {
-        setProperties(oldProperties);
-      }
       setFormError(err.message || 'Error saving property');
       toast.error(err.message || 'Operation failed');
     } finally {
@@ -143,14 +156,22 @@ const Properties = () => {
       await propertyAPI.delete(property.property_id, reason);
       toast.success(`"${property.property_name}" moved to recycle bin. Recovery available for 30 days.`);
       setDeleteModal({ open: false, property: null, loading: false });
-      fetchProperties();
+      setProperties((prev) => prev.filter((item) => item.property_id !== property.property_id));
     } catch (err) {
       toast.error(err.message || 'Failed to delete property');
       setDeleteModal((prev) => ({ ...prev, loading: false }));
     }
   };
 
-  if (loading) return <LoadingSpinner fullPage />;
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <SkeletonCard key={i} lines={3} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -333,13 +354,57 @@ const Properties = () => {
               </label>
               <input
                 type="number"
-                name="total_rooms"
-                value={form.total_rooms}
-                onChange={handleInputChange}
-                min={0}
+                min="1"
+                max="500"
+                value={totalRooms}
+                onChange={(e) => setTotalRooms(parseInt(e.target.value, 10) || '')}
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest block mb-1.5">
+                Default Room Type
+              </label>
+              <select
+                name="default_room_type"
+                value={form.default_room_type}
+                onChange={handleInputChange}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition"
+              >
+                <option value="single">Single Room</option>
+                <option value="shared">Shared Room</option>
+                <option value="self_contain">Self Contain</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest block mb-1.5">
+                Default Yearly Rent
+              </label>
+              <input
+                type="number"
+                name="default_yearly_rent"
+                value={form.default_yearly_rent}
+                onChange={handleInputChange}
+                min={0}
+                placeholder="e.g. 15000"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition"
+              />
+              <p className="text-xs text-slate-400 mt-1">
+                This yearly price will be applied to all rooms. You can rename rooms later from the Rooms page.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mt-2">
+            <p className="text-sm font-bold text-blue-700">Auto Room Generation</p>
+            <p className="text-sm text-blue-600 mt-1">
+              {totalRooms > 0
+                ? `${totalRooms} rooms will be created automatically, named Room 1 through Room ${totalRooms}. The yearly rent will apply to every room and you can rename rooms later from the Rooms page.`
+                : 'Enter the number of rooms to see a preview.'}
+            </p>
           </div>
 
           <button

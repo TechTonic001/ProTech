@@ -7,7 +7,7 @@ const verifyPayment = async (req, res, next) => {
     const userId = req.user.user_id;
 
     const result = await pool.query(
-      'SELECT * FROM payments WHERE paystack_ref = $1 AND tenant_id = $2',
+      'SELECT payment_id, lease_id, tenant_id, landlord_id, amount_paid, paystack_ref, subaccount_code, payment_status, receipt_number, payment_date FROM payments WHERE paystack_ref = $1 AND tenant_id = $2',
       [reference, userId]
     );
 

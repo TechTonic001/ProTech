@@ -1,8 +1,9 @@
 // src/pages/landlord/TenantApprovals.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { approvalAPI } from '../../utils/api';
 import { formatDate } from '../../utils/formatters';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import SkeletonCard from '../../components/ui/SkeletonCard';
 import EmptyState from '../../components/ui/EmptyState';
 import Badge from '../../components/ui/Badge';
 import { 
@@ -23,11 +24,7 @@ const TenantApprovals = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
-  useEffect(() => {
-    loadApprovals();
-  }, []);
-
-  const loadApprovals = async () => {
+  const loadApprovals = useCallback(async () => {
     try {
       setLoading(true);
       const [pendingRes, approvedRes] = await Promise.all([
@@ -42,14 +39,24 @@ const TenantApprovals = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadApprovals();
+  }, [loadApprovals]);
 
   const handleProcess = async (approvalId, status) => {
     setActionLoadingId(approvalId);
     try {
       await approvalAPI.process(approvalId, { status });
       toast.success(status === 'approved' ? 'Tenant approved! Email confirmation sent.' : 'Tenant request rejected.');
-      loadApprovals();
+      setPending((prev) => prev.filter((item) => item.approval_id !== approvalId));
+      if (status === 'approved') {
+        const promoted = pending.find((item) => item.approval_id === approvalId);
+        if (promoted) {
+          setApproved((prev) => [{ ...promoted, status: 'approved' }, ...prev]);
+        }
+      }
     } catch (err) {
       toast.error(err.message || 'Failed to process request');
     } finally {
@@ -57,7 +64,15 @@ const TenantApprovals = () => {
     }
   };
 
-  if (loading) return <LoadingSpinner fullPage />;
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <SkeletonCard key={i} lines={3} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

@@ -12,6 +12,7 @@ import { formatCurrency, formatDate } from "../../utils/formatters";
 import StatCard from "../../components/ui/StatCard";
 import Badge from "../../components/ui/Badge";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import SkeletonCard from "../../components/ui/SkeletonCard";
 import RealTimeGreeting from "../../components/ui/RealTimeGreeting";
 import {
   Building2,
@@ -152,7 +153,7 @@ const LandlordDashboard = () => {
   const recentPayments = useMemo(() => payments.slice(0, 5), [payments]);
 
   // BarChart revenue data — last 6 months aggregation — O(payments)
-  const revenueData = useMemo(() => {
+  const chartData = useMemo(() => {
     const monthlySums = {};
     for (let i = 5; i >= 0; i--) {
       const d = new Date();
@@ -192,7 +193,15 @@ const LandlordDashboard = () => {
   }, [occupancyData]);
 
   // ─── Render ───────────────────────────────────────────────────────────────
-  if (loading) return <LoadingSpinner fullPage />;
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <SkeletonCard key={i} lines={3} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -274,7 +283,7 @@ const LandlordDashboard = () => {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
+          {[
           {
             title: "Add Property",
             sub: "Register a new hostel",
@@ -308,9 +317,9 @@ const LandlordDashboard = () => {
             bg: "bg-green-50",
             path: "/landlord/payments",
           },
-        ].map((act, i) => (
+        ].map((act) => (
           <div
-            key={i}
+            key={act.path}
             onClick={() => navigate(act.path)}
             className="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs hover:shadow-lg hover:shadow-slate-100 hover:border-blue-100 cursor-pointer transition duration-200 flex flex-col relative"
           >
@@ -434,7 +443,7 @@ const LandlordDashboard = () => {
           </div>
           <div className="h-[220px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={revenueData}>
+              <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis
                   dataKey="month"

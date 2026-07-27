@@ -1,0 +1,70 @@
+
+> protech-frontend@1.0.0 build
+> vite build
+
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 2314 modules transformed.
+rendering chunks...
+[1m[33m[plugin:vite:reporter][39m[22m [33m[plugin vite:reporter] 
+(!) C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/utils/api.js is dynamically imported by C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/components/layout/LandlordLayout.jsx but also statically imported by C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/components/layout/LandlordLayout.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/components/layout/TenantLayout.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/context/AuthContext.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/hooks/usePWA.js, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/admin/AdminDashboard.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/admin/AdminLandlords.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/admin/AdminLogin.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/admin/AdminPayments.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/admin/AdminProfile.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/admin/AdminProperties.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/admin/AdminTenants.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/landlord/Announcements.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/landlord/BankSetup.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/landlord/LandlordDashboard.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/landlord/LandlordLogin.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/landlord/LandlordNotifications.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/landlord/LandlordPayments.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/landlord/LandlordProfile.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/landlord/LandlordRegister.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/landlord/NotificationSettings.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/landlord/Properties.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/landlord/RecycleBin.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/landlord/Rooms.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/landlord/TenantApprovals.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/public/ForgotPassword.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/public/PaymentVerify.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/public/VerifyOTP.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/tenant/PayRent.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/tenant/PaymentHistory.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/tenant/TenantAnnouncements.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/tenant/TenantDashboard.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/tenant/TenantLogin.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/tenant/TenantNotifications.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/tenant/TenantProfile.jsx, C:/Users/ADMIN/Desktop/HALLELUYAH/ProTech/Cilent/src/pages/tenant/TenantRegister.jsx, dynamic import will not move module into another chunk.
+[39m
+computing gzip size...
+[2mdist/[22m[32mindex.html                                [39m[1m[2m  0.91 kB[22m[1m[22m[2m │ gzip:   0.44 kB[22m
+[2mdist/[22m[32massets/logo-dark-BP0UjDVD.png             [39m[1m[2m 98.14 kB[22m[1m[22m
+[2mdist/[22m[32massets/logo-light-Bb2js7Ht.png            [39m[1m[2m 99.16 kB[22m[1m[22m
+[2mdist/[22m[35massets/index-DWgf6-pm.css                 [39m[1m[2m 58.89 kB[22m[1m[22m[2m │ gzip:   9.88 kB[22m
+[2mdist/[22m[36massets/SkeletonCard-BUA3VqNH.js           [39m[1m[2m  0.34 kB[22m[1m[22m[2m │ gzip:   0.26 kB[22m
+[2mdist/[22m[36massets/formatters-8DfR6DPC.js             [39m[1m[2m  0.65 kB[22m[1m[22m[2m │ gzip:   0.36 kB[22m
+[2mdist/[22m[36massets/Badge-BAJYbDTe.js                  [39m[1m[2m  0.67 kB[22m[1m[22m[2m │ gzip:   0.41 kB[22m
+[2mdist/[22m[36massets/EmptyState-CYcfw121.js             [39m[1m[2m  1.01 kB[22m[1m[22m[2m │ gzip:   0.54 kB[22m
+[2mdist/[22m[36massets/StatCard-UFBq6N6i.js               [39m[1m[2m  1.07 kB[22m[1m[22m[2m │ gzip:   0.55 kB[22m
+[2mdist/[22m[36massets/RealTimeGreeting-CnNQ3h3I.js       [39m[1m[2m  1.18 kB[22m[1m[22m[2m │ gzip:   0.62 kB[22m
+[2mdist/[22m[36massets/Modal-BMhvPjCm.js                  [39m[1m[2m  1.54 kB[22m[1m[22m[2m │ gzip:   0.75 kB[22m
+[2mdist/[22m[36massets/usePWA-mRNMVo92.js                 [39m[1m[2m  1.57 kB[22m[1m[22m[2m │ gzip:   0.82 kB[22m
+[2mdist/[22m[36massets/PasswordStrength-DFQfd0ul.js       [39m[1m[2m  1.69 kB[22m[1m[22m[2m │ gzip:   0.86 kB[22m
+[2mdist/[22m[36massets/AuthLayout-C1aX-nb-.js             [39m[1m[2m  2.05 kB[22m[1m[22m[2m │ gzip:   0.96 kB[22m
+[2mdist/[22m[36massets/TenantAnnouncements-D_6iOs7K.js    [39m[1m[2m  2.85 kB[22m[1m[22m[2m │ gzip:   1.21 kB[22m
+[2mdist/[22m[36massets/ResetSuccess-BCY4bjLa.js           [39m[1m[2m  3.63 kB[22m[1m[22m[2m │ gzip:   1.26 kB[22m
+[2mdist/[22m[36massets/AdminProperties-3013rI29.js        [39m[1m[2m  3.95 kB[22m[1m[22m[2m │ gzip:   1.40 kB[22m
+[2mdist/[22m[36massets/LandlordNotifications-lgq_0EN3.js  [39m[1m[2m  4.04 kB[22m[1m[22m[2m │ gzip:   1.58 kB[22m
+[2mdist/[22m[36massets/ForgotPassword-DCJcoAsR.js         [39m[1m[2m  4.05 kB[22m[1m[22m[2m │ gzip:   1.48 kB[22m
+[2mdist/[22m[36massets/PaymentVerify-DOWRsL-V.js          [39m[1m[2m  4.13 kB[22m[1m[22m[2m │ gzip:   1.45 kB[22m
+[2mdist/[22m[36massets/AdminLandlords-r6-192tt.js         [39m[1m[2m  4.29 kB[22m[1m[22m[2m │ gzip:   1.51 kB[22m
+[2mdist/[22m[36massets/AdminTenants-seX9Y_VR.js           [39m[1m[2m  4.45 kB[22m[1m[22m[2m │ gzip:   1.58 kB[22m
+[2mdist/[22m[36massets/TenantNotifications-BKDQym_P.js    [39m[1m[2m  4.59 kB[22m[1m[22m[2m │ gzip:   1.80 kB[22m
+[2mdist/[22m[36massets/AdminLogin-DDBlUsEY.js             [39m[1m[2m  4.61 kB[22m[1m[22m[2m │ gzip:   1.72 kB[22m
+[2mdist/[22m[36massets/AdminPayments-DBkxfCHX.js          [39m[1m[2m  4.89 kB[22m[1m[22m[2m │ gzip:   1.70 kB[22m
+[2mdist/[22m[36massets/LandlordLogin-BapDKIRs.js          [39m[1m[2m  5.64 kB[22m[1m[22m[2m │ gzip:   1.93 kB[22m
+[2mdist/[22m[36massets/TenantLogin-BK9X8EWj.js            [39m[1m[2m  5.66 kB[22m[1m[22m[2m │ gzip:   1.94 kB[22m
+[2mdist/[22m[36massets/LandlordProfile-Bte36Sg3.js        [39m[1m[2m  5.87 kB[22m[1m[22m[2m │ gzip:   1.82 kB[22m
+[2mdist/[22m[36massets/PaymentHistory-DD6GjSiH.js         [39m[1m[2m  6.06 kB[22m[1m[22m[2m │ gzip:   2.15 kB[22m
+[2mdist/[22m[36massets/TenantApprovals-SPzGEerG.js        [39m[1m[2m  6.35 kB[22m[1m[22m[2m │ gzip:   2.16 kB[22m
+[2mdist/[22m[36massets/PayRent-CEMlBXyc.js                [39m[1m[2m  6.70 kB[22m[1m[22m[2m │ gzip:   2.27 kB[22m
+[2mdist/[22m[36massets/AdminProfile-SEPQfkm9.js           [39m[1m[2m  7.03 kB[22m[1m[22m[2m │ gzip:   2.03 kB[22m
+[2mdist/[22m[36massets/Announcements-55fBoMlI.js          [39m[1m[2m  7.09 kB[22m[1m[22m[2m │ gzip:   2.33 kB[22m
+[2mdist/[22m[36massets/RecycleBin-C_IZd3tl.js             [39m[1m[2m  7.84 kB[22m[1m[22m[2m │ gzip:   2.14 kB[22m
+[2mdist/[22m[36massets/BankSetup-DNKQ640D.js              [39m[1m[2m  8.06 kB[22m[1m[22m[2m │ gzip:   2.60 kB[22m
+[2mdist/[22m[36massets/NotificationSettings-CwAdyVKj.js   [39m[1m[2m  8.30 kB[22m[1m[22m[2m │ gzip:   2.44 kB[22m
+[2mdist/[22m[36massets/LandlordPayments-D7MaVLFn.js       [39m[1m[2m  8.46 kB[22m[1m[22m[2m │ gzip:   2.77 kB[22m
+[2mdist/[22m[36massets/VerifyOTP-18SujDee.js              [39m[1m[2m  8.65 kB[22m[1m[22m[2m │ gzip:   2.88 kB[22m
+[2mdist/[22m[36massets/TenantProfile-Bvm72g7P.js          [39m[1m[2m  8.67 kB[22m[1m[22m[2m │ gzip:   2.40 kB[22m
+[2mdist/[22m[36massets/AdminDashboard-A8BJoPye.js         [39m[1m[2m  9.64 kB[22m[1m[22m[2m │ gzip:   2.57 kB[22m
+[2mdist/[22m[36massets/TenantDashboard-D1m-DmVE.js        [39m[1m[2m 10.21 kB[22m[1m[22m[2m │ gzip:   3.24 kB[22m
+[2mdist/[22m[36massets/LandlordRegister-Bv_gqUAK.js       [39m[1m[2m 10.92 kB[22m[1m[22m[2m │ gzip:   2.80 kB[22m
+[2mdist/[22m[36massets/Rooms-BViZtYgl.js                  [39m[1m[2m 11.17 kB[22m[1m[22m[2m │ gzip:   3.65 kB[22m
+[2mdist/[22m[36massets/TenantRegister-Gu3HbVvN.js         [39m[1m[2m 12.01 kB[22m[1m[22m[2m │ gzip:   2.91 kB[22m
+[2mdist/[22m[36massets/LandlordDashboard-BasjpNdy.js      [39m[1m[2m 15.55 kB[22m[1m[22m[2m │ gzip:   4.65 kB[22m
+[2mdist/[22m[36massets/Properties-CQzP2qYZ.js             [39m[1m[2m 16.02 kB[22m[1m[22m[2m │ gzip:   4.41 kB[22m
+[2mdist/[22m[36massets/Landing-xGfwODGK.js                [39m[1m[2m 24.13 kB[22m[1m[22m[2m │ gzip:   6.60 kB[22m
+[2mdist/[22m[36massets/ui-vendor-Dqafhrii.js              [39m[1m[2m 35.44 kB[22m[1m[22m[2m │ gzip:   9.34 kB[22m
+[2mdist/[22m[36massets/http-vendor-BjtuyMK1.js            [39m[1m[2m 43.37 kB[22m[1m[22m[2m │ gzip:  16.99 kB[22m
+[2mdist/[22m[36massets/index-9KJlcWTx.js                  [39m[1m[2m 61.90 kB[22m[1m[22m[2m │ gzip:  16.66 kB[22m
+[2mdist/[22m[36massets/react-vendor-CupvRPes.js           [39m[1m[2m164.10 kB[22m[1m[22m[2m │ gzip:  53.56 kB[22m
+[2mdist/[22m[36massets/chart-vendor-CZn1ZDXA.js           [39m[1m[33m411.07 kB[39m[22m[2m │ gzip: 110.99 kB[22m
+[33m
+(!) Some chunks are larger than 400 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[32m✓ built in 1m 1s[39m

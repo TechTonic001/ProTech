@@ -1,5 +1,5 @@
 // src/context/AuthContext.jsx
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 
@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
   // protech_token now holds the short-lived ACCESS token (15m).
   // The long-lived refresh token lives in an HttpOnly cookie — never touched by JS.
   const [token, setToken]     = useState(() => localStorage.getItem('protech_token'));
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   /**
@@ -102,11 +102,6 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadUser();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <AuthContext.Provider value={{ user, setUser, token, setToken, loading, loadUser, login, logout }}>

@@ -88,7 +88,9 @@ const processApproval = async (req, res, next) => {
 
     // Get approval details
     const approvalsResult = await pool.query(
-      `SELECT ta.*, u.email, u.full_name FROM tenant_approvals ta
+      `SELECT ta.approval_id, ta.tenant_id, ta.landlord_id, ta.property_id, ta.status, ta.created_at, ta.approved_at,
+              u.email, u.full_name
+       FROM tenant_approvals ta
        JOIN users u ON ta.tenant_id = u.user_id
        WHERE ta.approval_id = $1 AND ta.landlord_id = $2`,
       [id, req.user.user_id]

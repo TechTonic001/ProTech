@@ -510,7 +510,7 @@ const sendTenantRentReminderEmail = async ({
                   <td style="color: #1e293b; padding: 6px 0; font-weight: 700; text-align: right;">Room ${roomNumber}</td>
                 </tr>
                 <tr>
-                  <td style="color: #94a3b8; padding: 6px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Monthly Rent</td>
+                  <td style="color: #94a3b8; padding: 6px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Yearly Rent</td>
                   <td style="color: #1e293b; padding: 6px 0; font-weight: 700; text-align: right;">${rentStr}</td>
                 </tr>
                 <tr style="border-top: 1px solid #e2e8f0;">

@@ -91,6 +91,37 @@ const runMigrations = async () => {
     `);
     console.log('[MIGRATE] ✅  leases.amount_paid_this_cycle column ready');
 
+    // ── MIGRATION 8: performance indexes for hot paths ───────────────────
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_leases_landlord
+        ON leases(landlord_id)
+    `);
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_leases_tenant
+        ON leases(tenant_id)
+    `);
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_payments_lease
+        ON payments(lease_id)
+    `);
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_rooms_property
+        ON rooms(property_id)
+    `);
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_lease
+        ON notifications(lease_id)
+    `);
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_users_email
+        ON users(email)
+    `);
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_users_landlord_code
+        ON users(landlord_code)
+    `);
+    console.log('[MIGRATE] ✅  Database indexes ready');
+
     // ── MIGRATION 7: is_active BOOLEAN alias on leases (used by notification engine)
     // The engine spec uses lease_status = 'active'. If is_active doesn't exist,
     // this is a no-op. The engine falls back to lease_status already.

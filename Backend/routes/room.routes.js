@@ -7,6 +7,7 @@ const {
   getRoomsByProperty,
   getRoomById,
   updateRoom,
+  bulkUpdateRooms,
   deleteRoom,
 } = require('../controllers/room.controller');
 
@@ -16,6 +17,7 @@ router.post('/', verifyToken, requireRole('landlord'), createRoom);
 router.get('/property/:property_id', verifyToken, requireRole('landlord'), getRoomsByProperty);
 router.get('/:room_id', verifyToken, getRoomById);
 router.put('/:room_id', verifyToken, requireRole('landlord'), updateRoom);
+router.patch('/bulk-update', verifyToken, requireRole('landlord'), bulkUpdateRooms);
 router.delete('/:room_id', verifyToken, requireRole('landlord'), deleteRoom);
 
 module.exports = router;
