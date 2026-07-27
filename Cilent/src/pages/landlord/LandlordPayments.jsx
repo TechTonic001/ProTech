@@ -237,7 +237,7 @@ const LandlordPayments = () => {
               <div className="bg-green-50 p-4 border-t border-green-100 flex items-center justify-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
                 <span className="text-xs text-green-700 font-bold">
-                  Verified by Paystack — Funds sent to landlord bank
+                  Verified by Paystack Funds sent to landlord bank
                 </span>
               </div>
             </div>

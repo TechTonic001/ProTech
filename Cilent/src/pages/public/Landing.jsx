@@ -98,11 +98,11 @@ const Landing = () => {
                 Register as Tenant
               </button>
             </div>
-            <div className="flex flex-wrap gap-6 text-sm text-white/80">
+            {/* <div className="flex flex-wrap gap-6 text-sm text-white/80">
               <span>✅ Free to use</span>
               <span>✅ No Play Store needed</span>
               <span>✅ Works on any phone</span>
-            </div>
+            </div> */}
           </div>
 
           {/* Right — CSS Building */}
