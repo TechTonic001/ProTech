@@ -35,6 +35,31 @@ const AdminDashboard = () => {
   const [recentPayments, setRecentPayments] = useState([]);
   const [recentProperties, setRecentProperties] = useState([]);
 
+  const roleData = useMemo(
+    () => [
+      { name: 'Landlords', value: stats?.total_landlords || 0, color: '#3B82F6' },
+      { name: 'Tenants', value: stats?.total_tenants || 0, color: '#8B5CF6' },
+    ],
+    [stats?.total_landlords, stats?.total_tenants]
+  );
+
+  const revenueTrendData = useMemo(
+    () => [
+      { month: 'Jan', revenue: (stats?.total_revenue || 0) * 0.15 },
+      { month: 'Feb', revenue: (stats?.total_revenue || 0) * 0.30 },
+      { month: 'Mar', revenue: (stats?.total_revenue || 0) * 0.45 },
+      { month: 'Apr', revenue: (stats?.total_revenue || 0) * 0.60 },
+      { month: 'May', revenue: (stats?.total_revenue || 0) * 0.85 },
+      { month: 'Jun', revenue: stats?.total_revenue || 0 },
+    ],
+    [stats?.total_revenue]
+  );
+
+  const totalUsers = useMemo(
+    () => roleData.reduce((acc, curr) => acc + curr.value, 0),
+    [roleData]
+  );
+
   useEffect(() => {
     loadAdminDashboard();
   }, []);
@@ -45,7 +70,7 @@ const AdminDashboard = () => {
       const [statsRes, paymentsRes, propertiesRes] = await Promise.all([
         adminAPI.getStats(),
         adminAPI.getPayments(),
-        adminAPI.getProperties()
+        adminAPI.getProperties(),
       ]);
 
       setStats(statsRes.data.data);
@@ -59,27 +84,6 @@ const AdminDashboard = () => {
   };
 
   if (loading) return <LoadingSpinner fullPage size="lg" />;
-
-  // useMemo: these arrays are derived from stats and only need to rebuild when
-  // stats changes — not on every unrelated state update or re-render
-  const roleData = useMemo(() => [
-    { name: 'Landlords', value: stats?.total_landlords || 0, color: '#3B82F6' },
-    { name: 'Tenants',   value: stats?.total_tenants   || 0, color: '#8B5CF6' },
-  ], [stats?.total_landlords, stats?.total_tenants]);
-
-  const revenueTrendData = useMemo(() => [
-    { month: 'Jan', revenue: (stats?.total_revenue || 0) * 0.15 },
-    { month: 'Feb', revenue: (stats?.total_revenue || 0) * 0.30 },
-    { month: 'Mar', revenue: (stats?.total_revenue || 0) * 0.45 },
-    { month: 'Apr', revenue: (stats?.total_revenue || 0) * 0.60 },
-    { month: 'May', revenue: (stats?.total_revenue || 0) * 0.85 },
-    { month: 'Jun', revenue: stats?.total_revenue || 0 },
-  ], [stats?.total_revenue]);
-
-  const totalUsers = useMemo(
-    () => roleData.reduce((acc, curr) => acc + curr.value, 0),
-    [roleData]
-  );
 
   return (
     <div className="space-y-8 animate-fade-in">
