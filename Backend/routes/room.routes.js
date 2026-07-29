@@ -4,6 +4,7 @@ const { verifyToken } = require('../middleware/auth.middleware');
 const { requireRole } = require('../middleware/role.middleware');
 const {
   createRoom,
+  getAllRoomsWithLeases,
   getRoomsByProperty,
   getRoomById,
   updateRoom,
@@ -14,6 +15,7 @@ const {
 const router = express.Router();
 
 router.post('/', verifyToken, requireRole('landlord'), createRoom);
+router.get('/all-with-leases', verifyToken, requireRole('landlord'), getAllRoomsWithLeases);
 router.get('/property/:property_id', verifyToken, requireRole('landlord'), getRoomsByProperty);
 router.get('/:room_id', verifyToken, getRoomById);
 router.put('/:room_id', verifyToken, requireRole('landlord'), updateRoom);

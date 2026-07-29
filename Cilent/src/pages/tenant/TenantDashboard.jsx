@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { leaseAPI, paymentAPI, approvalAPI } from '../../utils/api';
 import api from '../../utils/api';
 import { formatCurrency, formatDate } from '../../utils/formatters';
+import { daysUntilDue, dueDateLabel } from '../../utils/dateUtils';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import SkeletonCard from '../../components/ui/SkeletonCard';
 import StatCard from '../../components/ui/StatCard';
@@ -37,14 +38,13 @@ const TenantDashboard = () => {
     try {
       setLoading(true);
       const [leaseRes, payRes, notifRes, annRes] = await Promise.all([
-        leaseAPI.getMine(),
+        leaseAPI.getMyLease().catch(() => ({ data: null })),
         paymentAPI.getHistory(),
         api.get('/notification'),
-        api.get('/announcement')
+        api.get('/announcement'),
       ]);
 
-      const activeLease = leaseRes.data.data?.find(l => l.lease_status === 'active');
-      setLease(activeLease || null);
+      setLease(leaseRes.data || null);
       setPayments(payRes.data.data || []);
       setNotifications(notifRes.data.data || []);
       setAnnouncements(annRes.data.data || []);
@@ -63,12 +63,8 @@ const TenantDashboard = () => {
   // useMemo: these three calculations depend only on lease data.
   // Previously defined as plain functions called multiple times inside JSX.
   const daysRemaining = useMemo(() => {
-    if (!lease) return 0;
-    const now    = new Date();
-    const dueDay = lease.due_day || 5;
-    const due    = new Date(now.getFullYear(), now.getMonth(), dueDay);
-    if (now.getDate() > dueDay) due.setMonth(due.getMonth() + 1);
-    return Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+    if (!lease?.end_date) return 0;
+    return daysUntilDue(lease.end_date) ?? 0;
   }, [lease]);
 
   const daysRemainingPillClass = useMemo(() => {
@@ -117,11 +113,11 @@ const TenantDashboard = () => {
           <div className="bg-white/10 border border-white/10 rounded-2xl p-4 text-right self-stretch md:self-auto flex flex-col items-end justify-center">
             <span className="text-[10px] text-white/60 uppercase tracking-widest font-extrabold">Next Rent Due</span>
             <span className="text-3xl font-black text-white mt-1 leading-none">{formatCurrency(nextRentAmount)}</span>
-            <span className="text-[10px] text-indigo-150 mt-1 font-semibold uppercase">
-              Due by {lease.due_day}th of month
+              <span className="text-[10px] text-indigo-150 mt-1 font-semibold uppercase">
+              Due by {lease.end_date}
             </span>
             <span className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${daysRemainingPillClass}`}>
-              {daysRemaining <= 0 ? 'Overdue' : `${daysRemaining} days remaining`}
+              {dueDateLabel(lease.end_date)}
             </span>
           </div>
         )}
@@ -227,7 +223,7 @@ const TenantDashboard = () => {
                   { label: 'Room Number', value: `${lease.room_number} (${lease.room_type || 'Single'})` },
                   { label: 'Yearly Rent', value: formatCurrency(lease.rent_amount), blue: true },
                   { label: 'Agreement Period', value: `${formatDate(lease.start_date)} — ${formatDate(lease.end_date)}` },
-                  { label: 'Rent Due Day', value: `Every ${lease.due_day}th of the month` },
+                  { label: 'Rent Due Date', value: `${formatDate(lease.end_date)}` },
                   { label: 'Landlord Email', value: lease.landlord_email }
                 ].map((item) => (
                   <div key={item.label} className="flex justify-between py-3">

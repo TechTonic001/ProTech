@@ -6,6 +6,8 @@ const {
   createLandlordSubaccount,
   getBankList,
   initiatePayment,
+  getPaymentMetadata,
+  getCheckoutInfo,
   getPaymentHistory,
   getReceipt,
   verifyPayment,
@@ -15,6 +17,8 @@ const router = express.Router();
 
 router.post('/subaccount', verifyToken, requireRole('landlord'), createLandlordSubaccount);
 router.get('/banks', verifyToken, getBankList);
+router.get('/metadata', verifyToken, getPaymentMetadata);
+router.get('/checkout/:lease_id', verifyToken, requireRole('tenant'), getCheckoutInfo);
 router.post('/initiate', verifyToken, requireRole('tenant'), initiatePayment);
 router.get('/history', verifyToken, getPaymentHistory);
 router.get('/receipt/:reference', verifyToken, getReceipt);

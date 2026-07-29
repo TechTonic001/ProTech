@@ -20,10 +20,19 @@ const PayRent = () => {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [lease, setLease] = useState(null);
+  const [serviceFee, setServiceFee] = useState(500.00);
 
   useEffect(() => {
     fetchActiveLease();
   }, []);
+
+  useEffect(() => {
+    if (lease?.lease_id) {
+      fetchPaymentMetadata();
+    } else {
+      fetchPaymentMetadata();
+    }
+  }, [lease?.lease_id]);
 
   const fetchActiveLease = async () => {
     try {
@@ -38,6 +47,23 @@ const PayRent = () => {
       toast.error(err.message || 'Failed to fetch lease details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPaymentMetadata = async () => {
+    try {
+      if (!lease?.lease_id) {
+        const resMeta = await paymentAPI.getMetadata();
+        const fee = parseFloat(resMeta.data.data?.service_fee);
+        if (!Number.isNaN(fee)) setServiceFee(fee);
+        return;
+      }
+      const res = await paymentAPI.getCheckout(lease.lease_id);
+      const data = res.data.data || {};
+      const fee = parseFloat(data.service_fee);
+      if (!Number.isNaN(fee)) setServiceFee(fee);
+    } catch (err) {
+      console.error('Failed to fetch payment metadata', err?.message || err);
     }
   };
 
@@ -77,8 +103,8 @@ const PayRent = () => {
   }
 
   const rentAmount = parseFloat(lease.rent_amount || 0);
-  const serviceFee = 500.00;
-  const totalAmount = rentAmount + serviceFee;
+  const totalAmount = rentAmount + (parseFloat(serviceFee) || 0);
+  const cadence = lease?.payment_frequency || 'monthly';
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in p-2">
@@ -188,8 +214,8 @@ const PayRent = () => {
 
             <div className="pt-4 border-t border-white/5 space-y-1 text-[10px] text-slate-400 font-semibold uppercase">
               <div>Landlord Email: {lease.landlord_email}</div>
-              <div>Rent Period: Monthly</div>
-              <div>Due Day: {lease.due_day}th of month</div>
+              <div>Rent Period: {cadence === 'monthly' ? 'Monthly' : 'Annually'}</div>
+              <div>Due Date: {lease.end_date}</div>
             </div>
           </div>
 

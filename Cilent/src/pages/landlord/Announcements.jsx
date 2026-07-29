@@ -211,7 +211,7 @@ const Announcements = () => {
               <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                 <Smartphone className="w-3.5 h-3.5" />
               </div>
-              <span>PWA push notification directly to mobile screens</span>
+              {/* <span>PWA push notification directly to mobile screens</span> */}
               <span className="w-2 h-2 rounded-full bg-green-500 ml-auto" />
             </div>
           </div>

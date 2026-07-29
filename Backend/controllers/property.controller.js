@@ -1,8 +1,8 @@
 // controllers/property.controller.js
 const pool = require('../config/db');
+const { asyncHandler } = require('../utils/asyncHandler');
 
-const createProperty = async (req, res, next) => {
-  try {
+const createProperty = asyncHandler(async (req, res) => {
     const {
       property_name,
       address,
@@ -79,13 +79,9 @@ const createProperty = async (req, res, next) => {
         rooms_created: numRooms,
       },
     });
-  } catch (error) {
-    next(error);
-  }
-};
+});
 
-const getProperties = async (req, res, next) => {
-  try {
+const getProperties = asyncHandler(async (req, res) => {
     const landlord_id = req.user.user_id;
 
     // Exclude soft-deleted properties
@@ -102,13 +98,9 @@ const getProperties = async (req, res, next) => {
       message: 'Properties retrieved successfully',
       data: propertiesResult.rows,
     });
-  } catch (error) {
-    next(error);
-  }
-};
+});
 
-const getPropertyById = async (req, res, next) => {
-  try {
+const getPropertyById = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const landlord_id = req.user.user_id;
 
@@ -129,13 +121,9 @@ const getPropertyById = async (req, res, next) => {
       message: 'Property retrieved successfully',
       data: propertiesResult.rows[0],
     });
-  } catch (error) {
-    next(error);
-  }
-};
+});
 
-const updateProperty = async (req, res, next) => {
-  try {
+const updateProperty = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { property_name, address, city, total_rooms } = req.body;
     const landlord_id = req.user.user_id;
@@ -165,16 +153,9 @@ const updateProperty = async (req, res, next) => {
     return res.status(200).json({
       message: 'Property updated successfully',
     });
-  } catch (error) {
-    next(error);
-  }
-};
+});
 
-// ── SOFT DELETE property (Issue 1D) ───────────────────────────────────────────
-// Route: DELETE /api/property/:property_id
-// Auth:  verifyToken + requireRole('landlord')
-const softDeleteProperty = async (req, res, next) => {
-  try {
+const softDeleteProperty = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const landlord_id = req.user.user_id;
 
@@ -216,16 +197,9 @@ const softDeleteProperty = async (req, res, next) => {
     return res.status(200).json({
       message: 'Property deleted. Recovery available for 30 days.',
     });
-  } catch (error) {
-    next(error);
-  }
-};
+});
 
-// ── RESTORE soft-deleted property (Issue 1D) ──────────────────────────────────
-// Route: POST /api/property/:property_id/restore
-// Auth:  verifyToken + requireRole('landlord')
-const restoreProperty = async (req, res, next) => {
-  try {
+const restoreProperty = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const landlord_id = req.user.user_id;
 
@@ -265,16 +239,9 @@ const restoreProperty = async (req, res, next) => {
     return res.status(200).json({
       message: 'Property restored successfully.',
     });
-  } catch (error) {
-    next(error);
-  }
-};
+});
 
-// ── GET soft-deleted properties (Issue 1D — Recycle Bin) ─────────────────────
-// Route: GET /api/property/deleted
-// Auth:  verifyToken + requireRole('landlord')
-const getDeletedProperties = async (req, res, next) => {
-  try {
+const getDeletedProperties = asyncHandler(async (req, res) => {
     const landlord_id = req.user.user_id;
 
     const result = await pool.query(
@@ -295,10 +262,7 @@ const getDeletedProperties = async (req, res, next) => {
       message: 'Deleted properties retrieved successfully',
       data: result.rows,
     });
-  } catch (error) {
-    next(error);
-  }
-};
+});
 
 module.exports = {
   createProperty,

@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { propertyAPI } from '../../utils/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import SkeletonCard from '../../components/ui/SkeletonCard';
 import EmptyState from '../../components/ui/EmptyState';
@@ -22,8 +23,15 @@ import toast from 'react-hot-toast';
 
 const Properties = () => {
   const navigate = useNavigate();
-  const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const { data: properties = [], isLoading: isPropertiesLoading } = useQuery({
+    queryKey: ['properties'],
+    queryFn: () => propertyAPI.getAll().then((res) => res.data.data || []),
+    staleTime: 1000 * 60 * 3,
+    cacheTime: 1000 * 60 * 10,
+    refetchOnWindowFocus: false,
+  });
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,21 +53,38 @@ const Properties = () => {
   // Delete confirm modal state
   const [deleteModal, setDeleteModal] = useState({ open: false, property: null, loading: false });
 
-  const fetchProperties = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await propertyAPI.getAll();
-      setProperties(res.data.data || []);
-    } catch (err) {
-      toast.error(err.message || 'Failed to load properties');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const createPropertyMutation = useMutation({
+    mutationFn: (data) => propertyAPI.create(data).then((res) => res.data.property),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties'] });
+      toast.success(`Property created! ${totalRooms} rooms generated automatically.`);
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to save property');
+    },
+  });
 
-  useEffect(() => {
-    fetchProperties();
-  }, [fetchProperties]);
+  const updatePropertyMutation = useMutation({
+    mutationFn: ({ id, data }) => propertyAPI.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties'] });
+      toast.success('Property updated successfully');
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to save property');
+    },
+  });
+
+  const deletePropertyMutation = useMutation({
+    mutationFn: ({ id, reason }) => propertyAPI.delete(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties'] });
+      toast.success(`Property moved to recycle bin. Recovery available for 30 days.`);
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to delete property');
+    },
+  });
 
   const openCreateModal = () => {
     setForm({
@@ -112,7 +137,7 @@ const Properties = () => {
 
     try {
       if (modalMode === 'create') {
-        const res = await propertyAPI.create({
+        await createPropertyMutation.mutateAsync({
           property_name: form.property_name,
           address: form.address,
           city: form.city,
@@ -120,21 +145,16 @@ const Properties = () => {
           default_room_type: form.default_room_type,
           default_yearly_rent: form.default_yearly_rent,
         });
-        setProperties((prev) => [...prev, res.data.property]);
-        toast.success(`Property created! ${totalRooms} rooms generated automatically.`);
       } else {
-        await propertyAPI.update(selectedPropertyId, {
-          property_name: form.property_name,
-          address: form.address,
-          city: form.city,
-          total_rooms: Number(totalRooms) || 0,
+        await updatePropertyMutation.mutateAsync({
+          id: selectedPropertyId,
+          data: {
+            property_name: form.property_name,
+            address: form.address,
+            city: form.city,
+            total_rooms: Number(totalRooms) || 0,
+          },
         });
-        setProperties((prev) => prev.map((property) => (
-          property.property_id === selectedPropertyId
-            ? { ...property, property_name: form.property_name, address: form.address, city: form.city, total_rooms: Number(totalRooms) || property.total_rooms }
-            : property
-        )));
-        toast.success('Property updated successfully');
       }
       setIsModalOpen(false);
     } catch (err) {
@@ -156,14 +176,14 @@ const Properties = () => {
       await propertyAPI.delete(property.property_id, reason);
       toast.success(`"${property.property_name}" moved to recycle bin. Recovery available for 30 days.`);
       setDeleteModal({ open: false, property: null, loading: false });
-      setProperties((prev) => prev.filter((item) => item.property_id !== property.property_id));
+      deletePropertyMutation.mutate({ id: property.property_id, reason });
     } catch (err) {
       toast.error(err.message || 'Failed to delete property');
       setDeleteModal((prev) => ({ ...prev, loading: false }));
     }
   };
 
-  if (loading) {
+  if (isPropertiesLoading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (

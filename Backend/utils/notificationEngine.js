@@ -10,21 +10,73 @@ const { sendTenantRentReminderEmail, sendLandlordRentAlertEmail } = require('./e
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 /**
- * Get the next due date for a lease based on due_day.
- * If the due day this month has already passed, return next month's due date.
- * @param {number} dueDay - Day of month the rent is due (e.g. 5 = 5th of each month)
- * @returns {Date}
+ * (Deprecated) Helper retained for legacy reasons — dates are now
+ * derived from `end_date`. Previously the system used a `due_day` value
+ * to compute monthly due dates; that has been replaced by the lease
+ * `end_date`, which is the single source of truth for payment due dates.
  */
-function getNextDueDate(dueDay) {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  let due = new Date(year, month, dueDay);
-  if (due <= now) {
-    // Due date already passed this month — next is next month
-    due = new Date(year, month + 1, dueDay);
+/**
+ * Compute days until due based on an `YYYY-MM-DD` end_date string using
+ * Africa/Lagos as the canonical timezone. Returns integer days (positive,
+ * zero, or negative).
+ * @param {string} endDateStr - 'YYYY-MM-DD'
+ * @param {Date} [now] - optional now override for testing
+ * @returns {number}
+ */
+function computeDaysUntilDue(endDateStr, now = null) {
+  if (!endDateStr) return null;
+  const todayWAT = (now || new Date()).toLocaleDateString('en-CA', { timeZone: 'Africa/Lagos' });
+  const todayMs = new Date(`${todayWAT}T12:00:00`).getTime();
+  const dueMs = new Date(`${endDateStr}T12:00:00`).getTime();
+  const msPerDay = 86400000;
+  return Math.round((dueMs - todayMs) / msPerDay);
+}
+
+/**
+ * Determine whether a notification should be sent given days until due and
+ * the landlord's notification settings. Returns { shouldNotify, notifyType }.
+ */
+function determineShouldNotify(days, ns) {
+  const settings = {
+    remind_30_days:    ns.remind_30_days    ?? true,
+    remind_14_days:    ns.remind_14_days    ?? false,
+    remind_7_days:     ns.remind_7_days     ?? true,
+    remind_3_days:     ns.remind_3_days     ?? false,
+    remind_1_day:      ns.remind_1_day      ?? true,
+    remind_on_due:     ns.remind_on_due     ?? true,
+    frequency_overdue: ns.frequency_overdue ?? 'daily',
+  };
+
+  let shouldNotify = false;
+  let notifyType = '';
+
+  if (days === 30 && settings.remind_30_days) {
+    shouldNotify = true; notifyType = '30_day_reminder';
+  } else if (days === 14 && settings.remind_14_days) {
+    shouldNotify = true; notifyType = '14_day_reminder';
+  } else if (days === 7 && settings.remind_7_days) {
+    shouldNotify = true; notifyType = '7_day_reminder';
+  } else if (days === 3 && settings.remind_3_days) {
+    shouldNotify = true; notifyType = '3_day_reminder';
+  } else if (days === 1 && settings.remind_1_day) {
+    shouldNotify = true; notifyType = '1_day_reminder';
+  } else if (days === 0 && settings.remind_on_due) {
+    shouldNotify = true; notifyType = 'due_today';
+  } else if (days < 0) {
+    // Overdue — apply frequency_overdue logic
+    const daysSinceOverdue = Math.abs(days);
+    const freq = settings.frequency_overdue;
+    if (freq === 'daily') {
+      shouldNotify = true;
+    } else if (freq === 'every_2_days' && daysSinceOverdue % 2 === 0) {
+      shouldNotify = true;
+    } else if (freq === 'weekly' && daysSinceOverdue % 7 === 0) {
+      shouldNotify = true;
+    }
+    if (shouldNotify) notifyType = 'overdue';
   }
-  return due;
+
+  return { shouldNotify, notifyType };
 }
 
 /**
@@ -61,10 +113,10 @@ const runNotificationEngine = async (currentHour) => {
          l.tenant_id,
          l.landlord_id,
          l.room_id,
-         l.due_day,
+         TO_CHAR(l.end_date, 'YYYY-MM-DD') AS end_date,
+         TO_CHAR(l.end_date, 'YYYY-MM-DD') AS due_date,
          l.rent_amount,
          COALESCE(l.amount_paid_this_cycle, 0) AS amount_paid_this_cycle,
-         l.end_date,
          u_tenant.email       AS tenant_email,
          u_tenant.full_name   AS tenant_name,
          u_tenant.username    AS tenant_username,
@@ -80,15 +132,15 @@ const runNotificationEngine = async (currentHour) => {
          ns.remind_1_day,
          ns.remind_on_due,
          ns.frequency_overdue,
-         ns.send_time
+        ns.send_time
        FROM leases l
        JOIN users u_tenant   ON l.tenant_id   = u_tenant.user_id
        JOIN users u_landlord ON l.landlord_id  = u_landlord.user_id
        JOIN rooms r          ON l.room_id      = r.room_id
        LEFT JOIN notification_settings ns ON ns.landlord_id = l.landlord_id
-       WHERE l.lease_status = 'active'
-         AND u_tenant.is_approved = 1
-         AND u_tenant.deleted_at IS NULL`
+      WHERE l.lease_status = 'active'
+        AND u_tenant.is_approved = 1
+        AND u_tenant.deleted_at IS NULL`
     );
 
     const leases = leasesResult.rows;
@@ -105,11 +157,13 @@ const runNotificationEngine = async (currentHour) => {
           continue;
         }
 
-        // ── STEP 3: Calculate next due date ───────────────────────────────────
-        const nextDue = getNextDueDate(Number(lease.due_day));
+        // ── STEP 3: Calculate days until due using lease.end_date (WAT)
+        if (!lease.end_date) {
+          notificationsSkipped++;
+          continue;
+        }
 
-        // ── STEP 4: Days until (or since) due ────────────────────────────────
-        const days = daysDiff(nextDue);
+        const days = computeDaysUntilDue(lease.end_date);
 
         // ── STEP 5: Check if rent is fully paid this cycle ───────────────────
         const isFullyPaid =
@@ -121,44 +175,7 @@ const runNotificationEngine = async (currentHour) => {
         }
 
         // ── STEP 5 (cont.): Determine if notification is due today ────────────
-        const ns = {
-          remind_30_days:    lease.remind_30_days    ?? true,
-          remind_14_days:    lease.remind_14_days    ?? false,
-          remind_7_days:     lease.remind_7_days     ?? true,
-          remind_3_days:     lease.remind_3_days     ?? false,
-          remind_1_day:      lease.remind_1_day      ?? true,
-          remind_on_due:     lease.remind_on_due     ?? true,
-          frequency_overdue: lease.frequency_overdue ?? 'daily',
-        };
-
-        let shouldNotify = false;
-        let notifyType   = '';
-
-        if (days === 30 && ns.remind_30_days) {
-          shouldNotify = true; notifyType = '30_day_reminder';
-        } else if (days === 14 && ns.remind_14_days) {
-          shouldNotify = true; notifyType = '14_day_reminder';
-        } else if (days === 7 && ns.remind_7_days) {
-          shouldNotify = true; notifyType = '7_day_reminder';
-        } else if (days === 3 && ns.remind_3_days) {
-          shouldNotify = true; notifyType = '3_day_reminder';
-        } else if (days === 1 && ns.remind_1_day) {
-          shouldNotify = true; notifyType = '1_day_reminder';
-        } else if (days === 0 && ns.remind_on_due) {
-          shouldNotify = true; notifyType = 'due_today';
-        } else if (days < 0) {
-          // Overdue — apply frequency_overdue logic
-          const daysSinceOverdue = Math.abs(days);
-          const freq = ns.frequency_overdue;
-          if (freq === 'daily') {
-            shouldNotify = true;
-          } else if (freq === 'every_2_days' && daysSinceOverdue % 2 === 0) {
-            shouldNotify = true;
-          } else if (freq === 'weekly' && daysSinceOverdue % 7 === 0) {
-            shouldNotify = true;
-          }
-          if (shouldNotify) notifyType = 'overdue';
-        }
+        const { shouldNotify, notifyType } = determineShouldNotify(days, lease);
 
         if (!shouldNotify) {
           notificationsSkipped++;
@@ -179,8 +196,8 @@ const runNotificationEngine = async (currentHour) => {
           continue; // Already sent this type of notification today
         }
 
-        // ── Build due date string ─────────────────────────────────────────────
-        const dueDateStr = nextDue.toLocaleDateString('en-NG', {
+        // ── Build due date string from end_date ──────────────────────────────
+        const dueDateStr = new Date(`${lease.end_date}T12:00:00`).toLocaleDateString('en-NG', {
           timeZone: 'Africa/Lagos',
           year: 'numeric',
           month: 'long',

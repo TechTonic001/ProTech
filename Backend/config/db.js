@@ -34,23 +34,27 @@ const getPool = () => {
       connectionString,
       ssl: isLocal ? false : { rejectUnauthorized: false },
       max: 1,
-      idleTimeoutMillis: 60000,
-      connectionTimeoutMillis: 75000,
+      min: 0,
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 20000,
+      allowExitOnIdle: true,
     })
 
     pool.on('error', (err) => {
-      console.error('[POOL ERROR]', err.message)
+      console.error('[DB POOL ERROR]', err.message)
       pool = null
+    })
+
+    pool.on('connect', () => {
+      console.log('[DB] New connection established')
     })
   }
   return pool
 }
 
-const query = async (text, params) => {
-  let currentPool
+const query = async (text, params, retries = 1) => {
   try {
-    currentPool = getPool()
-    const result = await currentPool.query(text, params)
+    const result = await getPool().query(text, params)
 
     // Support mysql-style destructuring used in seedAdmin: const [rows] = await query(...)
     result[Symbol.iterator] = function* () {
@@ -60,6 +64,17 @@ const query = async (text, params) => {
 
     return result
   } catch (err) {
+    const retryable = err.code === 'ECONNRESET' ||
+      err.code === 'ECONNREFUSED' ||
+      err.message.toLowerCase().includes('timeout')
+
+    if (retries > 0 && retryable) {
+      console.warn('[DB] Retrying after connection error...', err.message)
+      pool = null
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      return query(text, params, retries - 1)
+    }
+
     console.error('[DB ERROR]', err.message)
     console.error('[DB QUERY]', text.substring(0, 100))
     throw err

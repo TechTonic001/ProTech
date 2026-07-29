@@ -24,8 +24,9 @@ const PaymentVerify = () => {
 
       try {
         const res = await api.get(`/payments/verify/${reference}`);
-        if (res?.data?.payment?.status === 'success') {
-          setPaymentData(res.data.payment);
+        const payment = res?.data?.data;
+        if (payment && payment.payment_status === 'success') {
+          setPaymentData(payment);
           setStatus('success');
           toast.success('Payment confirmed!');
         } else {
@@ -62,9 +63,9 @@ const PaymentVerify = () => {
             <p className="text-slate-600">Your receipt has been emailed to you.</p>
             {paymentData && (
               <div className="bg-slate-50 rounded-lg p-4 text-left text-sm text-slate-700 space-y-2">
-                <p><strong>Reference:</strong> {paymentData.reference}</p>
-                <p><strong>Amount:</strong> ₦{paymentData.amount?.toLocaleString()}</p>
-                <p><strong>Date:</strong> {new Date(paymentData.created_at).toLocaleDateString()}</p>
+                <p><strong>Reference:</strong> {paymentData.paystack_ref || paymentData.reference}</p>
+                <p><strong>Amount:</strong> ₦{paymentData.amount_paid?.toLocaleString()}</p>
+                <p><strong>Date:</strong> {paymentData.payment_date ? new Date(paymentData.payment_date).toLocaleDateString() : 'N/A'}</p>
               </div>
             )}
             <button onClick={() => navigate('/tenant/history')} className="w-full rounded-xl bg-blue-600 text-white font-semibold py-3 hover:bg-blue-500 transition">

@@ -1,13 +1,13 @@
 // src/pages/landlord/LandlordDashboard.jsx
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import {
-  propertyAPI,
-  leaseAPI,
+  dashboardAPI,
   paymentAPI,
   approvalAPI,
 } from "../../utils/api";
+import { useQuery } from '@tanstack/react-query';
 import { formatCurrency, formatDate } from "../../utils/formatters";
 import StatCard from "../../components/ui/StatCard";
 import Badge from "../../components/ui/Badge";
@@ -46,107 +46,54 @@ const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"
 const LandlordDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
 
-  // Raw data from API — populated once
-  const [properties,   setProperties]   = useState([]);
-  const [leases,       setLeases]       = useState([]);
-  const [payments,     setPayments]     = useState([]);
-  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
-  const [overdueLeases, setOverdueLeases] = useState([]);
-
-  // ─── Data Fetching ────────────────────────────────────────────────────────
-  // useCallback so the function reference is stable (safe to call from effects)
-  const loadDashboardData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [propRes, leaseRes, payRes, approvalRes, overdueRes] = await Promise.all([
-        propertyAPI.getAll(),
-        leaseAPI.getAll(),
+  const { data: bundle, isLoading: loading } = useQuery({
+    queryKey: ['landlord-dashboard-bundle'],
+    queryFn: async () => {
+      const [dashRes, payRes, pendingRes] = await Promise.all([
+        dashboardAPI.getLandlord(),
         paymentAPI.getHistory(),
         approvalAPI.getPending(),
-        leaseAPI.getOverdue().catch(() => ({ data: { data: [] } })),
       ]);
+      const dashboard = dashRes.data || {};
+      const recentLeases = Array.isArray(dashboard.recent_leases)
+        ? dashboard.recent_leases
+        : (typeof dashboard.recent_leases === 'string'
+          ? JSON.parse(dashboard.recent_leases)
+          : []);
+      return {
+        dashboard: { ...dashboard, recent_leases: recentLeases },
+        payments: payRes.data.data || [],
+        pendingApprovals: pendingRes.data.data || [],
+      };
+    },
+    staleTime: 1000 * 60 * 2,
+    cacheTime: 1000 * 60 * 10,
+    refetchOnWindowFocus: false,
+  });
 
-      setProperties(propRes.data.data   || []);
-      setLeases(leaseRes.data.data      || []);
-      setPayments(payRes.data.data      || []);
-      setPendingApprovalsCount((approvalRes.data.data || []).length);
-      setOverdueLeases(overdueRes.data.data || []);
-    } catch (err) {
-      console.error("Failed to load dashboard statistics:", err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const dashboard = bundle?.dashboard || {};
+  const payments = bundle?.payments || [];
+  const pendingApprovals = bundle?.pendingApprovals || [];
+  const pendingApprovalsCount = pendingApprovals.length;
 
-  useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
-
-  // ─── Derived Stats ────────────────────────────────────────────────────────
-  // All computed values use useMemo so they only re-run when their inputs change,
-  // not on every component re-render.
+  const overdueLeases = useMemo(() => {
+    const leases = dashboard.recent_leases || [];
+    return leases.filter((l) => l.is_overdue);
+  }, [dashboard.recent_leases]);
 
   const now = useMemo(() => new Date(), []);
   const currentMonth = now.getMonth();
   const currentYear  = now.getFullYear();
 
-  // Active leases — O(n)
-  const activeLeases = useMemo(
-    () => leases.filter((l) => l.lease_status === "active"),
-    [leases]
-  );
-
-  // Current month revenue — O(n)
-  const currentMonthRevenue = useMemo(
-    () =>
-      payments
-        .filter((p) => {
-          const pDate = new Date(p.payment_date);
-          return (
-            p.payment_status === "success" &&
-            pDate.getMonth() === currentMonth &&
-            pDate.getFullYear() === currentYear
-          );
-        })
-        .reduce((sum, p) => sum + parseFloat(p.amount_paid), 0),
-    [payments, currentMonth, currentYear]
-  );
-
-  // ── OPTIMIZED: Overdue count O(n²) → O(n) ─────────────────────────────────
-  // BEFORE: nested .some() inside .filter() — O(leases × payments) every render
-  // AFTER:  build a Set of paid lease keys in O(payments), then filter in O(leases)
-  const overdueCount = useMemo(() => {
-    const todayDay = now.getDate();
-
-    // Step 1: Build a lookup Set of "lease_id|month|year" for every successful
-    //         payment in the current month — O(payments)
-    const paidThisMonthSet = new Set();
-    for (const p of payments) {
-      if (p.payment_status !== "success") continue;
-      const pDate = new Date(p.payment_date);
-      if (pDate.getMonth() === currentMonth && pDate.getFullYear() === currentYear) {
-        paidThisMonthSet.add(p.lease_id);
-      }
-    }
-
-    // Step 2: Filter active leases — O(leases), each lookup is O(1)
-    return activeLeases.filter((l) => {
-      const isPastDue = todayDay > (l.due_day || 5);
-      return isPastDue && !paidThisMonthSet.has(l.lease_id);
-    }).length;
-  }, [activeLeases, payments, currentMonth, currentYear, now]);
-
-  // Stats object assembled from already-memoized values
   const stats = useMemo(
     () => ({
-      properties:     properties.length,
-      activeTenants:  activeLeases.length,
-      monthlyRevenue: currentMonthRevenue,
-      overdueTenants: overdueCount,
+      properties:     parseInt(dashboard.total_properties, 10) || 0,
+      activeTenants:  parseInt(dashboard.active_tenants, 10) || 0,
+      monthlyRevenue: parseFloat(dashboard.revenue_this_month) || 0,
+      overdueTenants: parseInt(dashboard.overdue_count, 10) || 0,
     }),
-    [properties.length, activeLeases.length, currentMonthRevenue, overdueCount]
+    [dashboard]
   );
 
   // Recent payments — take only the first 5 from the current page
@@ -172,23 +119,27 @@ const LandlordDashboard = () => {
     return Object.values(monthlySums);
   }, [payments, now]);
 
-  // PieChart occupancy data
   const occupancyData = useMemo(() => {
-    let totalRooms   = properties.reduce((sum, p) => sum + (p.total_rooms || 0), 0);
-    let occupiedRooms = activeLeases.length;
-    let vacantRooms   = Math.max(0, totalRooms - occupiedRooms);
-    if (totalRooms === 0) { totalRooms = 10; vacantRooms = 10; occupiedRooms = 0; }
+    const occupiedRooms = parseInt(dashboard.occupied_rooms, 10) || 0;
+    const vacantRooms   = parseInt(dashboard.vacant_rooms, 10) || 0;
+    const totalRooms    = occupiedRooms + vacantRooms;
+    if (totalRooms === 0) {
+      return [
+        { name: "Occupied", value: 0, color: "#1565C0" },
+        { name: "Vacant",   value: 0, color: "#E3F2FD" },
+      ];
+    }
     return [
       { name: "Occupied", value: occupiedRooms, color: "#1565C0" },
       { name: "Vacant",   value: vacantRooms,   color: "#E3F2FD" },
     ];
-  }, [properties, activeLeases]);
+  }, [dashboard]);
 
   // Occupancy percentage — derived from already-memoized occupancyData
   const currentOccupancyPercent = useMemo(() => {
     const total    = occupancyData.reduce((sum, d) => sum + d.value, 0);
     const occupied = occupancyData.find((d) => d.name === "Occupied")?.value || 0;
-    if (total === 0 || total === 10) return "0%";
+    if (total === 0) return "0%";
     return `${Math.round((occupied / total) * 100)}%`;
   }, [occupancyData]);
 
@@ -206,24 +157,24 @@ const LandlordDashboard = () => {
   return (
     <div className="space-y-8">
       {/* Welcome Banner + Landlord Code */}
-      <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-2xl p-6 relative overflow-hidden shadow-md shadow-blue-500/10">
+      <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 rounded-2xl p-6 relative overflow-hidden shadow-md shadow-emerald-400/10">
         <div className="grid gap-6 lg:grid-cols-[1.7fr_1fr] items-start">
           <div className="relative z-10">
             <RealTimeGreeting
               name={user?.full_name || `@${user?.username}`}
-              subtitle="Here is your property overview for today."
+              subtitle="Manage listings, collections and tenant workflows — quick snapshot."
             />
           </div>
 {/* {UNIQUE LANDLORD CODE} */}
-          <div className="bg-amber-50 rounded-3xl border-2 border-amber-300 p-5 shadow-xs flex flex-col justify-between gap-4 min-h-[170px]">
+          <div className="bg-white/95 rounded-3xl border-2 border-emerald-200 p-5 shadow-sm flex flex-col justify-between gap-4 min-h-[170px]">
             <div>
               <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">
                 Your Unique Landlord Code
               </p>
-              <p className="text-3xl sm:text-4xl font-black text-slate-900 font-mono mt-3 tracking-wider break-all">
+              <p className="text-3xl sm:text-4xl font-black text-emerald-800 font-mono mt-3 tracking-wider break-all">
                 {user?.landlord_code || "PT-XXXXXX"}
               </p>
-              <p className="text-[1px] sm:text-xs text-amber-600 mt-3 leading-relaxed">
+              <p className="text-[12px] sm:text-sm text-slate-600 mt-3 leading-relaxed">
                 Share this code with tenants — they need it to register.
               </p>
             </div>
@@ -236,7 +187,7 @@ const LandlordDashboard = () => {
                   toast.error("No landlord code found");
                 }
               }}
-              className="self-start bg-amber-500 hover:bg-amber-600 text-white px-4 py-3 rounded-2xl font-semibold text-sm flex items-center gap-2 transition"
+              className="self-start bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-2xl font-semibold text-sm flex items-center gap-2 transition"
             >
               <Copy className="w-4 h-4" />
               Copy Code
@@ -288,16 +239,16 @@ const LandlordDashboard = () => {
             title: "Add Property",
             sub: "Register a new hostel",
             icon: Building2,
-            color: "text-blue-600",
-            bg: "bg-blue-50",
+            color: "text-emerald-600",
+            bg: "bg-emerald-50",
             path: "/landlord/properties",
           },
           {
             title: "Manage Rooms",
             sub: "View room status",
             icon: DoorOpen,
-            color: "text-indigo-600",
-            bg: "bg-indigo-50",
+            color: "text-teal-600",
+            bg: "bg-teal-50",
             path: "/landlord/rooms",
           },
           {
@@ -313,10 +264,18 @@ const LandlordDashboard = () => {
             title: "Payments",
             sub: "View all records",
             icon: CreditCard,
-            color: "text-green-600",
-            bg: "bg-green-50",
+            color: "text-cyan-600",
+            bg: "bg-cyan-50",
             path: "/landlord/payments",
           },
+          // {
+          //   title: "Bank Setup",
+          //   sub: "Configure settlements",
+          //   icon: Plus,
+          //   color: "text-sky-600",
+          //   bg: "bg-sky-50",
+          //   path: "/landlord/bank-setup",
+          // },
         ].map((act) => (
           <div
             key={act.path}
@@ -413,14 +372,16 @@ const LandlordDashboard = () => {
                     </p>
                   </div>
                   <span className="flex-shrink-0 text-[10px] font-black text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
-                    {lease.days_overdue}d overdue
+                    {lease.remaining != null
+                      ? `₦${parseFloat(lease.remaining).toLocaleString('en-NG')} due`
+                      : 'Overdue'}
                   </span>
                 </div>
                 {/* Balance */}
                 <div className="flex justify-between items-center pt-2 border-t border-red-100">
                   <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Balance Due</span>
                   <span className="text-sm font-black text-red-600">
-                    ₦{parseFloat(lease.balance_due || lease.rent_amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                    ₦{parseFloat(lease.remaining ?? lease.balance_due ?? lease.rent_amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>

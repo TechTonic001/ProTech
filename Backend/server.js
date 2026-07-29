@@ -1,10 +1,11 @@
 // server.js
-process.on('unhandledRejection', (reason) => {
+process.on('unhandledRejection', (reason, p) => {
   console.error('[UNHANDLED REJECTION]', reason);
+  if (p) console.error('Promise:', p);
 });
 
 process.on('uncaughtException', (err) => {
-  console.error('[UNCAUGHT EXCEPTION]', err.message);
+  console.error('[UNCAUGHT EXCEPTION]', err && err.stack ? err.stack : err);
 });
 
 const path = require('path');
@@ -32,9 +33,12 @@ const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const cron = require('node-cron');
 
+const db = require('./config/db');
 const { testConnection } = require('./config/db');
 const { runMigrations }  = require('./config/migrate');
 const { runNotificationEngine } = require('./utils/notificationEngine');
+const { keepAliveNeon } = require('./utils/keepAlive');
+const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
@@ -143,7 +147,40 @@ app.use('/api/admin', require('./routes/admin.routes'));
 app.use('/api/tenants', require('./routes/landlord.routes'));
 
 // Health and root
-app.get('/api/health', (req, res) => res.status(200).json({ status: 'UP', app: 'ProTech' }));
+app.get('/api/health', async (req, res) => {
+  try {
+    const start = Date.now();
+    await db.query('SELECT 1');
+    res.status(200).json({
+      status: 'OK',
+      db: 'connected',
+      latency_ms: Date.now() - start,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(503).json({
+      status: 'DB_ERROR',
+      error: err.message,
+    });
+  }
+});
+app.get('/health', async (req, res) => {
+  try {
+    const start = Date.now();
+    await db.query('SELECT 1');
+    res.status(200).json({
+      status: 'OK',
+      db: 'connected',
+      latency_ms: Date.now() - start,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(503).json({
+      status: 'DB_ERROR',
+      error: err.message,
+    });
+  }
+});
 app.get('/', (req, res) => res.status(200).json({ status: 'ok' }));
 
 // Catch-all: any route not matched above gets a proper JSON 404
@@ -151,15 +188,8 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Not Found', message: `Route ${req.method} ${req.originalUrl} does not exist.` });
 });
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error('[GLOBAL ERROR HANDLER]', err.message);
-  console.error(err.stack);
-  if (res.headersSent) return next(err);
-  return res.status(500).json({
-    error: 'Internal server error. Please try again.'
-  });
-});
+// Must be last middleware registered
+app.use(errorHandler);
 
 // ── Issue 1B: Hourly notification cron (replaces old 6 AM daily cron) ────────
 // Runs every hour on the hour, Africa/Lagos timezone.
@@ -207,6 +237,10 @@ cron.schedule('0 0 * * *', async () => {
 }, { timezone: 'Africa/Lagos' });
 
 console.log('[CRON] Midnight permanent deletion scheduled (Africa/Lagos timezone)');
+
+// Ping Neon every 4 minutes to prevent auto-suspend (Neon suspends after 5 min)
+cron.schedule('*/4 * * * *', keepAliveNeon, { timezone: 'Africa/Lagos' });
+console.log('[CRON] Neon keep-alive scheduled every 4 minutes (Africa/Lagos timezone)');
 
 const seedAdmin = require('./config/seedAdmin');
 

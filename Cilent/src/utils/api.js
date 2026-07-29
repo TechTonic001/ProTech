@@ -1,22 +1,20 @@
 // src/utils/api.js
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const getBaseURL = () => {
-  const configured = (import.meta.env.VITE_API_URL || '').trim();
-  if (configured) {
-    return configured.replace(/\/+$/, '');
-  }
-  return '/api';
+  const configured = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
+  if (!configured) return '/api';
+  if (configured.endsWith('/api')) return configured;
+  return `${configured}/api`;
 };
 
 const BASE_URL = getBaseURL();
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 100000,
+  timeout: 25000,
   headers: { 'Content-Type': 'application/json' },
-  // withCredentials MUST be true so the browser includes the HttpOnly refreshToken
-  // cookie on every request — including the /auth/refresh call.
   withCredentials: true,
 });
 
@@ -92,25 +90,46 @@ api.interceptors.response.use(
 
   async (error) => {
     const originalRequest = error.config;
+    const status  = error.response?.status;
+    const message = error.response?.data?.error
+                 || error.response?.data?.message
+                 || error.message
+                 || 'An unexpected error occurred';
 
-    // ── Network / non-HTTP errors ─────────────────────────────────────────────
-    const isNetworkError =
-      !error.response &&
-      (error.message?.includes('Network Error') ||
-        error.message?.includes('timeout') ||
-        error.message?.includes('Network request failed'));
-
-    if (isNetworkError) {
-      return Promise.reject(new Error('Please check your internet connection.'));
+    // ── Network / timeout errors (no HTTP response) ───────────────────────────
+    if (!error.response) {
+      const isTimeout = error.code === 'ECONNABORTED' ||
+        error.message?.includes('timeout');
+      toast.error(
+        isTimeout
+          ? 'Request timed out. Check your connection.'
+          : 'Network error. Check your internet connection.',
+        { duration: 5000 }
+      );
+      return Promise.reject(new Error(message));
     }
 
-    // ── Non-401 errors — pass through with a clean message ───────────────────
-    if (error.response?.status !== 401) {
-      const message =
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        error.message ||
-        'Something went wrong';
+    if (status === 403) {
+      toast.error('You do not have permission to do this.');
+      return Promise.reject(new Error(message));
+    }
+
+    if (status === 404) {
+      return Promise.reject(new Error(message));
+    }
+
+    if (status === 429) {
+      toast.error('Too many requests. Please wait a moment.');
+      return Promise.reject(new Error(message));
+    }
+
+    if (status >= 500) {
+      toast.error('Server error. Please try again in a moment.', { duration: 5000 });
+      return Promise.reject(new Error(message));
+    }
+
+    // ── 401 — attempt silent token refresh ──────────────────────────────────
+    if (status !== 401) {
       return Promise.reject(new Error(message));
     }
 
@@ -125,8 +144,9 @@ api.interceptors.response.use(
                                originalRequest.url?.includes('/auth/register');
 
     if (originalRequest._retry || isRefreshEndpoint || isAuthEndpoint) {
-      // The refresh token itself is invalid/expired, or creds are just wrong.
-      // Clear session and redirect.
+      localStorage.removeItem('protech_token');
+      localStorage.removeItem('protech_user');
+      toast.error('Session expired. Please log in again.');
       forceLogout();
       return Promise.reject(new Error('Session expired. Please log in again.'));
     }
@@ -200,14 +220,20 @@ export const propertyAPI = {
 
 export const roomAPI = {
   getAll: (propertyId) => api.get(`/room/property/${propertyId}`),
+  getAllWithLeases: () => api.get('/rooms/all-with-leases'),
   create: (data) => api.post('/room', data),
   update: (id, data) => api.put(`/room/${id}`, data),
   delete: (id) => api.delete(`/room/${id}`),
 };
 
+export const dashboardAPI = {
+  getLandlord: () => api.get('/dashboard/landlord'),
+};
+
 export const leaseAPI = {
   getAll:    (params)   => api.get('/lease/landlord/active', { params }),
   getMine:   (params)   => api.get('/lease/tenant/active',   { params }),
+  getMyLease: ()         => api.get('/lease/my-lease'),
   create:    (data)     => api.post('/lease', data),
   getById:   (id)       => api.get(`/lease/${id}`),
   update:    (id, data) => api.put(`/lease/${id}`, data),
@@ -216,7 +242,9 @@ export const leaseAPI = {
 };
 
 export const paymentAPI = {
-  initiate:         (leaseId) => api.post('/payments/initiate', { lease_id: leaseId }),
+  initiate:         (data) => api.post('/payments/initiate', data),
+  getMetadata:      ()        => api.get('/payments/metadata'),
+  getCheckout:      (leaseId) => api.get(`/payments/checkout/${leaseId}`),
   getHistory:       (params)  => api.get('/payments/history', { params }),
   getReceipt:       (ref)     => api.get(`/payments/receipt/${ref}`),
   createSubaccount: (data)    => api.post('/payments/subaccount', data),

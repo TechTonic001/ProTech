@@ -81,7 +81,25 @@ const runMigrations = async () => {
     `);
     console.log('[MIGRATE] ✅  rooms.deleted_at column ready');
 
-    // ── MIGRATION 6: amount_paid_this_cycle on leases (cron engine uses it) ─
+    // ── MIGRATION 6: payment_frequency on rooms — monthly or annually ───────
+    await db.query(`
+      ALTER TABLE rooms
+        ADD COLUMN IF NOT EXISTS payment_frequency
+        VARCHAR(10) DEFAULT 'monthly'
+        CHECK (payment_frequency IN ('monthly', 'annually'))
+    `);
+    console.log('[MIGRATE] ✅  rooms.payment_frequency ready');
+
+    // ── MIGRATION 7: payment_frequency on leases — store payment collection cadence
+    await db.query(`
+      ALTER TABLE leases
+        ADD COLUMN IF NOT EXISTS payment_frequency
+        VARCHAR(10) DEFAULT 'monthly'
+        CHECK (payment_frequency IN ('monthly', 'annually'))
+    `);
+    console.log('[MIGRATE] ✅  leases.payment_frequency ready');
+
+    // ── MIGRATION 8: amount_paid_this_cycle on leases (cron engine uses it) ─
     // If this column doesn't exist yet, default 0 so the engine query
     // (COALESCE(l.amount_paid_this_cycle, 0)) never errors.
     await db.query(`
@@ -91,41 +109,68 @@ const runMigrations = async () => {
     `);
     console.log('[MIGRATE] ✅  leases.amount_paid_this_cycle column ready');
 
-    // ── MIGRATION 8: performance indexes for hot paths ───────────────────
+    // ── MIGRATION 9: service_fee on payments — platform transaction revenue
     await db.query(`
-      CREATE INDEX IF NOT EXISTS idx_leases_landlord
-        ON leases(landlord_id)
+      ALTER TABLE payments
+        ADD COLUMN IF NOT EXISTS service_fee
+        NUMERIC(12,2) DEFAULT 500
     `);
-    await db.query(`
-      CREATE INDEX IF NOT EXISTS idx_leases_tenant
-        ON leases(tenant_id)
-    `);
-    await db.query(`
-      CREATE INDEX IF NOT EXISTS idx_payments_lease
-        ON payments(lease_id)
-    `);
-    await db.query(`
-      CREATE INDEX IF NOT EXISTS idx_rooms_property
-        ON rooms(property_id)
-    `);
-    await db.query(`
-      CREATE INDEX IF NOT EXISTS idx_notifications_lease
-        ON notifications(lease_id)
-    `);
-    await db.query(`
-      CREATE INDEX IF NOT EXISTS idx_users_email
-        ON users(email)
-    `);
-    await db.query(`
-      CREATE INDEX IF NOT EXISTS idx_users_landlord_code
-        ON users(landlord_code)
-    `);
-    console.log('[MIGRATE] ✅  Database indexes ready');
+    console.log('[MIGRATE] ✅  payments.service_fee ready');
 
-    // ── MIGRATION 7: is_active BOOLEAN alias on leases (used by notification engine)
-    // The engine spec uses lease_status = 'active'. If is_active doesn't exist,
-    // this is a no-op. The engine falls back to lease_status already.
-    // (No action needed — engine uses lease_status.)
+    // ── MIGRATION 10: lease date columns as DATE (eliminates timezone shift) ─
+    // Make due_day nullable since end_date is now the due date
+    await db.query(`
+      ALTER TABLE leases
+        ALTER COLUMN due_day DROP NOT NULL
+    `).catch(() => {});
+
+    // Ensure start_date and end_date are DATE type (not TIMESTAMPTZ)
+    await db.query(`
+      ALTER TABLE leases
+        ALTER COLUMN start_date TYPE DATE
+          USING start_date::DATE,
+        ALTER COLUMN end_date TYPE DATE
+          USING end_date::DATE
+    `).catch(() => {});
+
+    console.log('[MIGRATE] ✅  Lease dates corrected: end_date is due_date');
+
+    // ── MIGRATION 11: performance indexes for hot paths ───────────────────
+    const indexes = [
+      `CREATE INDEX IF NOT EXISTS idx_leases_landlord
+        ON leases(landlord_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_leases_tenant
+        ON leases(tenant_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_leases_room
+        ON leases(room_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_leases_active
+        ON leases(landlord_id, lease_status)`,
+      `CREATE INDEX IF NOT EXISTS idx_payments_lease
+        ON payments(lease_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_payments_landlord
+        ON payments(landlord_id, payment_date)`,
+      `CREATE INDEX IF NOT EXISTS idx_payments_service_fee
+        ON payments(service_fee)`,
+      `CREATE INDEX IF NOT EXISTS idx_rooms_property
+        ON rooms(property_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_rooms_occupied
+        ON rooms(property_id, is_occupied)`,
+      `CREATE INDEX IF NOT EXISTS idx_notifications_lease
+        ON notifications(lease_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_users_email
+        ON users(email)`,
+      `CREATE INDEX IF NOT EXISTS idx_users_role
+        ON users(role, deleted_at)`,
+      `CREATE INDEX IF NOT EXISTS idx_users_landlord_code
+        ON users(landlord_code)`,
+      `CREATE INDEX IF NOT EXISTS idx_properties_landlord
+        ON properties(landlord_id, deleted_at)`,
+    ];
+
+    for (const sql of indexes) {
+      await db.query(sql);
+    }
+    console.log('[MIGRATE] ✅  All database indexes ready');
 
     console.log('[MIGRATE] ✅  All migrations complete');
 

@@ -6,27 +6,21 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (!id.includes('node_modules')) {
-            return undefined;
-          }
-
-          if (id.includes('react-router-dom')) return 'react-router-vendor';
-          if (id.includes('react-dom') || id.includes('/react/')) return 'react-vendor';
-          if (id.includes('recharts')) return 'chart-vendor';
-          if (id.includes('lucide-react') || id.includes('react-hot-toast')) return 'ui-vendor';
-          if (id.includes('axios')) return 'http-vendor';
-
-          return 'vendor';
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-charts': ['recharts'],
+          'vendor-icons': ['lucide-react'],
+          'vendor-http': ['axios'],
+          'vendor-toast': ['react-hot-toast'],
         },
       },
     },
-    chunkSizeWarningLimit: 1000,
-    minify: 'oxc',
+    chunkSizeWarningLimit: 400,
+    minify: 'esbuild',
+    sourcemap: false,
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'axios', 'recharts', 'lucide-react'],
-    rolldownOptions: {},
   },
   server: {
     port: 3000,

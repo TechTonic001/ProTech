@@ -10,13 +10,16 @@ export const formatCurrency = (val) => {
 
 export const formatDate = (val) => {
   if (!val) return '—';
-  const date = new Date(val);
-  if (isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  try {
+    return new Date(val).toLocaleDateString('en-NG', {
+      timeZone: 'Africa/Lagos',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  } catch {
+    return '—';
+  }
 };
 
 export const formatRelativeTime = (val) => {

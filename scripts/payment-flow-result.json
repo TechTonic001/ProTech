@@ -1,0 +1,47 @@
+{
+  "apiBase": "http://localhost:5001/api",
+  "leaseId": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozLCJyb2xlIjoidGVuYW50IiwiaWF0IjoxNzg1MzEwOTU4LCJleHAiOjE3ODUzMTQ1NTh9.8KeFMcXYGYcGETvCyNI9qDBIERXk4CypLd-IOyea9fE\\ 1",
+  "results": [
+    {
+      "step": "health",
+      "result": {
+        "status": 200,
+        "body": {
+          "status": "OK",
+          "db": "connected",
+          "timestamp": "2026-07-29T07:57:17.730Z"
+        }
+      }
+    },
+    {
+      "step": "metadata",
+      "result": {
+        "status": 401,
+        "body": {
+          "error": "Invalid or expired token"
+        }
+      }
+    },
+    {
+      "step": "checkout",
+      "result": {
+        "status": 404,
+        "body": {
+          "error": "Not Found",
+          "message": "Route GET /api/payments/checkout/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozLCJyb2xlIjoidGVuYW50IiwiaWF0IjoxNzg1MzEwOTU4LCJleHAiOjE3ODUzMTQ1NTh9.8KeFMcXYGYcGETvCyNI9qDBIERXk4CypLd-IOyea9fE/%201 does not exist."
+        }
+      }
+    },
+    {
+      "step": "initiate",
+      "result": {
+        "status": 401,
+        "body": {
+          "error": "Invalid or expired token"
+        }
+      }
+    }
+  ],
+  "localApi": "http://localhost:5001/api",
+  "deployedApi": "https://protechbackend.vercel.app/api"
+}

@@ -5,7 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { useAuth } from './hooks/useAuth';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import LoadingSpinner from './components/ui/LoadingSpinner';
-import NetworkStatusListener from './components/shared/NetworkStatusListener';
+import NetworkNotifier from './components/shared/NetworkNotifier';
 
 // Layouts
 import LandlordLayout from './components/layout/LandlordLayout';
@@ -66,7 +66,7 @@ const AuthRedirect = () => {
 const App = () => {
   return (
     <div className="min-h-screen bg-background text-text-dark">
-      <NetworkStatusListener />
+      <NetworkNotifier />
       <Suspense fallback={<LoadingSpinner fullPage />}>
         <Routes>
           <Route path="/" element={<Landing />} />
