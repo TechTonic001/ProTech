@@ -456,26 +456,26 @@ const sendTenantRentReminderEmail = async ({
 }) => {
   const balance = parseFloat(rentAmount) - parseFloat(amountPaid || 0);
   const balanceStr = `₦${balance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-  const rentStr   = `₦${parseFloat(rentAmount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+  const rentStr = `₦${parseFloat(rentAmount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
   let subjectLine, statusBadge, headlineText, statusColor;
 
   if (daysUntilDue > 0) {
-    subjectLine   = `Rent Reminder: ${daysUntilDue} Day${daysUntilDue === 1 ? '' : 's'} Until Your Rent is Due`;
-    statusBadge   = `${daysUntilDue} DAY${daysUntilDue === 1 ? '' : 'S'} REMAINING`;
-    headlineText  = `Your rent is due in <strong>${daysUntilDue} day${daysUntilDue === 1 ? '' : 's'}</strong>.`;
-    statusColor   = '#1565C0';
+    subjectLine = `Rent Reminder: ${daysUntilDue} Day${daysUntilDue === 1 ? '' : 's'} Until Your Rent is Due`;
+    statusBadge = `${daysUntilDue} DAY${daysUntilDue === 1 ? '' : 'S'} REMAINING`;
+    headlineText = `Your rent is due in <strong>${daysUntilDue} day${daysUntilDue === 1 ? '' : 's'}</strong>.`;
+    statusColor = '#1565C0';
   } else if (daysUntilDue === 0) {
-    subjectLine   = 'Action Required: Your Rent is Due Today';
-    statusBadge   = 'DUE TODAY';
-    headlineText  = 'Your rent is <strong>due today</strong>. Please make your payment now to avoid late fees.';
-    statusColor   = '#e65100';
+    subjectLine = 'Action Required: Your Rent is Due Today';
+    statusBadge = 'DUE TODAY';
+    headlineText = 'Your rent is <strong>due today</strong>. Please make your payment now to avoid late fees.';
+    statusColor = '#e65100';
   } else {
     const overdueDays = Math.abs(daysUntilDue);
-    subjectLine   = `OVERDUE: Your Rent is ${overdueDays} Day${overdueDays === 1 ? '' : 's'} Past Due`;
-    statusBadge   = `${overdueDays} DAY${overdueDays === 1 ? '' : 'S'} OVERDUE`;
-    headlineText  = `Your rent is <strong>${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue</strong>. Please pay immediately.`;
-    statusColor   = '#c62828';
+    subjectLine = `OVERDUE: Your Rent is ${overdueDays} Day${overdueDays === 1 ? '' : 's'} Past Due`;
+    statusBadge = `${overdueDays} DAY${overdueDays === 1 ? '' : 'S'} OVERDUE`;
+    headlineText = `Your rent is <strong>${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue</strong>. Please pay immediately.`;
+    statusColor = '#c62828';
   }
 
   const htmlContent = `
@@ -571,7 +571,7 @@ const sendLandlordRentAlertEmail = async ({
   roomNumber, hostelName, rentAmount, amountPaid,
   dueDate, daysUntilDue,
 }) => {
-  const balance  = parseFloat(rentAmount) - parseFloat(amountPaid || 0);
+  const balance = parseFloat(rentAmount) - parseFloat(amountPaid || 0);
   const balanceStr = `₦${balance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
   const dayLabel = daysUntilDue >= 0
@@ -650,6 +650,123 @@ const sendLandlordRentAlertEmail = async ({
   }
 };
 
+// ── PAYMENT RECEIPT — sent to tenant after webhook confirms success ─────────
+const sendPaymentReceiptEmail = async (toEmail, {
+  tenant_name,
+  hostel_name,
+  room_number,
+  property_name,
+  receipt_number,
+  amount_paid,
+  service_fee,
+  total_charged,
+  end_date,
+  remaining,
+  paystack_ref,
+}) => {
+  const subjectLine = `🧾 Payment Receipt — ${receipt_number}`;
+  const paidFmt     = Number(amount_paid || 0).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  const feeFmt      = Number(service_fee  || 0).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  const totalFmt    = Number(total_charged|| 0).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  const remainFmt   = remaining != null
+    ? Number(remaining).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' })
+    : null;
+
+  const htmlContent = `
+    <html><body style="font-family:Arial,sans-serif;background:#f5f5f5;padding:20px;">
+      <div style="max-width:600px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#1a7f7e,#0d5c5b);padding:32px;text-align:center;">
+          <h1 style="color:white;margin:0;font-size:22px;">✅ Payment Confirmed</h1>
+          <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:14px;">Receipt: <strong>${receipt_number}</strong></p>
+        </div>
+        <div style="padding:32px;">
+          <p style="color:#555;font-size:15px;">Hi <strong>${tenant_name}</strong>,</p>
+          <p style="color:#555;font-size:14px;">Your rent payment has been received and confirmed. Here is your official receipt.</p>
+
+          <table style="width:100%;border-collapse:collapse;margin:24px 0;font-size:14px;">
+            <tr style="background:#f8fafc;"><td style="padding:12px 16px;color:#888;font-weight:bold;">Property</td><td style="padding:12px 16px;color:#222;font-weight:bold;">${hostel_name || property_name}</td></tr>
+            <tr><td style="padding:12px 16px;color:#888;font-weight:bold;">Room</td><td style="padding:12px 16px;color:#222;font-weight:bold;">${room_number}</td></tr>
+            <tr style="background:#f8fafc;"><td style="padding:12px 16px;color:#888;font-weight:bold;">Rent Paid</td><td style="padding:12px 16px;color:#222;font-weight:bold;">${paidFmt}</td></tr>
+            <tr><td style="padding:12px 16px;color:#888;font-weight:bold;">Service Fee</td><td style="padding:12px 16px;color:#222;font-weight:bold;">${feeFmt}</td></tr>
+            <tr style="background:#1a7f7e;"><td style="padding:12px 16px;color:white;font-weight:bold;font-size:15px;">Total Charged</td><td style="padding:12px 16px;color:white;font-weight:bold;font-size:15px;">${totalFmt}</td></tr>
+            ${remainFmt ? `<tr style="background:#f0fdf4;"><td style="padding:12px 16px;color:#166534;font-weight:bold;">Remaining Balance</td><td style="padding:12px 16px;color:#166534;font-weight:bold;">${remainFmt}</td></tr>` : ''}
+            ${end_date ? `<tr><td style="padding:12px 16px;color:#888;font-weight:bold;">Due Date</td><td style="padding:12px 16px;color:#222;">${end_date}</td></tr>` : ''}
+            <tr style="background:#f8fafc;"><td style="padding:12px 16px;color:#888;font-weight:bold;">Reference</td><td style="padding:12px 16px;color:#555;font-size:12px;font-family:monospace;">${paystack_ref}</td></tr>
+          </table>
+
+          <p style="color:#555;font-size:13px;">Keep this email as proof of payment. Contact your landlord or ProTech support if you have any questions.</p>
+        </div>
+        <div style="background:#f8fafc;padding:16px;text-align:center;">
+          <p style="color:#999;font-size:12px;margin:0;">${emailFooter}</p>
+        </div>
+      </div>
+    </body></html>
+  `;
+
+  const textContent = `Payment Receipt: ${receipt_number}\nRent Paid: ${paidFmt}\nService Fee: ${feeFmt}\nTotal: ${totalFmt}\nRef: ${paystack_ref}\n\n${emailFooter}`;
+
+  try {
+    logEmailAttempt('PaymentReceiptEmail', toEmail, subjectLine);
+    await transporter.sendMail({ from: sendFrom, to: toEmail, subject: subjectLine, html: htmlContent, text: textContent });
+    return { success: true };
+  } catch (error) {
+    console.error('[ERROR] Payment receipt email error:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+// ── LANDLORD PAYMENT ALERT — sent when a tenant pays rent ────────────────────
+const sendLandlordPaymentAlert = async (toEmail, {
+  landlord_name,
+  tenant_name,
+  room_number,
+  amount_paid,
+  receipt_number,
+  remaining,
+}) => {
+  const subjectLine = `💰 Rent Received from ${tenant_name}`;
+  const paidFmt     = Number(amount_paid || 0).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  const remainFmt   = remaining != null
+    ? Number(remaining).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' })
+    : null;
+
+  const htmlContent = `
+    <html><body style="font-family:Arial,sans-serif;background:#f5f5f5;padding:20px;">
+      <div style="max-width:600px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#1e40af,#1d4ed8);padding:32px;text-align:center;">
+          <h1 style="color:white;margin:0;font-size:22px;">💰 Rent Received</h1>
+        </div>
+        <div style="padding:32px;">
+          <p style="color:#555;font-size:15px;">Hi <strong>${landlord_name}</strong>,</p>
+          <p style="color:#555;font-size:14px;"><strong>${tenant_name}</strong> (Room ${room_number}) has made a successful rent payment.</p>
+          <table style="width:100%;border-collapse:collapse;margin:24px 0;font-size:14px;">
+            <tr style="background:#eff6ff;"><td style="padding:12px 16px;color:#888;font-weight:bold;">Tenant</td><td style="padding:12px 16px;color:#222;font-weight:bold;">${tenant_name}</td></tr>
+            <tr><td style="padding:12px 16px;color:#888;font-weight:bold;">Room</td><td style="padding:12px 16px;color:#222;font-weight:bold;">${room_number}</td></tr>
+            <tr style="background:#1e40af;"><td style="padding:12px 16px;color:white;font-weight:bold;">Amount Paid</td><td style="padding:12px 16px;color:white;font-weight:bold;font-size:15px;">${paidFmt}</td></tr>
+            ${remainFmt ? `<tr style="background:#fefce8;"><td style="padding:12px 16px;color:#854d0e;font-weight:bold;">Remaining</td><td style="padding:12px 16px;color:#854d0e;font-weight:bold;">${remainFmt}</td></tr>` : ''}
+            <tr><td style="padding:12px 16px;color:#888;font-weight:bold;">Receipt #</td><td style="padding:12px 16px;color:#555;font-family:monospace;font-size:12px;">${receipt_number}</td></tr>
+          </table>
+          <p style="color:#555;font-size:13px;">Funds are being settled into your linked bank account within 24-48 hours via Paystack.</p>
+        </div>
+        <div style="background:#f8fafc;padding:16px;text-align:center;">
+          <p style="color:#999;font-size:12px;margin:0;">${emailFooter}</p>
+        </div>
+      </div>
+    </body></html>
+  `;
+
+  const textContent = `Rent received from ${tenant_name} (Room ${room_number})\nAmount: ${paidFmt}\nReceipt: ${receipt_number}\n\n${emailFooter}`;
+
+  try {
+    logEmailAttempt('LandlordPaymentAlert', toEmail, subjectLine);
+    await transporter.sendMail({ from: sendFrom, to: toEmail, subject: subjectLine, html: htmlContent, text: textContent });
+    return { success: true };
+  } catch (error) {
+    console.error('[ERROR] Landlord payment alert error:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendOTPEmail,
   sendPasswordChangedEmail,
@@ -662,4 +779,6 @@ module.exports = {
   sendLandlordTenantRegistrationNotificationEmail,
   sendTenantRentReminderEmail,
   sendLandlordRentAlertEmail,
+  sendPaymentReceiptEmail,
+  sendLandlordPaymentAlert,
 };

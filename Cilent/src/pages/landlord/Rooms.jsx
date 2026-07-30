@@ -193,14 +193,12 @@ const AssignedRoomCard = ({ room }) => {
   const pct = rent > 0 ? Math.min(100, (paid / rent) * 100) : 0;
 
   return (
-    <div className={`bg-white rounded-2xl p-5 border-2 transition-all ${
-      isOverdue ? 'border-red-200 shadow-red-50' : 'border-slate-200'
-    }`}>
+    <div className={`bg-white rounded-2xl p-5 border-2 transition-all ${isOverdue ? 'border-red-200 shadow-red-50' : 'border-slate-200'
+      }`}>
       <div className="flex justify-between items-center mb-4">
         <span className="font-black text-slate-900">{room.room_number}</span>
-        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-          isOverdue ? 'bg-red-100 text-red-700 animate-pulse' : 'bg-blue-100 text-blue-700'
-        }`}>
+        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${isOverdue ? 'bg-red-100 text-red-700 animate-pulse' : 'bg-blue-100 text-blue-700'
+          }`}>
           {isOverdue ? 'OVERDUE' : 'Assigned'}
         </span>
       </div>
@@ -227,13 +225,12 @@ const AssignedRoomCard = ({ room }) => {
         ))}
         <div className="flex justify-between text-xs pt-2 border-t border-slate-100">
           <span className="text-slate-400">Status</span>
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-            dueDateLabel(room.end_date).includes('overdue')
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${dueDateLabel(room.end_date).includes('overdue')
               ? 'bg-red-100 text-red-700'
               : dueDateLabel(room.end_date).includes('today')
-              ? 'bg-amber-100 text-amber-700'
-              : 'bg-green-100 text-green-700'
-          }`}>
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-green-100 text-green-700'
+            }`}>
             {dueDateLabel(room.end_date)}
           </span>
         </div>
@@ -384,14 +381,12 @@ const Rooms = () => {
             key={tab}
             type="button"
             onClick={() => setActiveTab(tab)}
-            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-              activeTab === tab ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}
+            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === tab ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
           >
             {tab}
-            <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-full ${
-              activeTab === tab ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-500'
-            }`}>
+            <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-full ${activeTab === tab ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-500'
+              }`}>
               {tab === 'Available Rooms' ? filtered.available.length : filtered.assigned.length}
             </span>
           </button>

@@ -60,7 +60,7 @@ const flushQueue = (error, token = null) => {
  */
 const getLoginPath = () => {
   const path = window.location.pathname;
-  if (path.startsWith('/admin'))  return '/admin/login';
+  if (path.startsWith('/admin')) return '/admin/login';
   if (path.startsWith('/tenant')) return '/tenant/login';
   return '/landlord/login';
 };
@@ -74,7 +74,7 @@ const forceLogout = () => {
   localStorage.removeItem('protech_user');
   const publicPaths = [
     '/landlord/login', '/landlord/register',
-    '/tenant/login',   '/tenant/register',
+    '/tenant/login', '/tenant/register',
     '/admin/login',
     '/forgot-password', '/verify-otp', '/reset-success', '/',
   ];
@@ -90,11 +90,11 @@ api.interceptors.response.use(
 
   async (error) => {
     const originalRequest = error.config;
-    const status  = error.response?.status;
+    const status = error.response?.status;
     const message = error.response?.data?.error
-                 || error.response?.data?.message
-                 || error.message
-                 || 'An unexpected error occurred';
+      || error.response?.data?.message
+      || error.message
+      || 'An unexpected error occurred';
 
     // ── Network / timeout errors (no HTTP response) ───────────────────────────
     if (!error.response) {
@@ -140,8 +140,8 @@ api.interceptors.response.use(
     //   c) this is a login/register call (wrong credentials, not an expiry)
     // ─────────────────────────────────────────────────────────────────────────
     const isRefreshEndpoint = originalRequest.url?.includes('/auth/refresh');
-    const isAuthEndpoint    = originalRequest.url?.includes('/auth/login') ||
-                               originalRequest.url?.includes('/auth/register');
+    const isAuthEndpoint = originalRequest.url?.includes('/auth/login') ||
+      originalRequest.url?.includes('/auth/register');
 
     if (originalRequest._retry || isRefreshEndpoint || isAuthEndpoint) {
       localStorage.removeItem('protech_token');
@@ -198,24 +198,25 @@ api.interceptors.response.use(
 
 // ── Named API Functions ───────────────────────────────────────────────────────
 export const authAPI = {
-  register:      (data)  => api.post('/auth/register', data),
-  login:         (data)  => api.post('/auth/login', data),
-  refresh:       ()      => api.post('/auth/refresh'),
-  logout:        ()      => api.post('/auth/logout'),
-  getProfile:    ()      => api.get('/auth/profile'),
-  updateProfile: (data)  => api.put('/auth/profile', data),
+  register: (data) => api.post('/auth/register', data),
+  login: (data) => api.post('/auth/login', data),
+  refresh: () => api.post('/auth/refresh'),
+  logout: () => api.post('/auth/logout'),
+  getProfile: () => api.get('/auth/profile'),
+  updateProfile: (data) => api.put('/auth/profile', data),
+  deleteAccount: (data) => api.delete('/auth/account', { data }),
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
-  resetPassword: (data)  => api.post('/auth/reset-password', data),
+  resetPassword: (data) => api.post('/auth/reset-password', data),
 };
 
 export const propertyAPI = {
-  getAll:      (params)   => api.get('/property', { params }),
-  create:      (data)     => api.post('/property', data),
-  update:      (id, data) => api.put(`/property/${id}`, data),
+  getAll: (params) => api.get('/property', { params }),
+  create: (data) => api.post('/property', data),
+  update: (id, data) => api.put(`/property/${id}`, data),
   // Soft delete — sends to recycle bin for 30 days
-  delete:      (id)       => api.delete(`/property/${id}`),
-  getDeleted:  ()         => api.get('/property/deleted'),
-  restore:     (id)       => api.post(`/property/${id}/restore`),
+  delete: (id) => api.delete(`/property/${id}`),
+  getDeleted: () => api.get('/property/deleted'),
+  restore: (id) => api.post(`/property/${id}/restore`),
 };
 
 export const roomAPI = {
@@ -231,57 +232,57 @@ export const dashboardAPI = {
 };
 
 export const leaseAPI = {
-  getAll:    (params)   => api.get('/lease/landlord/active', { params }),
-  getMine:   (params)   => api.get('/lease/tenant/active',   { params }),
-  getMyLease: ()         => api.get('/lease/my-lease'),
-  create:    (data)     => api.post('/lease', data),
-  getById:   (id)       => api.get(`/lease/${id}`),
-  update:    (id, data) => api.put(`/lease/${id}`, data),
-  terminate: (id)       => api.patch(`/lease/${id}/terminate`),
-  getOverdue: ()        => api.get('/lease/overdue'),
+  getAll: (params) => api.get('/lease/landlord/active', { params }),
+  getMine: (params) => api.get('/lease/tenant/active', { params }),
+  getMyLease: () => api.get('/lease/my-lease'),
+  create: (data) => api.post('/lease', data),
+  getById: (id) => api.get(`/lease/${id}`),
+  update: (id, data) => api.put(`/lease/${id}`, data),
+  terminate: (id) => api.patch(`/lease/${id}/terminate`),
+  getOverdue: () => api.get('/lease/overdue'),
 };
 
 export const paymentAPI = {
-  initiate:         (data) => api.post('/payments/initiate', data),
-  getMetadata:      ()        => api.get('/payments/metadata'),
-  getCheckout:      (leaseId) => api.get(`/payments/checkout/${leaseId}`),
-  getHistory:       (params)  => api.get('/payments/history', { params }),
-  getReceipt:       (ref)     => api.get(`/payments/receipt/${ref}`),
-  createSubaccount: (data)    => api.post('/payments/subaccount', data),
-  getBanks:         ()        => api.get('/payments/banks'),
+  initiate: (data) => api.post('/payments/initiate', data),
+  getMetadata: () => api.get('/payments/metadata'),
+  getCheckout: (leaseId) => api.get(`/payments/checkout/${leaseId}`),
+  getHistory: (params) => api.get('/payments/history', { params }),
+  getReceipt: (ref) => api.get(`/payments/receipt/${ref}`),
+  createSubaccount: (data) => api.post('/payments/subaccount', data),
+  getBanks: () => api.get('/payments/banks'),
 };
 
 export const approvalAPI = {
-  request:     (data)     => api.post('/approval/request', data),
-  getPending:  (params)   => api.get('/approval/pending', { params }),
-  getApproved: (params)   => api.get('/approval/approved', { params }),
-  process:     (id, data) => api.put(`/approval/${id}`, data),
+  request: (data) => api.post('/approval/request', data),
+  getPending: (params) => api.get('/approval/pending', { params }),
+  getApproved: (params) => api.get('/approval/approved', { params }),
+  process: (id, data) => api.put(`/approval/${id}`, data),
 };
 
 export const announcementAPI = {
   getAll: (params) => api.get('/announcement', { params }),
-  create: (data)   => api.post('/announcement', data),
-  delete: (id)     => api.delete(`/announcement/${id}`),
+  create: (data) => api.post('/announcement', data),
+  delete: (id) => api.delete(`/announcement/${id}`),
 };
 
 export const adminAPI = {
-  getStats:      ()       => api.get('/admin/stats'),
-  getLandlords:  (params) => api.get('/admin/landlords',  { params }),
-  getTenants:    (params) => api.get('/admin/tenants',    { params }),
-  getPayments:   (params) => api.get('/admin/payments',   { params }),
+  getStats: () => api.get('/admin/stats'),
+  getLandlords: (params) => api.get('/admin/landlords', { params }),
+  getTenants: (params) => api.get('/admin/tenants', { params }),
+  getPayments: (params) => api.get('/admin/payments', { params }),
   getProperties: (params) => api.get('/admin/properties', { params }),
 };
 
 export const notificationAPI = {
-  getSettings:    ()     => api.get('/notification/settings'),
+  getSettings: () => api.get('/notification/settings'),
   updateSettings: (data) => api.put('/notification/settings', data),
 };
 
 export const tenantAPI = {
   // Landlord-side soft-delete operations
-  getDeleted: ()                  => api.get('/tenants/deleted'),
-  softDelete: (id, reason)        => api.delete(`/tenants/${id}`, { data: { reason } }),
-  restore:    (id)                => api.post(`/tenants/${id}/restore`),
+  getDeleted: () => api.get('/tenants/deleted'),
+  softDelete: (id, reason) => api.delete(`/tenants/${id}`, { data: { reason } }),
+  restore: (id) => api.post(`/tenants/${id}/restore`),
 };
 
 export default api;

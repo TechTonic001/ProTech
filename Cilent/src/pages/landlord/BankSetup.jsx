@@ -2,10 +2,10 @@
 import React, { useEffect, useState } from 'react';
 import { authAPI, paymentAPI } from '../../utils/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import { 
-  Landmark, 
-  CheckCircle2, 
-  HelpCircle, 
+import {
+  Landmark,
+  CheckCircle2,
+  HelpCircle,
   Loader2,
   ShieldCheck
 } from 'lucide-react';
@@ -103,7 +103,7 @@ const BankSetup = () => {
     setSubmitLoading(true);
     try {
       const selectedBankName = banks.find(b => b.code === form.settlement_bank)?.name || 'Nigerian Bank';
-      
+
       await paymentAPI.createSubaccount({
         business_name: form.business_name,
         settlement_bank: form.settlement_bank, // bank code
@@ -131,7 +131,7 @@ const BankSetup = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      
+
       {/* Header */}
       <div>
         <h2 className="text-xl lg:text-2xl font-black text-slate-900">Bank Setup</h2>
@@ -183,7 +183,7 @@ const BankSetup = () => {
         /* Setup Form Form State */
         <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-xs">
           <form onSubmit={handleSubmit} className="space-y-4">
-            
+
             <div className="flex items-center gap-2 pb-2 border-b border-slate-50 mb-2">
               <Landmark className="w-5 h-5 text-blue-600" />
               <h3 className="text-sm font-bold text-slate-900">Add Settlement Bank</h3>

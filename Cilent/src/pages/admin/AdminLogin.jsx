@@ -63,8 +63,9 @@ const AdminLogin = () => {
         throw new Error('Unexpected response payload');
       }
     } catch (err) {
-      toast.error(err.message || 'Login failed');
-      setErrors({ api: err.message });
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Login failed';
+      toast.error(errorMessage);
+      setErrors({ api: errorMessage });
     } finally {
       setLoading(false);
     }

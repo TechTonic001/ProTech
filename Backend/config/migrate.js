@@ -122,7 +122,7 @@ const runMigrations = async () => {
     await db.query(`
       ALTER TABLE leases
         ALTER COLUMN due_day DROP NOT NULL
-    `).catch(() => {});
+    `).catch(() => { });
 
     // Ensure start_date and end_date are DATE type (not TIMESTAMPTZ)
     await db.query(`
@@ -131,7 +131,7 @@ const runMigrations = async () => {
           USING start_date::DATE,
         ALTER COLUMN end_date TYPE DATE
           USING end_date::DATE
-    `).catch(() => {});
+    `).catch(() => { });
 
     console.log('[MIGRATE] ✅  Lease dates corrected: end_date is due_date');
 

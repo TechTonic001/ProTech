@@ -75,7 +75,10 @@ const getAllRoomsWithLeases = asyncHandler(async (req, res) => {
     WHERE p.landlord_id = $1
       AND r.deleted_at IS NULL
       AND p.deleted_at IS NULL
-    ORDER BY p.property_name, r.room_number`,
+    ORDER BY
+      p.property_name ASC,
+      COALESCE(NULLIF(regexp_replace(r.room_number, '\\D', '', 'g'), ''), '0')::int ASC,
+      r.room_id ASC`,
     [landlordId]
   );
 

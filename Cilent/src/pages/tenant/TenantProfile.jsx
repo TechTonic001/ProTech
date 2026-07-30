@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI, leaseAPI } from '../../utils/api';
+import DeleteAccountSection from '../../components/shared/DeleteAccountSection';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import {
   formatDate,
@@ -233,13 +234,12 @@ const TenantProfile = () => {
               ))}
               <div className="flex justify-between pt-1">
                 <span className="text-sm text-slate-500">Payment Status</span>
-                <span className={`text-xs font-bold px-3 py-1 rounded-full ${
-                  dueDateLabel(lease.end_date).includes('overdue')
+                <span className={`text-xs font-bold px-3 py-1 rounded-full ${dueDateLabel(lease.end_date).includes('overdue')
                     ? 'bg-red-100 text-red-700'
                     : dueDateLabel(lease.end_date).includes('today')
-                    ? 'bg-amber-100 text-amber-700'
-                    : 'bg-green-100 text-green-700'
-                }`}>
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-green-100 text-green-700'
+                  }`}>
                   {dueDateLabel(lease.end_date)}
                 </span>
               </div>
@@ -251,6 +251,7 @@ const TenantProfile = () => {
           )}
         </div>
       </div>
+      <DeleteAccountSection />
     </div>
   );
 };

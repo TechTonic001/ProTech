@@ -35,7 +35,7 @@ const cron = require('node-cron');
 
 const db = require('./config/db');
 const { testConnection } = require('./config/db');
-const { runMigrations }  = require('./config/migrate');
+const { runMigrations } = require('./config/migrate');
 const { runNotificationEngine } = require('./utils/notificationEngine');
 const { keepAliveNeon } = require('./utils/keepAlive');
 const { errorHandler } = require('./middleware/errorHandler');

@@ -357,12 +357,15 @@ const login = async (req, res, next) => {
               role, is_approved, hostel_name, hostel_address,
               landlord_code, subaccount_code, password_hash
        FROM users
-       WHERE email = $1 OR username = $2`,
+       WHERE (email = $1 OR username = $2)
+         AND deleted_at IS NULL`,
       [identifier, identifier]
     );
 
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(404).json({
+        error: 'Account not found. Please create an account or check your credentials.',
+      });
     }
 
     const user = result.rows[0];

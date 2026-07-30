@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
+import DeleteAccountSection from '../../components/shared/DeleteAccountSection';
 import { Copy } from 'lucide-react';
 
 const LandlordProfile = () => {
@@ -221,6 +222,7 @@ const LandlordProfile = () => {
             )}
           </div>
         </div>
+        <DeleteAccountSection />
       </div>
     </div>
   );

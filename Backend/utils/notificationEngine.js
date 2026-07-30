@@ -214,36 +214,36 @@ const runNotificationEngine = async (currentHour) => {
         };
 
         // ── STEP 7: Send emails (non-blocking — .catch() prevents engine halt) ─
-        sendTenantRentReminderEmail({
+        const tenantEmailResult = await sendTenantRentReminderEmail({
           toEmail:    lease.tenant_email,
           tenantName: lease.tenant_name,
           ...emailPayload,
-        }).catch((err) =>
-          console.error(`[EMAIL ERROR] Tenant email failed for lease ${lease.lease_id}:`, err.message)
-        );
+        });
 
-        sendLandlordRentAlertEmail({
+        const landlordEmailResult = await sendLandlordRentAlertEmail({
           toEmail:        lease.landlord_email,
           landlordName:   lease.landlord_name,
           tenantName:     lease.tenant_name,
           tenantUsername: lease.tenant_username || lease.tenant_email,
           ...emailPayload,
-        }).catch((err) =>
-          console.error(`[EMAIL ERROR] Landlord email failed for lease ${lease.lease_id}:`, err.message)
-        );
+        });
+
+        const deliveryStatus = tenantEmailResult.success && landlordEmailResult.success ? 'sent' : 'failed';
+        const messageBody = `${notifyType} tenant email ${tenantEmailResult.success ? 'sent' : `failed: ${tenantEmailResult.error || 'unknown'}`} / landlord email ${landlordEmailResult.success ? 'sent' : `failed: ${landlordEmailResult.error || 'unknown'}`}`;
 
         // ── STEP 8: Log the notification in the database ──────────────────────
         await db.query(
           `INSERT INTO notifications
              (lease_id, tenant_id, landlord_id, channel,
               notification_type, message_body, delivery_status, sent_at)
-           VALUES ($1, $2, $3, 'email', $4, $5, 'sent', NOW())`,
+           VALUES ($1, $2, $3, 'email', $4, $5, $6, NOW())`,
           [
             lease.lease_id,
             lease.tenant_id,
             lease.landlord_id,
             notifyType,
-            `${notifyType} sent to ${lease.tenant_email}`,
+            messageBody,
+            deliveryStatus,
           ]
         );
 

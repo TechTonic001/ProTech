@@ -21,6 +21,8 @@ const PayRent = () => {
   const [paying, setPaying] = useState(false);
   const [lease, setLease] = useState(null);
   const [serviceFee, setServiceFee] = useState(500.00);
+  const [remainingBalance, setRemainingBalance] = useState(0);
+  const [paymentAmount, setPaymentAmount] = useState(0);
 
   useEffect(() => {
     fetchActiveLease();
@@ -58,10 +60,16 @@ const PayRent = () => {
         if (!Number.isNaN(fee)) setServiceFee(fee);
         return;
       }
+
       const res = await paymentAPI.getCheckout(lease.lease_id);
       const data = res.data.data || {};
       const fee = parseFloat(data.service_fee);
+      const remaining = parseFloat(data.remaining_balance) || 0;
+      const dueAmount = remaining > 0 ? remaining : parseFloat(data.rent_amount) || 0;
+
       if (!Number.isNaN(fee)) setServiceFee(fee);
+      setRemainingBalance(remaining);
+      setPaymentAmount(dueAmount);
     } catch (err) {
       console.error('Failed to fetch payment metadata', err?.message || err);
     }
@@ -69,19 +77,23 @@ const PayRent = () => {
 
   const handleInitiatePayment = async () => {
     if (!lease) return;
+    if (paymentAmount <= 0) {
+      toast.error('There is no outstanding rent due for this lease.');
+      return;
+    }
+
     try {
       setPaying(true);
-      const res = await paymentAPI.initiate({ lease_id: lease.lease_id, amount: lease.rent_amount });
+      const res = await paymentAPI.initiate({ lease_id: lease.lease_id, amount: paymentAmount });
       const { authorization_url } = res.data.data;
       if (authorization_url) {
         toast.loading('Redirecting to Paystack checkout...');
-        // Full browser navigation to Paystack checkout
         window.location.href = authorization_url;
       } else {
         throw new Error('Authorization URL missing from checkout response');
       }
     } catch (err) {
-      toast.error(err.message || 'Failed to start payment process');
+      toast.error(err.response?.data?.error || err.message || 'Failed to start payment process');
       setPaying(false);
     }
   };
@@ -103,7 +115,8 @@ const PayRent = () => {
   }
 
   const rentAmount = parseFloat(lease.rent_amount || 0);
-  const totalAmount = rentAmount + (parseFloat(serviceFee) || 0);
+  const amountDue = paymentAmount > 0 ? paymentAmount : remainingBalance > 0 ? remainingBalance : rentAmount;
+  const totalAmount = amountDue + (parseFloat(serviceFee) || 0);
   const cadence = lease?.payment_frequency || 'monthly';
 
   return (
@@ -136,6 +149,10 @@ const PayRent = () => {
               <span className="font-extrabold text-slate-800">{formatCurrency(rentAmount)}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
+              <span className="text-slate-400 font-bold uppercase tracking-wider">Outstanding Rent</span>
+              <span className="font-extrabold text-slate-800">{formatCurrency(amountDue)}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
               <div className="flex items-center gap-1.5 text-slate-400 font-bold uppercase tracking-wider">
                 <span>System Service Fee</span>
                 <div className="group relative cursor-pointer" title="Covers secure Paystack gateway processing and automated notifications">
@@ -164,7 +181,7 @@ const PayRent = () => {
 
           <button
             onClick={handleInitiatePayment}
-            disabled={paying}
+            disabled={paying || amountDue <= 0}
             className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-extrabold py-3.5 px-6 rounded-xl shadow-md shadow-indigo-200 transition duration-150 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {paying ? (

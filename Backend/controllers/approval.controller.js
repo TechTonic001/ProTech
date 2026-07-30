@@ -47,11 +47,10 @@ const getPendingApprovals = asyncHandler(async (req, res) => {
       `SELECT ta.approval_id, ta.tenant_id, ta.landlord_id, ta.property_id, ta.status,
               TO_CHAR(ta.created_at AT TIME ZONE 'Africa/Lagos', 'YYYY-MM-DD') AS created_at,
               u.username, u.full_name, u.email, u.phone_number,
-              p.property_name, r.room_number
+              p.property_name
        FROM tenant_approvals ta
-       JOIN users u              ON ta.tenant_id  = u.user_id
-       LEFT JOIN properties p    ON ta.property_id = p.property_id
-       LEFT JOIN rooms r         ON p.property_id  = r.property_id
+       JOIN users u           ON ta.tenant_id  = u.user_id
+       LEFT JOIN properties p ON ta.property_id = p.property_id
        WHERE ta.landlord_id = $1 AND ta.status = 'pending'
        ORDER BY ta.created_at DESC
        LIMIT $2 OFFSET $3`,

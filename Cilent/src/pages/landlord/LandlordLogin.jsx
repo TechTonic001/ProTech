@@ -47,6 +47,7 @@ const LandlordLogin = () => {
       const response = await api.post('/auth/login', {
         identifier: form.identifier.trim(),
         password: form.password,
+        expectedRole: 'landlord',
       });
 
       const resData = response.data?.data || response.data;
@@ -63,8 +64,9 @@ const LandlordLogin = () => {
         throw new Error('Unexpected response payload');
       }
     } catch (err) {
-      toast.error(err.message || 'Login failed');
-      setErrors({ api: err.message });
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Login failed';
+      toast.error(errorMessage);
+      setErrors({ api: errorMessage });
     } finally {
       setLoading(false);
     }
