@@ -28,6 +28,7 @@ const PayRent = () => {
   const [customAmount, setCustomAmount] = useState('');
   const [paymentAmount, setPaymentAmount] = useState(0);
 
+  
   useEffect(() => {
     fetchActiveLease();
   }, []);
