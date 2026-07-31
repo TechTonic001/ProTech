@@ -26,6 +26,7 @@ const PayRent = () => {
   const [remainingBalance, setRemainingBalance] = useState(0);
   const [isPartialPayment, setIsPartialPayment] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState(0);
 
   useEffect(() => {
     fetchActiveLease();
