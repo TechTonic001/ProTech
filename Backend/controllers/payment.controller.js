@@ -14,10 +14,154 @@ const { asyncHandler } = require('../utils/asyncHandler');
 const {
   sendPaymentReceiptEmail,
   sendLandlordPaymentAlert,
+  sendPaymentReceiptToBoth,
 } = require('../utils/email');
 const { sendPushNotification } = require('../utils/push');
 
 const SERVICE_FEE = parseFloat(process.env.PAYMENT_SERVICE_FEE || '500');
+
+const finalizePaymentSuccess = async (transaction) => {
+  // transaction may be the webhook data object (event.data) or the verifyTransaction result.
+  const tx = transaction.data ? transaction.data : transaction;
+  const reference = tx.reference || '';
+  const metadata = tx.metadata || {};
+  const lease_id = metadata.lease_id;
+  const tenant_id = metadata.tenant_id;
+  const landlord_id = metadata.landlord_id;
+
+  // Amount from Paystack is in kobo when present on tx.amount; fall back to metadata.rent_amount
+  const amountFromTx = typeof tx.amount !== 'undefined' ? Number(tx.amount) / 100 : NaN;
+  const rentPortion = parseFloat(metadata.rent_amount || 0) || (!Number.isNaN(amountFromTx) ? Math.max(0, amountFromTx - SERVICE_FEE) : 0);
+  const feePortion = parseFloat(metadata.service_fee || SERVICE_FEE);
+  const receiptNumber = metadata.receipt_number || generateReceiptNumber();
+  const paymentSubaccount = metadata.subaccount_code || tx.subaccount || '';
+
+  // Idempotency: ignore if payment already recorded as successful/partial
+  const existing = await db.query('SELECT payment_id, payment_status FROM payments WHERE paystack_ref = $1', [reference]);
+  if (existing.rows.length > 0) {
+    const cs = (existing.rows[0].payment_status || '').toString().toLowerCase();
+    if (cs === 'success' || cs === 'paid' || cs === 'partial' || cs === 'completed') return;
+  }
+
+  // Update lease paid amount if lease exists
+  let updatedLease = null;
+  if (lease_id) {
+    const leaseUpdate = await db.query(
+      `UPDATE leases SET
+         amount_paid_this_cycle = COALESCE(amount_paid_this_cycle, 0) + $1
+       WHERE lease_id = $2
+       RETURNING rent_amount, amount_paid_this_cycle, TO_CHAR(end_date,'YYYY-MM-DD') AS end_date, payment_frequency, room_id`,
+      [rentPortion, lease_id]
+    );
+    updatedLease = leaseUpdate.rows[0] || null;
+  }
+
+  const isFullPayment = updatedLease
+    ? parseFloat(updatedLease.amount_paid_this_cycle || 0) >= parseFloat(updatedLease.rent_amount || 0)
+    : true;
+  const paymentStatus = isFullPayment ? 'success' : 'pending';
+
+  // Upsert payment record
+  if (existing.rows.length > 0) {
+    await db.query(
+      `UPDATE payments SET
+         payment_status  = $1,
+         payment_date    = NOW(),
+         amount_paid     = $2,
+         service_fee     = $3,
+         receipt_number  = $4,
+         subaccount_code = $5
+       WHERE paystack_ref = $6`,
+      [paymentStatus, rentPortion, feePortion, receiptNumber, paymentSubaccount, reference]
+    );
+  } else {
+    await db.query(
+      `INSERT INTO payments
+         (lease_id, tenant_id, landlord_id, amount_paid,
+          service_fee, paystack_ref, receipt_number, payment_status,
+          payment_date, subaccount_code)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),$9)
+       ON CONFLICT DO NOTHING`,
+      [lease_id, tenant_id, landlord_id, rentPortion, feePortion, reference, receiptNumber, paymentStatus, paymentSubaccount]
+    );
+  }
+
+  // If lease is now fully paid, mark room occupied and optionally set next payment date
+  if (updatedLease && isFullPayment) {
+    await db.query('UPDATE rooms SET is_occupied = 1 WHERE room_id = $1', [updatedLease.room_id]);
+    try {
+      if (updatedLease.payment_frequency && updatedLease.end_date) {
+        const nextDue = new Date(updatedLease.end_date);
+        if (updatedLease.payment_frequency === 'annually') nextDue.setFullYear(nextDue.getFullYear() + 1);
+        else nextDue.setMonth(nextDue.getMonth() + 1);
+        // best-effort: update column if it exists
+        await db.query(`UPDATE leases SET next_payment_date = $1 WHERE lease_id = $2`, [nextDue, lease_id]);
+      }
+    } catch (e) {
+      // column may not exist — ignore
+    }
+  }
+
+  // Notify tenant
+  if (tenant_id) {
+    const tenantRows = await db.query('SELECT email, full_name FROM users WHERE user_id = $1', [tenant_id]);
+    const tenantEmail = tenantRows.rows[0]?.email;
+    const tenantFullName = tenantRows.rows[0]?.full_name || metadata.tenant_name;
+    if (tenantEmail) {
+      // try to determine landlord email for CC
+      let landlordEmail = null;
+      if (landlord_id) {
+        const lrows = await db.query('SELECT email, full_name FROM users WHERE user_id = $1', [landlord_id]);
+        landlordEmail = lrows.rows[0]?.email || null;
+      }
+      if (!landlordEmail && metadata.property_id) {
+        const pRows = await db.query(
+          `SELECT u.email, u.full_name FROM users u JOIN properties p ON p.landlord_id = u.user_id WHERE p.property_id = $1`,
+          [metadata.property_id]
+        );
+        landlordEmail = pRows.rows[0]?.email || null;
+      }
+
+      const payload = {
+        tenant_name:   tenantFullName,
+        hostel_name:   metadata.hostel_name || metadata.property_name,
+        room_number:   metadata.room_number,
+        property_name: metadata.property_name,
+        receipt_number: receiptNumber,
+        amount_paid:   rentPortion,
+        service_fee:   feePortion,
+        total_charged: rentPortion + feePortion,
+        end_date:      updatedLease?.end_date,
+        remaining:     updatedLease ? Math.max(0, updatedLease.rent_amount - updatedLease.amount_paid_this_cycle) : null,
+        paystack_ref:  reference,
+      };
+
+      // Send receipt to tenant and CC landlord if available. Errors are logged but don't block webhook response.
+      try {
+        await sendPaymentReceiptToBoth(tenantEmail, landlordEmail, payload);
+      } catch (err) {
+        console.error('[RECEIPT EMAIL ERROR]', err?.message || err);
+      }
+
+      sendPushNotification(tenant_id, 'Payment Confirmed ✅', `Your rent payment of ₦${rentPortion.toLocaleString('en-NG')} has been recorded.`).catch((err) => console.error('[PUSH ERROR]', err.message));
+    }
+  }
+
+  // Notify landlord
+  if (landlord_id) {
+    const landlordRows = await db.query('SELECT email, full_name FROM users WHERE user_id = $1', [landlord_id]);
+    if (landlordRows.rows.length > 0) {
+      sendLandlordPaymentAlert(landlordRows.rows[0].email, {
+        landlord_name:  landlordRows.rows[0].full_name,
+        tenant_name:    metadata.tenant_name,
+        room_number:    metadata.room_number,
+        amount_paid:    rentPortion,
+        receipt_number: receiptNumber,
+        remaining:      updatedLease ? Math.max(0, updatedLease.rent_amount - updatedLease.amount_paid_this_cycle) : null,
+      }).catch((err) => console.error('[LANDLORD ALERT ERROR]', err.message));
+    }
+  }
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const parsePagination = (query, defaultLimit = 20) => {
@@ -167,7 +311,7 @@ const getCheckoutInfo = asyncHandler(async (req, res) => {
 
 // ── INITIATE PAYMENT (tenant pays rent) ──────────────────────────────────────
 const initiatePayment = asyncHandler(async (req, res) => {
-  const { lease_id, amount } = req.body;
+  const { lease_id, amount, email } = req.body;
   const tenantId = req.user.user_id;
 
   if (!lease_id) return res.status(400).json({ error: 'Lease ID is required.' });
@@ -205,9 +349,26 @@ const initiatePayment = asyncHandler(async (req, res) => {
   }
 
   const requestedAmount = typeof amount !== 'undefined' ? parseFloat(amount) : NaN;
+  if (typeof amount !== 'undefined' && Number.isNaN(requestedAmount)) {
+    return res.status(400).json({ error: 'Amount must be a valid number.' });
+  }
+
   const desiredRent = Number.isFinite(requestedAmount)
-    ? Math.min(requestedAmount, remaining)
-    : rentAmount;
+    ? requestedAmount
+    : remaining;
+
+  if (desiredRent <= 0) {
+    return res.status(400).json({ error: 'Amount must be greater than zero.' });
+  }
+
+  if (desiredRent > remaining) {
+    return res.status(400).json({ error: 'Amount cannot exceed the remaining balance.' });
+  }
+
+  const paystackEmail = email || lease.tenant_email;
+  if (!paystackEmail) {
+    return res.status(400).json({ error: 'Tenant email is required to initialize payment.' });
+  }
 
   if (desiredRent <= 0) return res.status(400).json({ error: 'Invalid amount.' });
   if (!lease.subaccount_code && isLive) {
@@ -220,22 +381,24 @@ const initiatePayment = asyncHandler(async (req, res) => {
   const frontendUrl   = (process.env.FRONTEND_URL || 'https://pro-tech-one.vercel.app').replace(/\/+$/, '');
 
   const transaction = await initializeTransaction({
-    email:           lease.tenant_email,
+    email:           paystackEmail,
     amount_kobo:     Math.round(totalCharge * 100),
     reference,
     subaccount_code: lease.subaccount_code,
     callback_url:    `${frontendUrl}/payment/verify`,
     metadata: {
-      lease_id:       lease.lease_id,
-      tenant_id:      lease.tenant_id,
-      landlord_id:    lease.landlord_id,
-      rent_amount:    desiredRent,
-      service_fee:    SERVICE_FEE,
-      receipt_number: receiptNumber,
-      room_number:    lease.room_number,
-      property_name:  lease.property_name,
-      hostel_name:    lease.hostel_name,
-      tenant_name:    lease.tenant_name,
+      lease_id:        lease.lease_id,
+      tenant_id:       lease.tenant_id,
+      landlord_id:     lease.landlord_id,
+      property_id:     lease.property_id,
+      rent_amount:     desiredRent,
+      service_fee:     SERVICE_FEE,
+      receipt_number:  receiptNumber,
+      subaccount_code: lease.subaccount_code,
+      room_number:     lease.room_number,
+      property_name:   lease.property_name,
+      hostel_name:     lease.hostel_name,
+      tenant_name:     lease.tenant_name,
     },
   });
 
@@ -243,12 +406,13 @@ const initiatePayment = asyncHandler(async (req, res) => {
   await db.query(
     `INSERT INTO payments
        (lease_id, tenant_id, landlord_id, amount_paid,
-        service_fee, paystack_ref, receipt_number, payment_status, payment_date)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',NOW())
+        service_fee, paystack_ref, receipt_number, payment_status, payment_date, subaccount_code)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',NOW(),$8)
      ON CONFLICT DO NOTHING`,
     [
       lease.lease_id, lease.tenant_id, lease.landlord_id,
       desiredRent, SERVICE_FEE, reference, receiptNumber,
+      lease.subaccount_code,
     ]
   );
 
@@ -287,130 +451,19 @@ const paystackWebhook = async (req, res) => {
       return res.status(400).json({ error: 'Invalid JSON in webhook body.' });
     }
 
-    if (!event || event.event !== 'charge.success') {
+    if (!event || event.event !== 'charge.success') return res.status(200).json({ received: true });
+
+    // Process the successful charge payload (event.data)
+    try {
+      await finalizePaymentSuccess(event.data);
+      const ref = event.data.reference || 'unknown';
+      console.log(`[WEBHOOK] processed: ${ref}`);
       return res.status(200).json({ received: true });
+    } catch (procErr) {
+      console.error('[WEBHOOK PROCESS ERROR]', procErr?.stack || procErr?.message || procErr);
+      // still acknowledge receipt so Paystack doesn't retry repeatedly; processing can be retried via verify endpoint
+      return res.status(200).json({ received: true, warning: 'Processing error' });
     }
-
-    const data      = event.data;
-    const reference = data.reference;
-    const metadata  = data.metadata || {};
-
-    // Idempotency check
-    const existing = await db.query(
-      'SELECT payment_id, payment_status FROM payments WHERE paystack_ref = $1',
-      [reference]
-    );
-
-    if (existing.rows.length > 0 && existing.rows[0].payment_status === 'success') {
-      console.log(`[WEBHOOK] Duplicate ignored: ${reference}`);
-      return res.status(200).json({ received: true });
-    }
-
-    const {
-      lease_id, tenant_id, landlord_id,
-      rent_amount, service_fee, receipt_number,
-      room_number, property_name, hostel_name, tenant_name,
-    } = metadata;
-
-    const rentPortion = parseFloat(rent_amount || 0) || Math.max(0, (data.amount / 100) - SERVICE_FEE);
-    const feePortion  = parseFloat(service_fee  || SERVICE_FEE);
-
-    // Upsert payment as success
-    if (existing.rows.length > 0) {
-      await db.query(
-        `UPDATE payments SET payment_status = 'success', payment_date = NOW()
-         WHERE paystack_ref = $1`,
-        [reference]
-      );
-    } else {
-      const newReceipt = receipt_number || generateReceiptNumber();
-      await db.query(
-        `INSERT INTO payments
-           (lease_id, tenant_id, landlord_id, amount_paid, service_fee,
-            paystack_ref, receipt_number, payment_status, payment_date)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'success',NOW())
-         ON CONFLICT DO NOTHING`,
-        [lease_id, tenant_id, landlord_id, rentPortion, feePortion, reference, newReceipt]
-      );
-    }
-
-    // Credit rent to lease balance
-    const leaseUpdate = await db.query(
-      `UPDATE leases SET
-         amount_paid_this_cycle = COALESCE(amount_paid_this_cycle, 0) + $1
-       WHERE lease_id = $2
-       RETURNING rent_amount, amount_paid_this_cycle,
-                 TO_CHAR(end_date, 'YYYY-MM-DD') AS end_date, room_id`,
-      [rentPortion, lease_id]
-    );
-
-    const updatedLease = leaseUpdate.rows[0];
-
-    // Mark room occupied if fully paid
-    if (updatedLease && updatedLease.amount_paid_this_cycle >= updatedLease.rent_amount) {
-      await db.query(
-        'UPDATE rooms SET is_occupied = 1 WHERE room_id = $1',
-        [updatedLease.room_id]
-      );
-    }
-
-    const remaining      = updatedLease
-      ? Math.max(0, updatedLease.rent_amount - updatedLease.amount_paid_this_cycle)
-      : null;
-    const finalReceipt   = receipt_number || reference;
-
-    // Fetch tenant email
-    const tenantRows = await db.query(
-      'SELECT email, full_name FROM users WHERE user_id = $1',
-      [tenant_id]
-    );
-
-    const tenantEmail    = tenantRows.rows[0]?.email;
-    const tenantFullName = tenantRows.rows[0]?.full_name || tenant_name;
-
-    // Send receipt email to tenant (fire and forget)
-    if (tenantEmail) {
-      sendPaymentReceiptEmail(tenantEmail, {
-        tenant_name:   tenantFullName,
-        hostel_name:   hostel_name || property_name,
-        room_number,
-        property_name,
-        receipt_number: finalReceipt,
-        amount_paid:   rentPortion,
-        service_fee:   feePortion,
-        total_charged: rentPortion + feePortion,
-        end_date:      updatedLease?.end_date,
-        remaining,
-        paystack_ref:  reference,
-      }).catch((err) => console.error('[RECEIPT EMAIL ERROR]', err.message));
-
-      sendPushNotification(
-        tenant_id,
-        'Payment Confirmed ✅',
-        `Your rent payment of ₦${rentPortion.toLocaleString('en-NG')} has been confirmed.`
-      ).catch((err) => console.error('[PUSH ERROR]', err.message));
-    }
-
-    // Notify landlord (fire and forget)
-    if (landlord_id) {
-      const landlordRows = await db.query(
-        'SELECT email, full_name FROM users WHERE user_id = $1',
-        [landlord_id]
-      );
-      if (landlordRows.rows.length > 0) {
-        sendLandlordPaymentAlert(landlordRows.rows[0].email, {
-          landlord_name:  landlordRows.rows[0].full_name,
-          tenant_name:    tenantFullName,
-          room_number,
-          amount_paid:    rentPortion,
-          receipt_number: finalReceipt,
-          remaining,
-        }).catch((err) => console.error('[LANDLORD ALERT ERROR]', err.message));
-      }
-    }
-
-    console.log(`[WEBHOOK] ✅ ${reference} | ₦${rentPortion.toLocaleString()} | Lease ${lease_id}`);
-    return res.status(200).json({ received: true });
 
   } catch (error) {
     console.error('[WEBHOOK ERROR]', error?.stack || error?.message || error);
@@ -457,13 +510,34 @@ const verifyPayment = asyncHandler(async (req, res) => {
     }
   }
 
-  // Fallback: poll Paystack directly
+  // Fallback: poll Paystack directly and finalise if successful.
   try {
     const paystackData = await verifyTransaction(reference);
     if (paystackData.status === 'success') {
+      await finalizePaymentSuccess(paystackData);
+
+      const finalResult = await db.query(
+        `SELECT
+           p.payment_id, p.payment_status, p.amount_paid, p.service_fee,
+           p.receipt_number, p.paystack_ref, p.tenant_id, p.landlord_id,
+           TO_CHAR(p.payment_date AT TIME ZONE 'Africa/Lagos', 'YYYY-MM-DD HH24:MI') AS payment_date,
+           l.rent_amount, l.amount_paid_this_cycle,
+           r.room_number, pr.property_name
+         FROM payments p
+         JOIN leases l      ON p.lease_id    = l.lease_id
+         JOIN rooms r       ON l.room_id     = r.room_id
+         JOIN properties pr ON r.property_id = pr.property_id
+         WHERE p.paystack_ref = $1`,
+        [reference]
+      );
+
+      if (finalResult.rows.length > 0) {
+        return res.status(200).json({ message: 'Payment confirmed successfully', data: finalResult.rows[0] });
+      }
+
       return res.status(200).json({
         message: 'Payment confirmed by Paystack. Finalising receipt...',
-        data: { payment_status: 'pending', paystack_ref: reference },
+        data: { payment_status: 'success', paystack_ref: reference },
       });
     }
     return res.status(200).json({

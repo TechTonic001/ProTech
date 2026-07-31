@@ -16,8 +16,10 @@ import {
 } from '../../utils/dateUtils';
 import EmptyState from '../../components/ui/EmptyState';
 import Modal from '../../components/ui/Modal';
+import DeleteConfirmModal from '../../components/ui/DeleteConfirmModal';
 import SkeletonCard from '../../components/ui/SkeletonCard';
 import { Building2, Trash2 } from 'lucide-react';
+import { tenantAPI } from '../../utils/api';
 
 const TABS = ['Available Rooms', 'Assigned Rooms'];
 
@@ -185,7 +187,9 @@ const AvailableRoomCard = ({ room, onUpdated, onDeleted, onAssign }) => {
   );
 };
 
-const AssignedRoomCard = ({ room }) => {
+const AssignedRoomCard = ({ room, onRemoved }) => {
+  const [showRemove, setShowRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const days = room.end_date ? daysUntilDue(room.end_date) : null;
   const isOverdue = days !== null && days < 0;
   const paid = Number(room.amount_paid_this_cycle || 0);
@@ -212,6 +216,36 @@ const AssignedRoomCard = ({ room }) => {
           <p className="text-xs text-slate-400 truncate">@{room.tenant_username}</p>
         </div>
       </div>
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setShowRemove(true)}
+          className="ml-auto text-xs font-bold px-3 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white"
+        >
+          Remove Tenant
+        </button>
+      </div>
+      <DeleteConfirmModal
+        isOpen={showRemove}
+        onClose={() => setShowRemove(false)}
+        itemType="tenant"
+        itemName={room.tenant_name}
+        isLoading={removing}
+        onConfirm={async (reason) => {
+          try {
+            setRemoving(true);
+            await tenantAPI.unassign(room.tenant_id);
+            toast.success('Tenant removed from room');
+            // Optimistic UI update: mark room unassigned
+            if (onRemoved) onRemoved(room.room_id);
+            setShowRemove(false);
+          } catch (err) {
+            toast.error(err.message || 'Failed to remove tenant');
+          } finally {
+            setRemoving(false);
+          }
+        }}
+      />
       <div className="space-y-2">
         {[
           ['Lease Start', formatDateShort(room.start_date)],
@@ -278,8 +312,19 @@ const Rooms = () => {
             : approvalAPI.getPending(),
         ]);
         const fetchedRooms = roomsRes.data || [];
-        fetchedRooms.sort((a, b) => (Number(a.room_number) || 0) - (Number(b.room_number) || 0));
-        setRooms(fetchedRooms);
+        const uniqueRoomsById = Array.from(
+          fetchedRooms.reduce((map, room) => {
+            const existing = map.get(room.room_id);
+            if (!existing) {
+              map.set(room.room_id, room);
+            } else if (!existing.is_occupied && room.is_occupied) {
+              map.set(room.room_id, { ...existing, ...room });
+            }
+            return map;
+          }, new Map()).values()
+        );
+        uniqueRoomsById.sort((a, b) => (Number(a.room_number) || 0) - (Number(b.room_number) || 0));
+        setRooms(uniqueRoomsById);
         setProperties(propsRes.data.data || []);
         setApprovedTenants(approvedRes.data.data || []);
       } catch (err) {
@@ -424,7 +469,11 @@ const Rooms = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.assigned.map((room) => (
-            <AssignedRoomCard key={room.room_id} room={room} />
+            <AssignedRoomCard
+              key={room.room_id}
+              room={room}
+              onRemoved={(roomId) => setRooms((prev) => prev.map((r) => r.room_id === roomId ? { ...r, is_occupied: 0, tenant_name: null, tenant_username: null } : r))}
+            />
           ))}
         </div>
       )}

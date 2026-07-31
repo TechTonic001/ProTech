@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { leaseAPI, paymentAPI } from '../../utils/api';
 import { formatCurrency } from '../../utils/formatters';
+import { useAuth } from '../../hooks/useAuth';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import EmptyState from '../../components/ui/EmptyState';
 import { 
@@ -17,12 +18,14 @@ import toast from 'react-hot-toast';
 
 const PayRent = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [lease, setLease] = useState(null);
-  const [serviceFee, setServiceFee] = useState(500.00);
+  const [serviceFee, setServiceFee] = useState(500.0);
   const [remainingBalance, setRemainingBalance] = useState(0);
-  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [isPartialPayment, setIsPartialPayment] = useState(false);
+  const [customAmount, setCustomAmount] = useState('');
 
   useEffect(() => {
     fetchActiveLease();
@@ -65,11 +68,13 @@ const PayRent = () => {
       const data = res.data.data || {};
       const fee = parseFloat(data.service_fee);
       const remaining = parseFloat(data.remaining_balance) || 0;
-      const dueAmount = remaining > 0 ? remaining : parseFloat(data.rent_amount) || 0;
+      const defaultAmount = remaining > 0 ? remaining : parseFloat(data.rent_amount) || 0;
 
       if (!Number.isNaN(fee)) setServiceFee(fee);
       setRemainingBalance(remaining);
-      setPaymentAmount(dueAmount);
+      setIsPartialPayment(false);
+      setCustomAmount('');
+      setPaymentAmount(defaultAmount);
     } catch (err) {
       console.error('Failed to fetch payment metadata', err?.message || err);
     }
@@ -77,14 +82,34 @@ const PayRent = () => {
 
   const handleInitiatePayment = async () => {
     if (!lease) return;
-    if (paymentAmount <= 0) {
-      toast.error('There is no outstanding rent due for this lease.');
+
+    const selectedAmount = isPartialPayment
+      ? parseFloat(customAmount)
+      : remainingBalance;
+
+    if (!Number.isFinite(selectedAmount) || selectedAmount <= 0) {
+      toast.error('Please enter a valid rent amount to pay.');
       return;
     }
 
+    if (selectedAmount > remainingBalance) {
+      toast.error('Amount cannot exceed outstanding rent.');
+      return;
+    }
+
+    const amountToSend = Number(selectedAmount.toFixed(2));
+
+    const payload = {
+      lease_id: lease.lease_id,
+      amount: amountToSend,
+      email: user?.email || lease.tenant_email || lease.email || undefined,
+    };
+
+    console.log('Initiate Payment Payload:', payload);
+
     try {
       setPaying(true);
-      const res = await paymentAPI.initiate({ lease_id: lease.lease_id, amount: paymentAmount });
+      const res = await paymentAPI.initiate(payload);
       const { authorization_url } = res.data.data;
       if (authorization_url) {
         toast.loading('Redirecting to Paystack checkout...');
@@ -93,6 +118,7 @@ const PayRent = () => {
         throw new Error('Authorization URL missing from checkout response');
       }
     } catch (err) {
+      console.error('Initiate Payment Error:', err.response?.data || err);
       toast.error(err.response?.data?.error || err.message || 'Failed to start payment process');
       setPaying(false);
     }
@@ -115,7 +141,11 @@ const PayRent = () => {
   }
 
   const rentAmount = parseFloat(lease.rent_amount || 0);
-  const amountDue = paymentAmount > 0 ? paymentAmount : remainingBalance > 0 ? remainingBalance : rentAmount;
+  const amountDue = isPartialPayment
+    ? Math.max(0, parseFloat(customAmount) || 0)
+    : remainingBalance > 0
+      ? remainingBalance
+      : rentAmount;
   const totalAmount = amountDue + (parseFloat(serviceFee) || 0);
   const cadence = lease?.payment_frequency || 'monthly';
 
@@ -148,8 +178,33 @@ const PayRent = () => {
               <span className="text-slate-400 font-bold uppercase tracking-wider">Hostel Rent</span>
               <span className="font-extrabold text-slate-800">{formatCurrency(rentAmount)}</span>
             </div>
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <label className="inline-flex items-center gap-2 text-slate-400 font-bold uppercase tracking-wider">
+                <input
+                  type="checkbox"
+                  checked={isPartialPayment}
+                  onChange={() => setIsPartialPayment((value) => !value)}
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                Pay partial amount
+              </label>
+              <span className="text-xs text-slate-500">Outstanding: {formatCurrency(remainingBalance)}</span>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-slate-500 text-xs uppercase tracking-wider font-bold">Amount to pay</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={isPartialPayment ? customAmount : remainingBalance}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                disabled={!isPartialPayment}
+                placeholder={isPartialPayment ? 'Enter partial amount' : 'Pay full outstanding amount'}
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-indigo-500"
+              />
+            </div>
             <div className="flex justify-between items-center text-sm">
-              <span className="text-slate-400 font-bold uppercase tracking-wider">Outstanding Rent</span>
+              <span className="text-slate-400 font-bold uppercase tracking-wider">Payment subtotal</span>
               <span className="font-extrabold text-slate-800">{formatCurrency(amountDue)}</span>
             </div>
             <div className="flex justify-between items-center text-sm">

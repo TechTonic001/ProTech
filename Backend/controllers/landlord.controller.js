@@ -181,8 +181,62 @@ const getDeletedTenants = async (req, res, next) => {
   }
 };
 
+// ── UNASSIGN TENANT (Landlord removes tenant from room without hard delete) ──
+// Route: PATCH /api/tenants/:tenant_id/unassign
+// Auth: verifyToken + requireRole('landlord')
+const unassignTenant = async (req, res, next) => {
+  try {
+    const { tenant_id } = req.params;
+    const landlord_id = req.user.user_id;
+
+    // Confirm landlord has this tenant approved
+    const approvalResult = await db.query(
+      `SELECT approval_id FROM tenant_approvals
+       WHERE tenant_id = $1
+         AND landlord_id = $2
+         AND status = 'approved'`,
+      [tenant_id, landlord_id]
+    );
+
+    if (approvalResult.rows.length === 0) {
+      return res.status(403).json({ error: 'You do not have permission to remove this tenant.' });
+    }
+
+    // Find active leases for this tenant under this landlord
+    const leasesRes = await db.query(
+      `SELECT lease_id, room_id FROM leases
+       WHERE tenant_id = $1
+         AND landlord_id = $2
+         AND lease_status = 'active'`,
+      [tenant_id, landlord_id]
+    );
+
+    // Terminate active leases and free up rooms
+    for (const row of leasesRes.rows) {
+      await db.query(
+        `UPDATE leases SET lease_status = 'terminated', updated_at = NOW() WHERE lease_id = $1`,
+        [row.lease_id]
+      );
+      if (row.room_id) {
+        await db.query(`UPDATE rooms SET is_occupied = 0 WHERE room_id = $1`, [row.room_id]);
+      }
+    }
+
+    // Mark tenant account as inactive/removed (soft state change) but do NOT delete records
+    await db.query(
+      `UPDATE users SET account_status = 'removed', updated_at = NOW() WHERE user_id = $1 AND role = 'tenant'`,
+      [tenant_id]
+    );
+
+    return res.status(200).json({ message: 'Tenant removed from room. Payment history retained.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   softDeleteTenant,
   restoreTenant,
   getDeletedTenants,
+  unassignTenant,
 };

@@ -283,6 +283,8 @@ export const tenantAPI = {
   getDeleted: () => api.get('/tenants/deleted'),
   softDelete: (id, reason) => api.delete(`/tenants/${id}`, { data: { reason } }),
   restore: (id) => api.post(`/tenants/${id}/restore`),
+  // Unassign tenant from their room (landlord removes tenant but keeps history)
+  unassign: (id) => api.patch(`/tenants/${id}/unassign`),
 };
 
 export default api;

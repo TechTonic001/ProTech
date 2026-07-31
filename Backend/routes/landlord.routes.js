@@ -7,6 +7,7 @@ const {
   softDeleteTenant,
   restoreTenant,
   getDeletedTenants,
+  unassignTenant,
 } = require('../controllers/landlord.controller');
 
 const router = express.Router();
@@ -15,5 +16,6 @@ const router = express.Router();
 router.get('/deleted', verifyToken, requireRole('landlord'), getDeletedTenants);
 router.delete('/:tenant_id', verifyToken, requireRole('landlord'), softDeleteTenant);
 router.post('/:tenant_id/restore', verifyToken, requireRole('landlord'), restoreTenant);
+router.patch('/:tenant_id/unassign', verifyToken, requireRole('landlord'), unassignTenant);
 
 module.exports = router;

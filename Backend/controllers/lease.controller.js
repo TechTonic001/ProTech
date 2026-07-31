@@ -54,6 +54,10 @@ const createLease = asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Room not found' });
   }
 
+  if (roomsResult.rows[0].is_occupied) {
+    return res.status(400).json({ error: 'This room is already occupied.' });
+  }
+
   const finalRent = rent_amount || roomsResult.rows[0].monthly_rent
 
   const result = await pool.query(

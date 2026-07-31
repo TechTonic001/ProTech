@@ -63,6 +63,12 @@ const runMigrations = async () => {
         ADD COLUMN IF NOT EXISTS deletion_reason
         TEXT DEFAULT NULL
     `);
+      // ── MIGRATION 3b: account_status for tenants (active / inactive / removed)
+      await db.query(`
+        ALTER TABLE users
+          ADD COLUMN IF NOT EXISTS account_status
+          VARCHAR(20) DEFAULT 'active'
+      `);
     console.log('[MIGRATE] ✅  users soft delete columns ready');
 
     // ── MIGRATION 4: soft delete columns — properties ─────────────────────

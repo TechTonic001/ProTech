@@ -12,6 +12,9 @@ const PaymentVerify = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const reference = params.get('reference');
+    let pollTimer;
+    let redirectTimer;
+    let attempts = 0;
 
     const verify = async () => {
       if (!reference) {
@@ -19,26 +22,40 @@ const PaymentVerify = () => {
         return;
       }
 
-      // Wait 3 seconds for webhook to process
-      await new Promise((r) => setTimeout(r, 3000));
+      attempts += 1;
 
       try {
         const res = await api.get(`/payments/verify/${reference}`);
         const payment = res?.data?.data;
+
         if (payment && payment.payment_status === 'success') {
           setPaymentData(payment);
           setStatus('success');
           toast.success('Payment confirmed!');
-        } else {
-          setStatus('pending');
+          redirectTimer = window.setTimeout(() => navigate('/tenant/history'), 4000);
+          return;
         }
-      } catch (error) {
-        setStatus('pending');
+
+        if (attempts >= 4) {
+          setStatus('pending');
+          return;
+        }
+      } catch {
+        if (attempts >= 4) {
+          setStatus('pending');
+          return;
+        }
       }
+
+      pollTimer = window.setTimeout(verify, 3000);
     };
 
     verify();
-  }, []);
+    return () => {
+      window.clearTimeout(pollTimer);
+      window.clearTimeout(redirectTimer);
+    };
+  }, [navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
