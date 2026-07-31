@@ -88,10 +88,15 @@ const processApproval = asyncHandler(async (req, res) => {
 
   const approval = approvalsResult.rows[0];
 
-  await pool.query(
-    'UPDATE tenant_approvals SET status = $1, approved_at = NOW() WHERE approval_id = $2',
-    [status, id]
-  );
+  const updateQuery = status === 'approved'
+    ? 'UPDATE tenant_approvals SET status = $1, approved_at = NOW() WHERE approval_id = $2 AND landlord_id = $3'
+    : 'UPDATE tenant_approvals SET status = $1 WHERE approval_id = $2 AND landlord_id = $3';
+
+  const updateResult = await pool.query(updateQuery, [status, id, req.user.user_id]);
+
+  if (updateResult.rowCount === 0) {
+    return res.status(404).json({ error: 'Approval request not found' });
+  }
 
   if (status === 'approved') {
     await pool.query('UPDATE users SET is_approved = 1 WHERE user_id = $1', [approval.tenant_id]);

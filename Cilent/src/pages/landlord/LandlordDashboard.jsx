@@ -82,6 +82,15 @@ const LandlordDashboard = () => {
     return leases.filter((l) => l.is_overdue);
   }, [dashboard.recent_leases]);
 
+  const uniqueOverdueTenants = useMemo(() => {
+    const seen = new Set();
+    return overdueLeases.filter((lease) => {
+      if (seen.has(lease.tenant_id)) return false;
+      seen.add(lease.tenant_id);
+      return true;
+    });
+  }, [overdueLeases]);
+
   const now = useMemo(() => new Date(), []);
   const currentMonth = now.getMonth();
   const currentYear  = now.getFullYear();
@@ -345,19 +354,19 @@ const LandlordDashboard = () => {
       </div>
 
       {/* ── Overdue Tenants Section (Issue 1C) ─────────────────────────────── */}
-      {overdueLeases.length > 0 && (
+      {uniqueOverdueTenants.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-red-500" />
             <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">Overdue Tenants</h3>
             <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
-              {overdueLeases.length}
+              {uniqueOverdueTenants.length}
             </span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-            {overdueLeases.map((lease) => (
+            {uniqueOverdueTenants.map((lease) => (
               <div
-                key={lease.lease_id}
+                key={lease.tenant_id}
                 className="bg-white border-2 border-red-200 rounded-2xl p-4 shadow-sm shadow-red-50 hover:shadow-red-100 transition"
               >
                 {/* Tenant header */}

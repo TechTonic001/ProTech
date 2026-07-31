@@ -300,6 +300,15 @@ const Rooms = () => {
   const [leaseForm, setLeaseForm] = useState({ tenant_id: '', start_date: '', end_date: '' });
   const [formError, setFormError] = useState('');
 
+  const getUniqueApprovedTenants = (tenants) => {
+    const seen = new Set();
+    return (tenants || []).filter((tenant) => {
+      if (seen.has(tenant.tenant_id)) return false;
+      seen.add(tenant.tenant_id);
+      return true;
+    });
+  };
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -326,7 +335,7 @@ const Rooms = () => {
         uniqueRoomsById.sort((a, b) => (Number(a.room_number) || 0) - (Number(b.room_number) || 0));
         setRooms(uniqueRoomsById);
         setProperties(propsRes.data.data || []);
-        setApprovedTenants(approvedRes.data.data || []);
+        setApprovedTenants(getUniqueApprovedTenants(approvedRes.data.data || []));
       } catch (err) {
         toast.error(err.message || 'Failed to load rooms.');
       } finally {

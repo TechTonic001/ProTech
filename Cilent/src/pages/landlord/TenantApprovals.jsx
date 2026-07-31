@@ -47,15 +47,21 @@ const TenantApprovals = () => {
 
   const handleProcess = async (approvalId, status) => {
     setActionLoadingId(approvalId);
+    const promoted = pending.find((item) => item.approval_id === approvalId);
+
     try {
       await approvalAPI.process(approvalId, { status });
       toast.success(status === 'approved' ? 'Tenant approved! Email confirmation sent.' : 'Tenant request rejected.');
       setPending((prev) => prev.filter((item) => item.approval_id !== approvalId));
-      if (status === 'approved') {
-        const promoted = pending.find((item) => item.approval_id === approvalId);
-        if (promoted) {
-          setApproved((prev) => [{ ...promoted, status: 'approved' }, ...prev]);
-        }
+      if (status === 'approved' && promoted) {
+        setApproved((prev) => [
+          {
+            ...promoted,
+            status: 'approved',
+            approved_at: promoted.approved_at || new Date().toISOString().split('T')[0],
+          },
+          ...prev,
+        ]);
       }
     } catch (err) {
       toast.error(err.message || 'Failed to process request');

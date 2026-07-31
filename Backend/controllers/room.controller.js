@@ -68,8 +68,14 @@ const getAllRoomsWithLeases = asyncHandler(async (req, res) => {
       u.email     AS tenant_email
     FROM rooms r
     JOIN properties p ON r.property_id = p.property_id
-    LEFT JOIN leases l ON l.room_id = r.room_id
-      AND l.lease_status = 'active'
+    LEFT JOIN LATERAL (
+      SELECT *
+      FROM leases l
+      WHERE l.room_id = r.room_id
+        AND l.lease_status = 'active'
+      ORDER BY l.start_date DESC, l.lease_id DESC
+      LIMIT 1
+    ) l ON TRUE
     LEFT JOIN users u ON l.tenant_id = u.user_id
       AND u.deleted_at IS NULL
     WHERE p.landlord_id = $1

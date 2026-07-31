@@ -78,11 +78,12 @@ const getLandlordDashboard = asyncHandler(async (req, res) => {
     CROSS JOIN payment_stats pys
     CROSS JOIN (
       SELECT
-        COUNT(*) AS active_tenants,
-        COUNT(*) FILTER (WHERE is_overdue) AS overdue_count,
+        COUNT(DISTINCT tenant_id) AS active_tenants,
+        COUNT(DISTINCT tenant_id) FILTER (WHERE is_overdue) AS overdue_count,
         COALESCE(JSON_AGG(
           JSON_BUILD_OBJECT(
             'lease_id', lease_id,
+            'tenant_id', tenant_id,
             'tenant_name', tenant_name,
             'tenant_username', tenant_username,
             'room_number', room_number,
