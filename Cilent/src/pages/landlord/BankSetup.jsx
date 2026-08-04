@@ -10,8 +10,10 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../hooks/useAuth';
 
 const BankSetup = () => {
+  const { setUser } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -75,7 +77,18 @@ const BankSetup = () => {
     try {
       setLoading(true);
       const res = await authAPI.getProfile();
-      setProfile(res.data.user);
+      const profileData = res.data.user;
+      setProfile(profileData);
+      if (profileData) {
+        setUser((prevUser) => ({
+          ...prevUser,
+          ...profileData,
+        }));
+        localStorage.setItem('protech_user', JSON.stringify({
+          ...JSON.parse(localStorage.getItem('protech_user') || '{}'),
+          ...profileData,
+        }));
+      }
     } catch (err) {
       toast.error(err.message || 'Failed to fetch user profile details');
     } finally {

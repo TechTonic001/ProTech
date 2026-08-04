@@ -143,7 +143,13 @@ api.interceptors.response.use(
     const isAuthEndpoint = originalRequest.url?.includes('/auth/login') ||
       originalRequest.url?.includes('/auth/register');
 
-    if (originalRequest._retry || isRefreshEndpoint || isAuthEndpoint) {
+    // Login/register 401s mean wrong credentials — pass the real error
+    // straight back to the component; don't treat this as a session expiry.
+    if (isAuthEndpoint) {
+      return Promise.reject(new Error(message));
+    }
+
+    if (originalRequest._retry || isRefreshEndpoint) {
       localStorage.removeItem('protech_token');
       localStorage.removeItem('protech_user');
       toast.error('Session expired. Please log in again.');

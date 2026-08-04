@@ -6,6 +6,7 @@
 
 const db = require('../config/db');
 const { sendTenantRentReminderEmail, sendLandlordRentAlertEmail } = require('./email');
+const { sendPushNotification } = require('./push');
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -228,8 +229,24 @@ const runNotificationEngine = async (currentHour) => {
           ...emailPayload,
         });
 
+        const tenantPushResult = await sendPushNotification(
+          lease.tenant_id,
+          `Rent Reminder: ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ${days < 0 ? 'overdue' : 'until due'}`,
+          days < 0
+            ? `Your rent is ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} overdue. Pay now to avoid more penalties.`
+            : `Your rent is due in ${days} day${days === 1 ? '' : 's'}. Balance: ₦${Math.max(0, parseFloat(lease.rent_amount || 0) - parseFloat(lease.amount_paid_this_cycle || 0)).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
+        );
+
+        const landlordPushResult = await sendPushNotification(
+          lease.landlord_id,
+          `Tenant Rent Alert: ${lease.tenant_name}`,
+          days < 0
+            ? `${lease.tenant_name} is ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} overdue. Balance: ₦${Math.max(0, parseFloat(lease.rent_amount || 0) - parseFloat(lease.amount_paid_this_cycle || 0)).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
+            : `${lease.tenant_name}'s rent is due in ${days} day${days === 1 ? '' : 's'}. Balance: ₦${Math.max(0, parseFloat(lease.rent_amount || 0) - parseFloat(lease.amount_paid_this_cycle || 0)).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
+        );
+
         const deliveryStatus = tenantEmailResult.success && landlordEmailResult.success ? 'sent' : 'failed';
-        const messageBody = `${notifyType} tenant email ${tenantEmailResult.success ? 'sent' : `failed: ${tenantEmailResult.error || 'unknown'}`} / landlord email ${landlordEmailResult.success ? 'sent' : `failed: ${landlordEmailResult.error || 'unknown'}`}`;
+        const messageBody = `${notifyType} tenant email ${tenantEmailResult.success ? 'sent' : `failed: ${tenantEmailResult.error || 'unknown'}`} / landlord email ${landlordEmailResult.success ? 'sent' : `failed: ${landlordEmailResult.error || 'unknown'}`} / tenant push ${tenantPushResult?.success ? 'sent' : `failed: ${tenantPushResult?.error || 'unknown'}`} / landlord push ${landlordPushResult?.success ? 'sent' : `failed: ${landlordPushResult?.error || 'unknown'}`}`;
 
         // ── STEP 8: Log the notification in the database ──────────────────────
         await db.query(

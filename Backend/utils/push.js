@@ -23,7 +23,7 @@ const sendPushNotification = async (userId, title, body, url = '/') => {
 
     if (!subscriptions || subscriptions.length === 0) {
       console.log('[PUSH] No active subscriptions for user', userId);
-      return;
+      return { success: false, error: 'No active subscriptions' };
     }
 
     for (const sub of subscriptions) {
@@ -49,10 +49,13 @@ const sendPushNotification = async (userId, title, body, url = '/') => {
             [sub.subscription_id]
           );
         }
+        return { success: false, error: err.message || 'Push send failed' };
       }
     }
+    return { success: true };
   } catch (err) {
     console.error('[PUSH ERROR]', err.message);
+    return { success: false, error: err.message || 'Push notification error' };
   }
 };
 

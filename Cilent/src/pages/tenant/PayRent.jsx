@@ -121,7 +121,13 @@ const PayRent = () => {
       }
     } catch (err) {
       console.error('Initiate Payment Error:', err.response?.data || err);
-      toast.error(err.response?.data?.error || err.message || 'Failed to start payment process');
+      const serverError = err.response?.data?.error || err.message || 'Failed to start payment process';
+      const landlordNotSetUp = serverError.includes('Landlord has not set up a payment account');
+      toast.error(
+        landlordNotSetUp
+          ? 'Your landlord has not set up their bank details yet. Please contact them before retrying payment.'
+          : serverError
+      );
       setPaying(false);
     }
   };
