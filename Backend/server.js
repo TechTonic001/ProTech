@@ -39,6 +39,8 @@ const { runMigrations } = require('./config/migrate');
 const { runNotificationEngine } = require('./utils/notificationEngine');
 const { keepAliveNeon } = require('./utils/keepAlive');
 const { errorHandler } = require('./middleware/errorHandler');
+const { verifyToken, verifyTokenFromQuery } = require('./middleware/auth.middleware');
+const { sseConnect } = require('./controllers/sse.controller');
 
 const app = express();
 
@@ -129,6 +131,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api', require('./routes/test.routes'));
+app.get('/api/sse/connect', verifyTokenFromQuery, sseConnect);
 // Apply stricter forgot-password limiter BEFORE the broader auth limiter (order matters)
 app.use('/api/auth/forgot-password', forgotPasswordLimiter);
 app.use('/api/auth', authLimiter, require('./routes/auth.routes'));

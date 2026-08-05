@@ -1,5 +1,5 @@
 // src/pages/landlord/LandlordDashboard.jsx
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import {
@@ -7,6 +7,7 @@ import {
   paymentAPI,
   approvalAPI,
 } from "../../utils/api";
+import { useSSE } from '../../hooks/useSSE';
 import { useQuery } from '@tanstack/react-query';
 import { formatCurrency, formatDate } from "../../utils/formatters";
 import StatCard from "../../components/ui/StatCard";
@@ -46,6 +47,9 @@ const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"
 const LandlordDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [dashboardState, setDashboardState] = useState(null);
+  const [recentPaymentsState, setRecentPaymentsState] = useState([]);
+  const [recentLeasesState, setRecentLeasesState] = useState([]);
 
   const { data: bundle, isLoading: loading } = useQuery({
     queryKey: ['landlord-dashboard-bundle'],
@@ -61,26 +65,30 @@ const LandlordDashboard = () => {
         : (typeof dashboard.recent_leases === 'string'
           ? JSON.parse(dashboard.recent_leases)
           : []);
-      return {
+      const result = {
         dashboard: { ...dashboard, recent_leases: recentLeases },
         payments: payRes.data.data || [],
         pendingApprovals: pendingRes.data.data || [],
       };
+      setDashboardState(result.dashboard);
+      setRecentPaymentsState(result.payments);
+      setRecentLeasesState(recentLeases);
+      return result;
     },
     staleTime: 1000 * 60 * 2,
     cacheTime: 1000 * 60 * 10,
     refetchOnWindowFocus: false,
   });
 
-  const dashboard = bundle?.dashboard || {};
-  const payments = bundle?.payments || [];
+  const dashboard = bundle?.dashboard || dashboardState || {};
+  const payments = bundle?.payments || recentPaymentsState || [];
   const pendingApprovals = bundle?.pendingApprovals || [];
   const pendingApprovalsCount = pendingApprovals.length;
 
   const overdueLeases = useMemo(() => {
-    const leases = dashboard.recent_leases || [];
+    const leases = dashboard.recent_leases || recentLeasesState || [];
     return leases.filter((l) => l.is_overdue);
-  }, [dashboard.recent_leases]);
+  }, [dashboard.recent_leases, recentLeasesState]);
 
   const uniqueOverdueTenants = useMemo(() => {
     const seen = new Set();
@@ -90,6 +98,25 @@ const LandlordDashboard = () => {
       return true;
     });
   }, [overdueLeases]);
+
+  useSSE({
+    payment_received: (data) => {
+      toast.success(`💳 ${data.tenant_name || 'Tenant'} paid ₦${parseFloat(data.amount_paid || 0).toLocaleString('en-NG')} for Room ${data.room_number || ''}`, { duration: 6000 });
+      const nextLeases = (recentLeasesState || []).map((lease) => lease.lease_id === data.lease_id ? { ...lease, amount_paid: data.amount_paid_total, remaining: data.remaining, is_overdue: false, is_fully_paid: data.is_fully_paid } : lease).filter((lease) => !(data.is_fully_paid && lease.lease_id === data.lease_id));
+      setRecentLeasesState(nextLeases);
+      setDashboardState((prev) => {
+        if (!prev) return prev;
+        const nextRecentLeases = (prev.recent_leases || []).map((lease) => lease.lease_id === data.lease_id ? { ...lease, amount_paid: data.amount_paid_total, remaining: data.remaining, is_overdue: false, is_fully_paid: data.is_fully_paid } : lease).filter((lease) => !(data.is_fully_paid && lease.lease_id === data.lease_id));
+        const overdueCount = data.is_fully_paid ? Math.max(0, (parseInt(prev.overdue_count, 10) || 0) - 1) : (parseInt(prev.overdue_count, 10) || 0);
+        return {
+          ...prev,
+          revenue_this_month: (parseFloat(prev.revenue_this_month || 0) + parseFloat(data.amount_paid || 0)).toFixed(2),
+          overdue_count: overdueCount,
+          recent_leases: nextRecentLeases,
+        };
+      });
+    },
+  }, !!user);
 
   const now = useMemo(() => new Date(), []);
   const currentMonth = now.getMonth();

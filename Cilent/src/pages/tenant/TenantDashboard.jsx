@@ -1,6 +1,7 @@
 // src/pages/tenant/TenantDashboard.jsx
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 import { leaseAPI, paymentAPI, approvalAPI } from '../../utils/api';
 import api from '../../utils/api';
 import { formatCurrency, formatDate } from '../../utils/formatters';
@@ -10,6 +11,7 @@ import SkeletonCard from '../../components/ui/SkeletonCard';
 import StatCard from '../../components/ui/StatCard';
 import Badge from '../../components/ui/Badge';
 import RealTimeGreeting from '../../components/ui/RealTimeGreeting';
+import { useSSE } from '../../hooks/useSSE';
 import { 
   Home, 
   CreditCard, 
@@ -28,11 +30,13 @@ import toast from 'react-hot-toast';
 
 const TenantDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [lease, setLease] = useState(null);
   const [payments, setPayments] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
+  const [tenantUser, setTenantUser] = useState(null);
 
   const loadTenantData = async () => {
     try {
@@ -45,6 +49,7 @@ const TenantDashboard = () => {
       ]);
 
       setLease(leaseRes.data || null);
+      setTenantUser(user?.user_id || null);
       setPayments(payRes.data.data || []);
       setNotifications(notifRes.data.data || []);
       setAnnouncements(annRes.data.data || []);
@@ -54,6 +59,13 @@ const TenantDashboard = () => {
       setLoading(false);
     }
   };
+
+  useSSE({
+    payment_confirmed: (data) => {
+      setLease((prev) => prev ? { ...prev, amount_paid_this_cycle: data.amount_paid_total, remaining: data.remaining, is_fully_paid: data.is_fully_paid } : prev);
+      toast.success(`Payment confirmed! ₦${parseFloat(data.remaining || 0).toLocaleString('en-NG')} remaining`, { duration: 5000 });
+    },
+  }, !!tenantUser);
 
   useEffect(() => {
     loadTenantData();
