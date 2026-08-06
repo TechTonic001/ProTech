@@ -233,8 +233,14 @@ const AssignedRoomCard = ({ room, onRemoved }) => {
         isLoading={removing}
         onConfirm={async (reason) => {
           try {
+            const tenantId = room.tenant_id || room.tenant?.id || room.tenant?.tenant_id || room.tenant_user_id;
+            if (!tenantId) {
+              toast.error('No tenant ID found for this assignment.');
+              return;
+            }
+
             setRemoving(true);
-            await tenantAPI.unassign(room.tenant_id);
+            await tenantAPI.unassign(tenantId);
             toast.success('Tenant removed from room');
             // Optimistic UI update: mark room unassigned
             if (onRemoved) onRemoved(room.room_id);

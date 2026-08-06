@@ -218,19 +218,34 @@ export const authAPI = {
 export const propertyAPI = {
   getAll: (params) => api.get('/property', { params }),
   create: (data) => api.post('/property', data),
-  update: (id, data) => api.put(`/property/${id}`, data),
+  update: (id, data) => {
+    if (!id) return Promise.reject(new Error('Property ID is required.'));
+    return api.put(`/property/${id}`, data);
+  },
   // Soft delete — sends to recycle bin for 30 days
-  delete: (id) => api.delete(`/property/${id}`),
+  delete: (id) => {
+    if (!id) return Promise.reject(new Error('Property ID is required.'));
+    return api.delete(`/property/${id}`);
+  },
   getDeleted: () => api.get('/property/deleted'),
-  restore: (id) => api.post(`/property/${id}/restore`),
+  restore: (id) => {
+    if (!id) return Promise.reject(new Error('Property ID is required.'));
+    return api.post(`/property/${id}/restore`);
+  },
 };
 
 export const roomAPI = {
   getAll: (propertyId) => api.get(`/room/property/${propertyId}`),
   getAllWithLeases: () => api.get('/rooms/all-with-leases'),
   create: (data) => api.post('/room', data),
-  update: (id, data) => api.put(`/room/${id}`, data),
-  delete: (id) => api.delete(`/room/${id}`),
+  update: (id, data) => {
+    if (!id) return Promise.reject(new Error('Room ID is required.'));
+    return api.put(`/room/${id}`, data);
+  },
+  delete: (id) => {
+    if (!id) return Promise.reject(new Error('Room ID is required.'));
+    return api.delete(`/room/${id}`);
+  },
 };
 
 export const dashboardAPI = {
@@ -242,9 +257,18 @@ export const leaseAPI = {
   getMine: (params) => api.get('/lease/tenant/active', { params }),
   getMyLease: () => api.get('/lease/my-lease'),
   create: (data) => api.post('/lease', data),
-  getById: (id) => api.get(`/lease/${id}`),
-  update: (id, data) => api.put(`/lease/${id}`, data),
-  terminate: (id) => api.patch(`/lease/${id}/terminate`),
+  getById: (id) => {
+    if (!id) return Promise.reject(new Error('Lease ID is required.'));
+    return api.get(`/lease/${id}`);
+  },
+  update: (id, data) => {
+    if (!id) return Promise.reject(new Error('Lease ID is required.'));
+    return api.put(`/lease/${id}`, data);
+  },
+  terminate: (id) => {
+    if (!id) return Promise.reject(new Error('Lease ID is required.'));
+    return api.patch(`/lease/${id}/terminate`);
+  },
   getOverdue: () => api.get('/lease/overdue'),
 };
 
@@ -263,13 +287,19 @@ export const approvalAPI = {
   request: (data) => api.post('/approval/request', data),
   getPending: (params) => api.get('/approval/pending', { params }),
   getApproved: (params) => api.get('/approval/approved', { params }),
-  process: (id, data) => api.put(`/approval/${id}`, data),
+  process: (id, data) => {
+    if (!id) return Promise.reject(new Error('Approval ID is required.'));
+    return api.put(`/approval/${id}`, data);
+  },
 };
 
 export const announcementAPI = {
   getAll: (params) => api.get('/announcement', { params }),
   create: (data) => api.post('/announcement', data),
-  delete: (id) => api.delete(`/announcement/${id}`),
+  delete: (id) => {
+    if (!id) return Promise.reject(new Error('Announcement ID is required.'));
+    return api.delete(`/announcement/${id}`);
+  },
 };
 
 export const adminAPI = {
@@ -288,10 +318,19 @@ export const notificationAPI = {
 export const tenantAPI = {
   // Landlord-side soft-delete operations
   getDeleted: () => api.get('/tenants/deleted'),
-  softDelete: (id, reason) => api.delete(`/tenants/${id}`, { data: { reason } }),
-  restore: (id) => api.post(`/tenants/${id}/restore`),
+  softDelete: (id, reason) => {
+    if (!id) return Promise.reject(new Error('Tenant ID is required.'));
+    return api.delete(`/tenants/${id}`, { data: { reason } });
+  },
+  restore: (id) => {
+    if (!id) return Promise.reject(new Error('Tenant ID is required.'));
+    return api.post(`/tenants/${id}/restore`);
+  },
   // Unassign tenant from their room (landlord removes tenant but keeps history)
-  unassign: (id) => api.patch(`/tenants/${id}/unassign`),
+  unassign: (id) => {
+    if (!id) return Promise.reject(new Error('Tenant ID is required.'));
+    return api.patch(`/tenants/${id}/unassign`);
+  },
 };
 
 export default api;
