@@ -27,6 +27,8 @@ const PayRent = () => {
   const [isPartialPayment, setIsPartialPayment] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
   const [paymentAmount, setPaymentAmount] = useState(0);
+  const [paymentBlocked, setPaymentBlocked] = useState(false);
+  const [bankSetupMessage, setBankSetupMessage] = useState('');
 
   
   useEffect(() => {
@@ -77,6 +79,8 @@ const PayRent = () => {
       setIsPartialPayment(false);
       setCustomAmount('');
       setPaymentAmount(defaultAmount);
+      setPaymentBlocked(false);
+      setBankSetupMessage('');
     } catch (err) {
       console.error('Failed to fetch payment metadata', err?.message || err);
     }
@@ -111,6 +115,7 @@ const PayRent = () => {
 
     try {
       setPaying(true);
+      setBankSetupMessage('');
       const res = await paymentAPI.initiate(payload);
       const { authorization_url } = res.data.data;
       if (authorization_url) {
@@ -122,12 +127,11 @@ const PayRent = () => {
     } catch (err) {
       console.error('Initiate Payment Error:', err.response?.data || err);
       const serverError = err.response?.data?.error || err.message || 'Failed to start payment process';
-      const landlordNotSetUp = serverError.includes('Landlord has not set up a payment account');
-      toast.error(
-        landlordNotSetUp
-          ? 'Your landlord has not set up their bank details yet. Please contact them before retrying payment.'
-          : serverError
-      );
+      const landlordNotSetUp = serverError.includes('Payment unavailable') || serverError.includes('Landlord has not set up a payment account');
+      const friendlyMessage = 'Your landlord has not set up their bank account to receive payments yet. Please contact your landlord to update their bank details.';
+      setPaymentBlocked(true);
+      setBankSetupMessage(friendlyMessage);
+      toast.error(friendlyMessage);
       setPaying(false);
     }
   };
@@ -242,9 +246,15 @@ const PayRent = () => {
             </div>
           </div>
 
+          {bankSetupMessage && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 font-semibold">
+              {bankSetupMessage}
+            </div>
+          )}
+
           <button
             onClick={handleInitiatePayment}
-            disabled={paying || amountDue <= 0}
+            disabled={paying || amountDue <= 0 || paymentBlocked}
             className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-extrabold py-3.5 px-6 rounded-xl shadow-md shadow-indigo-200 transition duration-150 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {paying ? (

@@ -14,7 +14,8 @@ export const useSSE = (handlers = {}, enabled = true) => {
     if (!token) return;
 
     const baseUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
-    const url = `${baseUrl || 'http://localhost:5001'}/api/sse/connect?token=${encodeURIComponent(token)}`;
+    const apiBase = baseUrl && baseUrl.endsWith('/api') ? baseUrl : `${baseUrl || 'http://localhost:5001'}/api`;
+    const url = `${apiBase}/sse/connect?token=${encodeURIComponent(token)}`;
 
     const es = new EventSource(url);
 

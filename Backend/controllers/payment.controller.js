@@ -19,6 +19,7 @@ const {
 } = require("../utils/email");
 const { sendPushNotification } = require("../utils/push");
 const { notifyLandlord, notifyTenant } = require("../utils/sseManager");
+const { hasLandlordPaymentSetup } = require("../utils/paymentGuard");
 
 const SERVICE_FEE = parseFloat(process.env.PAYMENT_SERVICE_FEE || "500");
 
@@ -118,25 +119,38 @@ const finalizePaymentSuccess = async (transaction) => {
     );
   }
 
-  // If lease is now fully paid, mark room occupied and optionally set next payment date
+  // If lease is now fully paid, renew the lease for the next cycle and reset the paid balance.
   if (updatedLease && isFullPayment) {
     await db.query("UPDATE rooms SET is_occupied = 1 WHERE room_id = $1", [
       updatedLease.room_id,
     ]);
+
     try {
-      if (updatedLease.payment_frequency && updatedLease.end_date) {
-        const nextDue = new Date(updatedLease.end_date);
-        if (updatedLease.payment_frequency === "annually")
-          nextDue.setFullYear(nextDue.getFullYear() + 1);
-        else nextDue.setMonth(nextDue.getMonth() + 1);
-        // best-effort: update column if it exists
-        await db.query(
-          `UPDATE leases SET next_payment_date = $1 WHERE lease_id = $2`,
-          [nextDue, lease_id],
-        );
+      const roomResult = await db.query(
+        `SELECT payment_frequency FROM rooms WHERE room_id = $1`,
+        [updatedLease.room_id],
+      );
+      const roomFrequency = roomResult.rows[0]?.payment_frequency || updatedLease.payment_frequency || "monthly";
+      const normalizedFrequency = `${roomFrequency || "monthly"}`.toLowerCase();
+      const currentEndDate = updatedLease.end_date ? new Date(updatedLease.end_date) : new Date();
+      const nextEndDate = new Date(currentEndDate);
+
+      if (normalizedFrequency === "yearly" || normalizedFrequency === "annually") {
+        nextEndDate.setFullYear(nextEndDate.getFullYear() + 1);
+      } else {
+        nextEndDate.setMonth(nextEndDate.getMonth() + 1);
       }
+
+      await db.query(
+        `UPDATE leases
+         SET end_date = $1,
+             amount_paid_this_cycle = 0,
+             rent_amount = COALESCE(rent_amount, 0)
+         WHERE lease_id = $2`,
+        [nextEndDate.toISOString().slice(0, 10), lease_id],
+      );
     } catch (e) {
-      // column may not exist — ignore
+      console.error("[PAYMENT] Lease renewal failed", e?.message || e);
     }
   }
 
@@ -481,6 +495,9 @@ const initiatePayment = asyncHandler(async (req, res) => {
        u_tenant.email      AS tenant_email,
        u_tenant.full_name  AS tenant_name,
        u_landlord.subaccount_code,
+       u_landlord.bank_name,
+       u_landlord.account_number,
+       u_landlord.account_name,
        u_landlord.hostel_name,
        r.room_number,
        p.property_name
@@ -537,10 +554,18 @@ const initiatePayment = asyncHandler(async (req, res) => {
 
   if (desiredRent <= 0)
     return res.status(400).json({ error: "Invalid amount." });
-  if (!lease.subaccount_code && isLive) {
-    return res
-      .status(400)
-      .json({ error: "Landlord has not set up a payment account." });
+
+  const landlordPaymentSetup = hasLandlordPaymentSetup({
+    subaccount_code: lease.subaccount_code,
+    bank_name: lease.bank_name,
+    account_number: lease.account_number,
+    account_name: lease.account_name,
+  });
+
+  if (!landlordPaymentSetup) {
+    return res.status(400).json({
+      error: "Payment unavailable: Please contact your landlord to update their bank details.",
+    });
   }
 
   const totalCharge = desiredRent + SERVICE_FEE;
