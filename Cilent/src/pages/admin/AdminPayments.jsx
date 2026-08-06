@@ -37,8 +37,6 @@ const AdminPayments = () => {
     }
   };
 
-  if (loading) return <LoadingSpinner fullPage size="lg" />;
-
   // useMemo: totalCollected only recalculates when the payments array reference changes
   const totalCollected = useMemo(
     () =>
@@ -47,6 +45,8 @@ const AdminPayments = () => {
         .reduce((sum, p) => sum + parseFloat(p.amount_paid || 0), 0),
     [payments]
   );
+
+  if (loading) return <LoadingSpinner fullPage size="lg" />;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-fade-in p-2">

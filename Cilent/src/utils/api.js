@@ -255,6 +255,7 @@ export const paymentAPI = {
   getHistory: (params) => api.get('/payments/history', { params }),
   getReceipt: (ref) => api.get(`/payments/receipt/${ref}`),
   createSubaccount: (data) => api.post('/payments/subaccount', data),
+  getBankDetails: () => api.get('/payments/bank-details'),
   getBanks: () => api.get('/payments/banks'),
 };
 

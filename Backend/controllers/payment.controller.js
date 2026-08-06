@@ -2,6 +2,7 @@
 const db = require("../config/db");
 const {
   createSubaccount,
+  updateSubaccount,
   getBanks,
   resolveAccountNumber,
   initializeTransaction,
@@ -338,7 +339,7 @@ const createLandlordSubaccount = asyncHandler(async (req, res) => {
 
   const bankCodeToUse = bank_code || settlement_bank;
 
-  // Resolve account name for verification before creating subaccount
+  // Resolve account name for verification before creating or updating subaccount
   let accountName = "";
   try {
     const resolved = await resolveAccountNumber(account_number, bankCodeToUse);
@@ -350,16 +351,34 @@ const createLandlordSubaccount = asyncHandler(async (req, res) => {
     });
   }
 
+  const existingUser = await db.query(
+    `SELECT subaccount_code FROM users WHERE user_id = $1`,
+    [landlordId]
+  );
+
   const pct =
     typeof percentage_charge !== "undefined" ? Number(percentage_charge) : 2;
-  const sub = await createSubaccount({
-    business_name,
-    settlement_bank: bankCodeToUse,
-    account_number,
-    percentage_charge: pct,
-  });
+  let sub;
+  const existingSubaccountCode = existingUser.rows[0]?.subaccount_code;
+  if (existingSubaccountCode) {
+    sub = await updateSubaccount({
+      subaccount_code: existingSubaccountCode,
+      business_name,
+      settlement_bank: bankCodeToUse,
+      account_number,
+      percentage_charge: pct,
+    });
+  } else {
+    sub = await createSubaccount({
+      business_name,
+      settlement_bank: bankCodeToUse,
+      account_number,
+      percentage_charge: pct,
+    });
+  }
 
   const resolvedBankName = bank_name || sub.settlement_bank || settlement_bank;
+  const subaccountCode = sub.subaccount_code || existingSubaccountCode;
 
   await db.query(
     `UPDATE users SET
@@ -370,7 +389,7 @@ const createLandlordSubaccount = asyncHandler(async (req, res) => {
        updated_at      = NOW()
      WHERE user_id = $5`,
     [
-      sub.subaccount_code,
+      subaccountCode,
       resolvedBankName,
       account_number,
       accountName,
@@ -381,11 +400,27 @@ const createLandlordSubaccount = asyncHandler(async (req, res) => {
   return res.status(200).json({
     message: "Bank account connected successfully.",
     data: {
-      subaccount_code: sub.subaccount_code,
+      subaccount_code: subaccountCode,
       account_name: accountName,
       bank: resolvedBankName,
       account_number,
     },
+  });
+});
+
+const getLandlordBankDetails = asyncHandler(async (req, res) => {
+  const landlordId = req.user.user_id;
+  const result = await db.query(
+    `SELECT subaccount_code, bank_name, account_number, account_name
+     FROM users
+     WHERE user_id = $1`,
+    [landlordId],
+  );
+
+  const bankDetails = result.rows[0] || null;
+  return res.status(200).json({
+    message: "Bank details retrieved successfully.",
+    data: bankDetails,
   });
 });
 
@@ -793,6 +828,7 @@ module.exports = {
   getBankList,
   resolveAccount,
   createLandlordSubaccount,
+  getLandlordBankDetails,
   getCheckoutInfo,
   initiatePayment,
   paystackWebhook,

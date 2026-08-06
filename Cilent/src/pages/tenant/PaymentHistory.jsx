@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import SkeletonCard from '../../components/ui/SkeletonCard';
+import { downloadElementAsPdf } from '../../utils/pdf';
 
 const PaymentHistory = () => {
   const [payments, setPayments] = useState([]);
@@ -43,6 +44,10 @@ const PaymentHistory = () => {
   };
 
   const formatAmount = (a) => '₦' + Number(a || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 });
+
+  const downloadReceiptAsPdf = () => {
+    return downloadElementAsPdf('receipt-download-card', receipt || { paystack_ref: 'receipt' });
+  };
 
   return (
     <div className="min-h-screen p-4 sm:p-8 bg-slate-100 text-slate-900">
@@ -107,7 +112,7 @@ const PaymentHistory = () => {
       {/* ── Receipt Modal ── */}
       {(receipt || receiptLoading) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => { if (!receiptLoading) setReceipt(null); }}>
-          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden" id="receipt-print" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden" id="receipt-download-card" onClick={(e) => e.stopPropagation()}>
             {receiptLoading ? (
               <div className="flex items-center justify-center py-20">
                 <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -150,6 +155,9 @@ const PaymentHistory = () => {
 
                   {/* Actions */}
                   <div className="flex gap-3 mt-4">
+                    <button onClick={downloadReceiptAsPdf} className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 transition">
+                      Download Receipt
+                    </button>
                     <button onClick={() => window.print()} className="flex-1 px-4 py-2.5 bg-slate-800 text-white rounded-xl font-semibold text-sm hover:bg-slate-700 transition">
                       🖨 Print Receipt
                     </button>

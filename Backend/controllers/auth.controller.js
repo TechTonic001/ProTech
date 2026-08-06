@@ -495,7 +495,8 @@ const profile = async (req, res, next) => {
 
     const result = await dbQuery(
       `SELECT user_id, username, full_name, email, phone_number, role,
-              is_approved, hostel_name, hostel_address, landlord_code
+              is_approved, hostel_name, hostel_address, landlord_code,
+              subaccount_code, bank_name, account_number, account_name
        FROM users WHERE user_id = $1`,
       [userId]
     );

@@ -15,11 +15,14 @@ import { useAuth } from '../../hooks/useAuth';
 const BankSetup = () => {
   const { setUser } = useAuth();
   const [profile, setProfile] = useState(null);
+  const [bankDetails, setBankDetails] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [bankDetailsLoading, setBankDetailsLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [banks, setBanks] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Form State
   const [form, setForm] = useState({
@@ -34,6 +37,7 @@ const BankSetup = () => {
   useEffect(() => {
     fetchProfile();
     fetchBanksList();
+    fetchBankDetails();
   }, []);
 
   useEffect(() => {
@@ -73,6 +77,15 @@ const BankSetup = () => {
     }
   };
 
+  const getBankCodeByName = (bankName) => {
+    if (!bankName) return '';
+    return (
+      banks.find(
+        (b) => b.name?.toLowerCase().trim() === bankName.toLowerCase().trim(),
+      )?.code || ''
+    );
+  };
+
   const fetchProfile = async () => {
     try {
       setLoading(true);
@@ -93,6 +106,29 @@ const BankSetup = () => {
       toast.error(err.message || 'Failed to fetch user profile details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBankDetails = async () => {
+    try {
+      setBankDetailsLoading(true);
+      const res = await paymentAPI.getBankDetails();
+      const data = res.data.data;
+      setBankDetails(data);
+      if (data) {
+        const code = getBankCodeByName(data.bank_name);
+        setSearchQuery(data.bank_name || '');
+        setForm((prev) => ({
+          ...prev,
+          business_name: data.account_name || prev.business_name,
+          settlement_bank: code || prev.settlement_bank,
+          account_number: data.account_number || prev.account_number,
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch landlord bank details:', err);
+    } finally {
+      setBankDetailsLoading(false);
     }
   };
 
@@ -122,22 +158,25 @@ const BankSetup = () => {
         settlement_bank: form.settlement_bank, // bank code
         account_number: form.account_number,
         percentage_charge: Number(form.percentage_charge),
-        bank_name: selectedBankName
+        bank_name: selectedBankName,
       });
 
       toast.success('Paystack settlement subaccount connected successfully!');
-      fetchProfile();
+      await fetchProfile();
+      await fetchBankDetails();
+      setIsEditMode(false);
     } catch (err) {
-      setFormError(err.message || 'Subaccount registration failed');
-      toast.error(err.message || 'Subaccount connection failed');
+      setFormError(err.response?.data?.error || err.message || 'Subaccount registration failed');
+      toast.error(err.response?.data?.error || err.message || 'Subaccount connection failed');
     } finally {
       setSubmitLoading(false);
     }
   };
 
-  if (loading) return <LoadingSpinner fullPage />;
+  if (loading || bankDetailsLoading) return <LoadingSpinner fullPage />;
 
   const hasSubaccount = profile && profile.subaccount_code;
+  const hasBankDetails = Boolean(bankDetails && bankDetails.subaccount_code);
   const filteredBanks = banks.filter(b =>
     b.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -153,53 +192,60 @@ const BankSetup = () => {
         </p>
       </div>
 
-      {hasSubaccount ? (
-        /* Connected State */
+      {hasBankDetails && !isEditMode ? (
         <div className="bg-white rounded-3xl border border-slate-100 p-8 shadow-xs space-y-6 animate-fade-in">
           <div className="flex flex-col items-center text-center">
-            <div className="w-16 h-16 rounded-2xl bg-green-50 text-green-500 border border-green-100 flex items-center justify-center mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center mb-4">
               <CheckCircle2 className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">Settlement Connected!</h3>
+            <h3 className="text-lg font-bold text-slate-900">Bank Details Saved</h3>
             <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Your Paystack subaccount is linked and verified. Payouts are active.
+              Your settlement account is already configured. You can edit it if anything changes.
             </p>
           </div>
 
           <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 font-semibold text-xs space-y-3">
             <div className="flex justify-between py-1 border-b border-slate-100">
               <span className="text-slate-400 uppercase tracking-wider">Settlement Code</span>
-              <span className="font-mono text-slate-800 font-bold">{profile.subaccount_code}</span>
+              <span className="font-mono text-slate-800 font-bold">{bankDetails?.subaccount_code || profile?.subaccount_code}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-100">
-              <span className="text-slate-400 uppercase tracking-wider">Business Name</span>
-              <span className="text-slate-800 font-bold">{profile.account_name || 'Hostel Business'}</span>
+              <span className="text-slate-400 uppercase tracking-wider">Account Name</span>
+              <span className="text-slate-800 font-bold">{bankDetails?.account_name || profile?.account_name || 'Hostel Business'}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-100">
-              <span className="text-slate-400 uppercase tracking-wider">Settlement Bank</span>
-              <span className="text-slate-800 font-bold">{profile.bank_name || 'Connected Bank'}</span>
+              <span className="text-slate-400 uppercase tracking-wider">Bank</span>
+              <span className="text-slate-800 font-bold">{bankDetails?.bank_name || profile?.bank_name || 'Connected Bank'}</span>
             </div>
             <div className="flex justify-between py-1">
               <span className="text-slate-400 uppercase tracking-wider">Account Number</span>
               <span className="font-mono text-slate-800 font-bold">
-                {profile.account_number ? `******${profile.account_number.slice(-4)}` : '******'}
+                {bankDetails?.account_number
+                  ? `******${bankDetails.account_number.slice(-4)}`
+                  : profile?.account_number
+                  ? `******${profile.account_number.slice(-4)}`
+                  : '******'}
               </span>
             </div>
           </div>
 
-          <div className="p-4 bg-green-50 border border-green-200 rounded-2xl text-xs text-green-700 flex items-center gap-2 font-medium">
-            <ShieldCheck className="w-5 h-5 text-green-600 flex-shrink-0" />
-            Payout split configurations are managed automatically. Contact support to update bank records.
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setIsEditMode(true)}
+              className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-semibold text-sm transition"
+            >
+              Edit Bank Details
+            </button>
           </div>
         </div>
       ) : (
-        /* Setup Form Form State */
         <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-xs">
           <form onSubmit={handleSubmit} className="space-y-4">
 
             <div className="flex items-center gap-2 pb-2 border-b border-slate-50 mb-2">
               <Landmark className="w-5 h-5 text-blue-600" />
-              <h3 className="text-sm font-bold text-slate-900">Add Settlement Bank</h3>
+              <h3 className="text-sm font-bold text-slate-900">{hasBankDetails ? 'Edit Settlement Bank' : 'Add Settlement Bank'}</h3>
             </div>
 
             {formError && (
@@ -277,25 +323,6 @@ const BankSetup = () => {
               </div>
             </div>
 
-            {/* <div>
-              <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest block mb-1.5">
-                Splitting Percentage (Landlord Share)
-              </label>
-              <input
-                type="number"
-                name="percentage_charge"
-                min={0}
-                max={100}
-                step={0.1}
-                value={form.percentage_charge}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition"
-              />
-              <p className="text-[10px] text-slate-400 mt-1 font-semibold leading-relaxed">
-                Percentage charge split defined in Paystack payouts (typically 1.0% shared).
-              </p>
-            </div> */}
-
             <button
               type="submit"
               disabled={submitLoading || !form.settlement_bank}
@@ -307,9 +334,29 @@ const BankSetup = () => {
                   Connecting settlement...
                 </>
               ) : (
-                'Verify & Connect Bank Account'
+                hasBankDetails ? 'Update Bank Details' : 'Verify & Connect Bank Account'
               )}
             </button>
+
+            {hasBankDetails && (
+              <button
+                type="button"
+                onClick={() => {
+                  const code = getBankCodeByName(bankDetails?.bank_name);
+                  setIsEditMode(false);
+                  setForm({
+                    business_name: bankDetails?.account_name || '',
+                    settlement_bank: code || '',
+                    account_number: bankDetails?.account_number || '',
+                    percentage_charge: form.percentage_charge,
+                  });
+                  setSearchQuery(bankDetails?.bank_name || '');
+                }}
+                className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl transition duration-150"
+              >
+                Cancel
+              </button>
+            )}
 
           </form>
         </div>

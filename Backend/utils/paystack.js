@@ -92,6 +92,28 @@ const createSubaccount = async ({
 };
 
 /**
+ * Update an existing Paystack subaccount.
+ */
+const updateSubaccount = async ({
+  subaccount_code,
+  business_name,
+  settlement_bank,
+  account_number,
+  percentage_charge = 2,
+}) => {
+  if (!subaccount_code) {
+    throw new Error('Subaccount code is required for updating a subaccount.');
+  }
+  const result = await paystackRequest('PUT', `/subaccount/${encodeURIComponent(subaccount_code)}`, {
+    business_name,
+    settlement_bank,
+    account_number,
+    percentage_charge,
+  });
+  return result.data;
+};
+
+/**
  * Resolve a bank account number to get the account holder's name.
  * Used to verify landlord bank details before saving.
  */

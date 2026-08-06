@@ -4,6 +4,7 @@ const { verifyToken } = require('../middleware/auth.middleware');
 const { requireRole } = require('../middleware/role.middleware');
 const {
   createLandlordSubaccount,
+  getLandlordBankDetails,
   getBankList,
   initiatePayment,
   getPaymentMetadata,
@@ -16,6 +17,7 @@ const {
 const router = express.Router();
 
 router.post('/subaccount', verifyToken, requireRole('landlord'), createLandlordSubaccount);
+router.get('/bank-details', verifyToken, requireRole('landlord'), getLandlordBankDetails);
 router.get('/banks', verifyToken, getBankList);
 router.get('/metadata', verifyToken, getPaymentMetadata);
 router.get('/checkout/:lease_id', verifyToken, requireRole('tenant'), getCheckoutInfo);

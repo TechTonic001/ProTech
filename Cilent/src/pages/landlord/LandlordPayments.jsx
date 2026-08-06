@@ -7,13 +7,15 @@ import SkeletonCard from '../../components/ui/SkeletonCard';
 import EmptyState from '../../components/ui/EmptyState';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
-import { 
-  CreditCard, 
-  Printer, 
-  CheckCircle2, 
+import { downloadElementAsPdf } from '../../utils/pdf';
+import {
+  CreditCard,
+  Printer,
+  CheckCircle2,
   FileText,
+  Download,
   Search,
-  ListFilter
+  ListFilter,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -57,6 +59,10 @@ const LandlordPayments = () => {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const downloadReceiptAsPdf = () => {
+    return downloadElementAsPdf('receipt-modal-card', selectedReceipt || { paystack_ref: 'receipt' });
   };
 
   // useMemo: filteredPayments re-computes only when payments, searchQuery, or statusFilter change.
@@ -254,6 +260,13 @@ const LandlordPayments = () => {
             {/* Print Action Toolbar */}
             <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 print:hidden">
               <button
+                onClick={downloadReceiptAsPdf}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition"
+              >
+                <Download className="w-4 h-4" />
+                Download Receipt
+              </button>
+            <button
                 onClick={handlePrint}
                 className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl transition"
               >
