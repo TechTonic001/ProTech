@@ -14,7 +14,7 @@ export const useSSE = (handlers = {}, enabled = true) => {
     if (!token) return;
 
     const baseUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
-    const apiBase = baseUrl && baseUrl.endsWith('/api') ? baseUrl : `${baseUrl || 'http://localhost:5001'}/api`;
+    const apiBase = baseUrl && baseUrl.endsWith('/api') ? baseUrl : `${baseUrl || 'https://protechbackend.vercel.app'}/api`;
     const url = `${apiBase}/sse/connect?token=${encodeURIComponent(token)}`;
 
     const es = new EventSource(url);

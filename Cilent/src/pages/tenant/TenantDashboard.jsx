@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { leaseAPI, paymentAPI, approvalAPI } from '../../utils/api';
 import api from '../../utils/api';
-import { formatCurrency, formatDate } from '../../utils/formatters';
+import { formatCurrency, formatDate, formatRelativeTime } from '../../utils/formatters';
 import { daysUntilDue, dueDateLabel } from '../../utils/dateUtils';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import SkeletonCard from '../../components/ui/SkeletonCard';

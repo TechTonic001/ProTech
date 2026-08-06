@@ -378,7 +378,7 @@ const Rooms = () => {
     }
     try {
       await leaseAPI.create({
-        tenant_id: leaseForm.tenant_id,
+        tenant_id: Number(leaseForm.tenant_id),
         room_id: selectedRoom.room_id,
         start_date: leaseForm.start_date,
         end_date: leaseForm.end_date,

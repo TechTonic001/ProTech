@@ -99,6 +99,7 @@ const getMyLease = asyncHandler(async (req, res) => {
       p.property_name,
       p.address AS property_address,
       u_landlord.full_name AS landlord_name,
+      u_landlord.email AS landlord_email,
       u_landlord.phone_number AS landlord_phone,
       u_landlord.hostel_name
     FROM leases l

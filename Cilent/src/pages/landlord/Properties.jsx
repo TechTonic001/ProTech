@@ -173,10 +173,9 @@ const Properties = () => {
     const { property } = deleteModal;
     setDeleteModal((prev) => ({ ...prev, loading: true }));
     try {
-      await propertyAPI.delete(property.property_id, reason);
+      await deletePropertyMutation.mutateAsync({ id: property.property_id, reason });
       toast.success(`"${property.property_name}" moved to recycle bin. Recovery available for 30 days.`);
       setDeleteModal({ open: false, property: null, loading: false });
-      deletePropertyMutation.mutate({ id: property.property_id, reason });
     } catch (err) {
       toast.error(err.message || 'Failed to delete property');
       setDeleteModal((prev) => ({ ...prev, loading: false }));
