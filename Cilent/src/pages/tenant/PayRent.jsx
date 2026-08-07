@@ -127,11 +127,23 @@ const PayRent = () => {
     } catch (err) {
       console.error('Initiate Payment Error:', err.response?.data || err);
       const serverError = err.response?.data?.error || err.message || 'Failed to start payment process';
-      const landlordNotSetUp = serverError.includes('Payment unavailable') || serverError.includes('Landlord has not set up a payment account');
-      const friendlyMessage = 'Your landlord has not set up their bank account to receive payments yet. Please contact your landlord to update their bank details.';
-      setPaymentBlocked(true);
-      setBankSetupMessage(friendlyMessage);
-      toast.error(friendlyMessage);
+
+      // Only block the UI when the server explicitly indicates landlord bank
+      // details are missing (business rule). For other errors (network,
+      // validation, server 5xx), surface the real error to the user.
+      const isLandlordNotSetUp = err.response?.status === 400 &&
+        typeof serverError === 'string' && serverError.includes('Payment unavailable');
+
+      if (isLandlordNotSetUp) {
+        const friendlyMessage = 'Your landlord has not set up their bank account to receive payments yet. Please contact your landlord to update their bank details.';
+        setPaymentBlocked(true);
+        setBankSetupMessage(friendlyMessage);
+        toast.error(friendlyMessage);
+      } else {
+        // Non-blocking: show actual error message
+        toast.error(serverError || 'Failed to start payment process');
+      }
+
       setPaying(false);
     }
   };

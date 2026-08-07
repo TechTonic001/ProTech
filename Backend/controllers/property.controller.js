@@ -33,6 +33,11 @@ const createProperty = asyncHandler(async (req, res) => {
       });
     }
 
+    // Convert yearly default rent to a monthly amount for storage. The
+    // frontend sends `default_yearly_rent` (annual), but the `rooms`
+    // table stores `monthly_rent`.
+    const monthlyRent = yearlyRent > 0 ? Number((yearlyRent / 12).toFixed(2)) : 0;
+
     const validRoomTypes = ['single', 'shared', 'self_contain'];
     const roomType = validRoomTypes.includes(default_room_type) ? default_room_type : 'single';
 
@@ -56,7 +61,7 @@ const createProperty = asyncHandler(async (req, res) => {
         property.property_id,
         `Room ${roomIndex}`,
         roomType,
-        yearlyRent
+        monthlyRent
       );
       paramIndex += 4;
     }

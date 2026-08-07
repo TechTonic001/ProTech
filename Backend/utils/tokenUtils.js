@@ -53,10 +53,15 @@ const generateRefreshToken = (payload) => {
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 const setRefreshCookie = (res, refreshToken) => {
+  // Use a relaxed SameSite in development to avoid blocking the cookie when
+  // frontend and backend run on different localhost ports. In production we
+  // keep the stricter 'Strict' policy.
+  const sameSiteOption = process.env.NODE_ENV === 'production' ? 'Strict' : 'Lax';
+
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production', // HTTPS only in prod; plain HTTP allowed in dev
-    sameSite: 'Strict',
+    sameSite: sameSiteOption,
     maxAge: SEVEN_DAYS_MS,
     path: '/', // cookie sent on all routes so /api/auth/refresh can read it
   });
@@ -69,10 +74,11 @@ const setRefreshCookie = (res, refreshToken) => {
 // otherwise the browser treats them as different cookies and ignores the clear.
 // ────────────────────────────────────────────────────────────────────────────
 const clearRefreshCookie = (res) => {
+  const sameSiteOption = process.env.NODE_ENV === 'production' ? 'Strict' : 'Lax';
   res.clearCookie('refreshToken', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'Strict',
+    sameSite: sameSiteOption,
     path: '/',
   });
 };

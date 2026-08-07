@@ -63,6 +63,7 @@ const getAllRoomsWithLeases = asyncHandler(async (req, res) => {
       TO_CHAR(l.start_date, 'YYYY-MM-DD') AS start_date,
       TO_CHAR(l.end_date,   'YYYY-MM-DD') AS end_date,
       l.payment_frequency AS lease_frequency,
+      l.tenant_id AS tenant_id,
       u.full_name AS tenant_name,
       u.username  AS tenant_username,
       u.email     AS tenant_email

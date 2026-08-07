@@ -287,4 +287,8 @@ const runNotificationEngine = async (currentHour) => {
   }
 };
 
-module.exports = { runNotificationEngine };
+module.exports = {
+  runNotificationEngine,
+  computeDaysUntilDue,
+  determineShouldNotify,
+};

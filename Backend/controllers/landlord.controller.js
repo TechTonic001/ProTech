@@ -8,6 +8,9 @@ const db = require('../config/db');
 const softDeleteTenant = async (req, res, next) => {
   try {
     const { tenant_id } = req.params;
+    if (!tenant_id) {
+      return res.status(400).json({ error: 'tenant_id is required' });
+    }
     const landlord_id = req.user.user_id;
     const { reason } = req.body;
 
@@ -73,6 +76,9 @@ const softDeleteTenant = async (req, res, next) => {
 const restoreTenant = async (req, res, next) => {
   try {
     const { tenant_id } = req.params;
+    if (!tenant_id) {
+      return res.status(400).json({ error: 'tenant_id is required' });
+    }
     const landlord_id = req.user.user_id;
 
     // Verify this tenant belongs to the requesting landlord

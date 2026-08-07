@@ -6,11 +6,15 @@ const vapidEmail = process.env.VAPID_EMAIL && process.env.VAPID_EMAIL.startsWith
   ? process.env.VAPID_EMAIL
   : `mailto:${process.env.VAPID_EMAIL || 'protech78902@gmail.com'}`;
 
-webpush.setVapidDetails(
-  vapidEmail,
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
+if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+  console.warn('[PUSH] VAPID keys not set — push notifications disabled in this environment.');
+} else {
+  webpush.setVapidDetails(
+    vapidEmail,
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+}
 
 const sendPushNotification = async (userId, title, body, url = '/') => {
   try {

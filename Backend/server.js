@@ -250,13 +250,29 @@ const seedAdmin = require('./config/seedAdmin');
 // Only start HTTP server when running locally (not on Vercel serverless)
 if (require.main === module) {
   const PORT = process.env.PORT || 5001;
-  app.listen(PORT, async () => {
+  const server = app.listen(PORT, async () => {
     console.log(`✅ Server running on http://localhost:${PORT}`);
-    await testConnection();
-    // 1. Run schema migrations first — always safe to re-run
-    await runMigrations();
-    // 2. Seed admin account after migrations are confirmed ready
-    await seedAdmin();
+
+    try {
+      await testConnection();
+      // 1. Run schema migrations first — always safe to re-run
+      await runMigrations();
+      // 2. Seed admin account after migrations are confirmed ready
+      await seedAdmin();
+    } catch (err) {
+      console.error('[STARTUP] Initialization failed:', err && err.stack ? err.stack : err);
+      process.exit(1);
+    }
+  });
+
+  server.on('error', (err) => {
+    if (err && err.code === 'EADDRINUSE') {
+      console.error(`[STARTUP] Port ${PORT} is already in use. Stop the existing process or change PORT.`);
+    } else {
+      console.error('[STARTUP] Failed to start HTTP server:', err && err.stack ? err.stack : err);
+    }
+
+    process.exit(1);
   });
 } else {
   // Serverless (Vercel): run DB check + migrations + seed once on cold start
