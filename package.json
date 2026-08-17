@@ -11,6 +11,7 @@
     "dev": "npx concurrently \"npm run backend\" \"npm run frontend\"",
     "install:all": "cd Backend && npm install && cd ../Cilent && npm install",
     "smoke": "node scripts/smoke-check.js",
+    "paystack-test": "node scripts/paystack-test.js",
     "build": "echo 'No root build required for backend deployment'",
     "start": "node api/index.js"
   },

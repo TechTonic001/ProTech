@@ -324,12 +324,24 @@ const resolveAccount = asyncHandler(async (req, res) => {
       .json({ error: "Account number must be exactly 10 digits." });
   }
 
-  const data = await resolveAccountNumber(account_number, bank_code);
-  return res.status(200).json({
-    account_name: data.account_name,
-    account_number: data.account_number,
-    bank_id: data.bank_id,
-  });
+  try {
+    const data = await resolveAccountNumber(account_number, bank_code);
+    return res.status(200).json({
+      account_name: data.account_name,
+      account_number: data.account_number,
+      bank_id: data.bank_id,
+    });
+  } catch (error) {
+    const paystackMessage =
+      error?.response?.data?.message ||
+      error?.message ||
+      'Could not resolve account name';
+
+    console.error('[PAYSTACK RESOLVE ERROR]', paystackMessage);
+    return res.status(400).json({
+      error: paystackMessage,
+    });
+  }
 });
 
 // ── CREATE SUBACCOUNT (landlord bank setup) ───────────────────────────────────
@@ -353,12 +365,28 @@ const createLandlordSubaccount = asyncHandler(async (req, res) => {
 
   const bankCodeToUse = bank_code || settlement_bank;
 
+  // If the provided bank identifier looks like a name, try to map it to a bank code
+  let bankCode = bankCodeToUse;
+  try {
+    if (bankCode && /[A-Za-z]/.test(String(bankCode))) {
+      const banks = await getBanks();
+      const match = banks.find((b) =>
+        String(b.name || '').toLowerCase() === String(bankCode).toLowerCase() ||
+        String(b.slug || '').toLowerCase() === String(bankCode).toLowerCase()
+      );
+      if (match) bankCode = match.code || match.id || bankCode;
+    }
+  } catch (e) {
+    console.warn('[PAYMENT] Unable to map bank name to code:', e?.message || e);
+  }
+
   // Resolve account name for verification before creating or updating subaccount
   let accountName = "";
   try {
-    const resolved = await resolveAccountNumber(account_number, bankCodeToUse);
+    const resolved = await resolveAccountNumber(account_number, bankCode);
     accountName = resolved.account_name;
-  } catch {
+  } catch (err) {
+    console.error('[PAYMENT] resolveAccountNumber error:', err?.message || err);
     return res.status(400).json({
       error:
         "Could not verify bank account number. Please check the details and try again.",
@@ -378,14 +406,14 @@ const createLandlordSubaccount = asyncHandler(async (req, res) => {
     sub = await updateSubaccount({
       subaccount_code: existingSubaccountCode,
       business_name,
-      settlement_bank: bankCodeToUse,
+      settlement_bank: bankCode,
       account_number,
       percentage_charge: pct,
     });
   } else {
     sub = await createSubaccount({
       business_name,
-      settlement_bank: bankCodeToUse,
+      settlement_bank: bankCode,
       account_number,
       percentage_charge: pct,
     });

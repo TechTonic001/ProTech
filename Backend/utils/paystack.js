@@ -8,8 +8,12 @@ const https  = require('https');
 
 const SECRET = process.env.PAYSTACK_SECRET_KEY;
 
+if (!SECRET) {
+  console.error('[PAYSTACK] Missing PAYSTACK_SECRET_KEY environment variable');
+}
+
 // Detect test vs live mode automatically from the key prefix
-const MODE = SECRET?.startsWith('sk_live_') ? 'LIVE' : 'TEST';
+const MODE = SECRET && SECRET.startsWith('sk_live_') ? 'LIVE' : 'TEST';
 console.log(`[PAYSTACK] Running in ${MODE} mode`);
 
 /**
@@ -19,6 +23,7 @@ console.log(`[PAYSTACK] Running in ${MODE} mode`);
  */
 const paystackRequest = (method, path, body = null) => {
   return new Promise((resolve, reject) => {
+    if (!SECRET) return reject(new Error('Missing PAYSTACK_SECRET_KEY environment variable'));
     const payload = body ? JSON.stringify(body) : null;
 
     const options = {
@@ -44,8 +49,8 @@ const paystackRequest = (method, path, body = null) => {
           } else {
             resolve(parsed);
           }
-        } catch {
-          reject(new Error('Invalid JSON response from Paystack'));
+        } catch (err) {
+          reject(new Error('Invalid JSON response from Paystack: ' + (err.message || '')));
         }
       });
     });

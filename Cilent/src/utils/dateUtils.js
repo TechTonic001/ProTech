@@ -102,39 +102,49 @@ export const dueDateLabel = (endDate) => {
 
 /**
  * Returns the CSS colour classes for a due date status:
- *   Green  → paid or more than 7 days remaining
- *   Amber  → 7 days or fewer remaining (warning)
- *   Red    → overdue or due today
+ *   GREEN → paid or more than 20 days remaining
+ *   RED   → 20 days or fewer (warning), due today, or overdue
  */
 export const dueDateColour = (endDate, isFullyPaid) => {
-  if (isFullyPaid) {
-    return {
-      bg: 'bg-green-100',
-      text: 'text-green-700',
-      border: 'border-green-200',
-      label: 'Paid'
-    }
+  // Backwards-compatible alias to new dueDateColourClass
+  const c = dueDateColourClass(endDate, isFullyPaid);
+  return { bg: c.bg, text: c.text, border: c.border, label: c.label };
+}
+
+export const dueDateColourClass = (endDate, isFullyPaid) => {
+  if (isFullyPaid) return {
+    bg: 'bg-green-100', text: 'text-green-700',
+    border: 'border-green-300', label: 'Paid in Full ✓',
+    urgent: false
   }
+
   const days = daysUntilDue(endDate)
   if (days === null) return {
     bg: 'bg-slate-100', text: 'text-slate-500',
-    border: 'border-slate-200', label: 'Unknown'
+    border: 'border-slate-200', label: 'No due date',
+    urgent: false
   }
-  if (days < 0) return {
+
+  // RED threshold — 20 days or fewer
+  if (days <= 0) return {
     bg: 'bg-red-100', text: 'text-red-700',
-    border: 'border-red-300', label: dueDateLabel(endDate)
+    border: 'border-red-400', label: days === 0
+      ? 'Due TODAY — Pay now!'
+      : `${Math.abs(days)} day${Math.abs(days)===1?'':'s'} OVERDUE`,
+    urgent: true
   }
-  if (days === 0) return {
-    bg: 'bg-red-100', text: 'text-red-700',
-    border: 'border-red-300', label: 'Due today'
+  if (days <= 20) return {
+    bg: 'bg-red-50', text: 'text-red-600',
+    border: 'border-red-300',
+    label: `${days} day${days===1?'':'s'} remaining`,
+    urgent: true
   }
-  if (days <= 7) return {
-    bg: 'bg-amber-100', text: 'text-amber-700',
-    border: 'border-amber-300', label: dueDateLabel(endDate)
-  }
+  // GREEN — more than 20 days
   return {
-    bg: 'bg-green-100', text: 'text-green-700',
-    border: 'border-green-200', label: dueDateLabel(endDate)
+    bg: 'bg-green-50', text: 'text-green-700',
+    border: 'border-green-200',
+    label: `${days} days remaining`,
+    urgent: false
   }
 }
 

@@ -5,7 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { leaseAPI, paymentAPI, approvalAPI } from '../../utils/api';
 import api from '../../utils/api';
 import { formatCurrency, formatDate, formatRelativeTime } from '../../utils/formatters';
-import { daysUntilDue, dueDateLabel } from '../../utils/dateUtils';
+import { daysUntilDue, dueDateLabel, dueDateColourClass } from '../../utils/dateUtils';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import SkeletonCard from '../../components/ui/SkeletonCard';
 import StatCard from '../../components/ui/StatCard';
@@ -109,6 +109,12 @@ const TenantDashboard = () => {
   // Derived from lease — computed after loading guard
   const nextRentAmount = lease ? parseFloat(lease.rent_amount) + 500 : 0;
 
+  const days = lease ? daysUntilDue(lease?.end_date) : null;
+  const colour = dueDateColourClass(
+    lease?.end_date,
+    lease?.amount_paid_this_cycle >= lease?.rent_amount
+  );
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Welcome Banner */}
@@ -122,15 +128,35 @@ const TenantDashboard = () => {
 
         {/* Next due alert box */}
         {lease && (
-          <div className="bg-white/10 border border-white/10 rounded-2xl p-4 text-right self-stretch md:self-auto flex flex-col items-end justify-center">
-            <span className="text-[10px] text-white/60 uppercase tracking-widest font-extrabold">Next Rent Due</span>
-            <span className="text-3xl font-black text-white mt-1 leading-none">{formatCurrency(nextRentAmount)}</span>
-              <span className="text-[10px] text-indigo-150 mt-1 font-semibold uppercase">
-              Due by {lease.end_date}
-            </span>
-            <span className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${daysRemainingPillClass}`}>
-              {dueDateLabel(lease.end_date)}
-            </span>
+          <div className={`rounded-2xl p-5 border-2 transition-all
+            ${colour.border} ${colour.bg}
+            ${colour.urgent ? 'ring-2 ring-red-400 ring-offset-1' : ''}`}>
+
+            <p className="text-xs font-bold text-slate-500
+                          uppercase tracking-wider mb-1">
+              Rent Due Date
+            </p>
+
+            <p className={`text-3xl font-black mt-1
+              ${colour.text}
+              ${colour.urgent ? 'animate-pulse' : ''}`}>
+              {colour.label}
+            </p>
+
+            <p className="text-sm text-slate-500 mt-1">
+              {formatDate(lease?.end_date)}
+            </p>
+
+            {colour.urgent && days !== null && days > 0 && (
+              <p className="text-xs text-red-500 font-bold mt-2">
+                ⚠ Less than 20 days until your rent is due
+              </p>
+            )}
+            {colour.urgent && days !== null && days <= 0 && (
+              <p className="text-xs text-red-700 font-bold mt-2">
+                ⚠ Your rent is past due — please pay immediately
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -204,15 +230,21 @@ const TenantDashboard = () => {
       {/* Stats row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard label="Payments Made" value={payments.filter(p => p.payment_status === 'success').length} icon={Receipt} iconColor="text-green-600" iconBg="bg-green-50" />
-        <StatCard 
-          label="Days Until Due" 
-          value={daysRemaining > 0 ? `${daysRemaining} days` : '0 days'} 
-          icon={Calendar} 
-          iconColor="text-blue-600" 
-          iconBg="bg-blue-50" 
-          trendValue={daysRemaining <= 0 ? 'Overdue' : null}
-          trendDirection="down"
-        />
+        <div className={`rounded-2xl p-4 border-2 ${colour.border}
+                     bg-white transition-all`}>
+          <p className="text-xs font-bold text-slate-500
+                        uppercase tracking-wider">Days Until Due</p>
+          <p className={`text-3xl font-black mt-1 ${colour.text}`}>
+            {days === null ? '—' : Math.abs(days)}
+          </p>
+          <p className={`text-xs font-bold mt-0.5 ${colour.text}`}>
+            {days === null ? 'No lease found'
+             : days < 0 ? 'OVERDUE'
+             : days === 0 ? 'Due Today'
+             : days <= 20 ? 'days left ⚠'
+             : 'days remaining'}
+          </p>
+        </div>
         <StatCard label="Reminders Logged" value={notifications.length} icon={Bell} iconColor="text-purple-600" iconBg="bg-purple-50" />
       </div>
 

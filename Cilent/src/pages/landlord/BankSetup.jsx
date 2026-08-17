@@ -33,6 +33,9 @@ const BankSetup = () => {
   });
 
   const [formError, setFormError] = useState('');
+  const [accountNameError, setAccountNameError] = useState('');
+  const [resolving, setResolving] = useState(false);
+  const [resolved, setResolved] = useState(null);
 
   useEffect(() => {
     fetchProfile();
@@ -148,6 +151,12 @@ const BankSetup = () => {
       return;
     }
 
+    if (!resolved?.account_name) {
+      setFormError('Please verify the account number first.');
+      toast.error('Please verify the account number first.');
+      return;
+    }
+
     setFormError('');
     setSubmitLoading(true);
     try {
@@ -172,6 +181,45 @@ const BankSetup = () => {
       setSubmitLoading(false);
     }
   };
+
+  useEffect(() => {
+    let mounted = true;
+    const shouldResolve = form.account_number && form.account_number.length === 10 && form.settlement_bank;
+    if (!shouldResolve) {
+      setResolved(null);
+      setAccountNameError('');
+      setResolving(false);
+      return;
+    }
+
+    setResolving(true);
+    setResolved(null);
+    setAccountNameError('');
+
+    paymentAPI.resolveAccount({ account_number: form.account_number, bank_code: form.settlement_bank })
+      .then((res) => {
+        if (!mounted) return;
+        const resolvedData = res.data || null;
+        setResolved(resolvedData);
+        if (!resolvedData?.account_name) {
+          setAccountNameError('Could not resolve account name');
+        } else {
+          setAccountNameError('');
+        }
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        const message = err.response?.data?.error || err.message || 'Account not found. Check number and bank.';
+        setResolved({ error: true, message });
+        setAccountNameError(message);
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setResolving(false);
+      });
+
+    return () => { mounted = false; };
+  }, [form.account_number, form.settlement_bank]);
 
   if (loading || bankDetailsLoading) return <LoadingSpinner fullPage />;
 
@@ -287,9 +335,9 @@ const BankSetup = () => {
                 />
                 {showDropdown && filteredBanks.length > 0 && (
                   <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg">
-                    {filteredBanks.map(b => (
+                    {filteredBanks.map((b, index) => (
                       <div
-                        key={b.code}
+                        key={`${b.code}-${index}`}
                         onClick={() => {
                           setSearchQuery(b.name);
                           setForm(prev => ({ ...prev, settlement_bank: b.code }));
@@ -320,13 +368,22 @@ const BankSetup = () => {
                   placeholder="0123456789"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition"
                 />
+                {resolving ? (
+                  <p className="text-xs text-slate-500 mt-2">Resolving account name...</p>
+                ) : resolved?.account_name ? (
+                  <p className="text-sm text-slate-700 mt-2">Account name: <strong>{resolved.account_name}</strong></p>
+                ) : null}
+
+                {accountNameError && (
+                  <p className="text-xs text-red-500 mt-2">{accountNameError}</p>
+                )}
               </div>
             </div>
 
             <button
               type="submit"
-              disabled={submitLoading || !form.settlement_bank}
-              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition duration-150 flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-blue-500/25 active:scale-[0.98]"
+              disabled={submitLoading || !form.settlement_bank || !resolved?.account_name || !!accountNameError}
+              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition duration-150 flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-blue-500/25 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitLoading ? (
                 <>

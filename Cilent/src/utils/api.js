@@ -281,6 +281,7 @@ export const paymentAPI = {
   createSubaccount: (data) => api.post('/payments/subaccount', data),
   getBankDetails: () => api.get('/payments/bank-details'),
   getBanks: () => api.get('/payments/banks'),
+  resolveAccount: (params) => api.get('/payments/resolve', { params }),
 };
 
 export const approvalAPI = {

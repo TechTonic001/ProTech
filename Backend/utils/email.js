@@ -165,66 +165,10 @@ const sendApprovalEmail = async (toEmail, fullName, approved, propertyName) => {
   }
 };
 
-const sendRentReminderEmail = async (
-  toEmail,
-  tenantName,
-  amount,
-  dueDate,
-  daysLeft,
-  roomNumber,
-  propertyName
-) => {
-  let subject = '';
-  if (daysLeft === 0) {
-    subject = 'OVERDUE: Your rent is past due';
-  } else if (daysLeft === 1) {
-    subject = 'Rent Reminder: Due TOMORROW';
-  } else {
-    subject = `Rent Reminder: ${daysLeft} days until your rent is due`;
-  }
-
-  const urgencyColor = daysLeft <= 0 ? '#d32f2f' : daysLeft === 1 ? '#f57c00' : '#1a7f7e';
-
-  const htmlContent = `
-    <html>
-      <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">
-        <div style="max-width: 600px; background-color: white; margin: 0 auto; padding: 30px; border-radius: 8px;">
-          <h2 style="color: ${urgencyColor}; text-align: center;">Rent Payment Reminder</h2>
-          <p style="color: #666;">Hello ${tenantName},</p>
-          <div style="background-color: #f9f9f9; padding: 20px; border-left: 4px solid ${urgencyColor}; margin: 20px 0;">
-            <p style="color: #333; font-size: 16px; margin: 0;"><strong>Rent Amount:</strong></p>
-            <p style="color: ${urgencyColor}; font-size: 32px; font-weight: bold; margin: 10px 0;">₦${parseFloat(amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</p>
-            <p style="color: #666; margin: 10px 0;"><strong>Property:</strong> ${propertyName}</p>
-            <p style="color: #666; margin: 10px 0;"><strong>Room:</strong> ${roomNumber}</p>
-            <p style="color: #666; margin: 10px 0;"><strong>Due Date:</strong> ${dueDate}</p>
-          </div>
-          <div style="text-align: center; margin: 20px 0;">
-            <a href="${buildFrontEndLink('pay')}" style="background-color: #1a7f7e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block;">Pay Now</a>
-          </div>
-          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-          <p style="color: #999; font-size: 12px; text-align: center;">${emailFooter}</p>
-        </div>
-      </body>
-    </html>
-  `;
-
-  const textContent = `Hello ${tenantName},\n\nRent Payment Reminder\n\nAmount: ₦${parseFloat(amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}\nProperty: ${propertyName}\nRoom: ${roomNumber}\nDue Date: ${dueDate}\n\nPlease pay your rent on time.\n\n${emailFooter}`;
-
-  try {
-    logEmailAttempt('RentReminderEmail', toEmail, subject);
-    await transporter.sendMail({
-      from: sendFrom,
-      to: toEmail,
-      subject: subject,
-      html: htmlContent,
-      text: textContent,
-    });
-    return { success: true };
-  } catch (error) {
-    console.error('[ERROR] Rent reminder email error:', error.message);
-    return { success: false, error: error.message };
-  }
-};
+// Legacy simple rent reminder removed in favor of the modern templates used by
+// the notification engine. Notification engine calls `sendRentReminderEmail`
+// and `sendLandlordRentAlert` which are defined further below and wrap the
+// tenant/landlord-specific implementations.
 
 const sendPaymentConfirmationEmail = async (
   toEmail,
@@ -820,6 +764,199 @@ const sendLandlordPaymentAlert = async (toEmail, {
   }
 };
 
+// ── New: sendRentReminderEmail used by notification engine ───────────────
+const sendRentReminderEmail = async (toEmail, tenantName, opts) => {
+  const {
+    subject, hostelName, propertyName, roomNumber,
+    amountRemaining, dueDate, urgencyLabel, days, payNowLink
+  } = opts
+
+  const isOverdue = days < 0
+  const isDueToday = days === 0
+  const headerColor = isOverdue || isDueToday ? '#B91C1C' : '#D97706'
+  const headerText  = isOverdue
+    ? `🚨 ${urgencyLabel}`
+    : isDueToday
+    ? `⚠ Due TODAY` 
+    : `⏰ ${urgencyLabel}`
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:540px;
+                margin:0 auto;background:#F8FFFE">
+      <div style="background:#0A3D2E;padding:24px 28px;
+                  border-bottom:4px solid #D97706">
+        <h1 style="color:#fff;margin:0;font-size:22px;
+                   font-weight:900">ProTech</h1>
+        <p style="color:#D97706;margin:4px 0 0;font-size:12px">
+          Automated Rent Tracking System</p>
+      </div>
+      <div style="background:${headerColor};padding:18px 28px;
+                  text-align:center">
+        <h2 style="color:#fff;margin:0;font-size:18px;
+                   font-weight:900">${headerText}</h2>
+      </div>
+      <div style="background:#fff;padding:28px">
+        <p style="color:#334155;font-size:15px">
+          Dear <strong>${tenantName}</strong>,</p>
+        <p style="color:#475569;font-size:14px">
+          This is a reminder regarding your rent for
+          <strong>${hostelName || propertyName}</strong>.
+        </p>
+        <div style="background:#F0FDF4;border:1px solid #BBF7D0;
+                    border-radius:12px;padding:20px;margin:20px 0">
+          <table style="width:100%;border-collapse:collapse">
+            <tr>
+              <td style="padding:8px 0;color:#64748B;font-size:13px">
+                Amount Remaining</td>
+              <td style="padding:8px 0;color:#B91C1C;font-weight:900;
+                         font-size:15px;text-align:right">
+                ₦${parseFloat(amountRemaining).toLocaleString()}</td>
+            </tr>
+            <tr style="border-top:1px solid #E2E8F0">
+              <td style="padding:8px 0;color:#64748B;font-size:13px">
+                Due Date</td>
+              <td style="padding:8px 0;color:#0A3D2E;font-weight:700;
+                         text-align:right;font-size:14px">
+                ${dueDate}</td>
+            </tr>
+            <tr style="border-top:1px solid #E2E8F0">
+              <td style="padding:8px 0;color:#64748B;font-size:13px">
+                Property</td>
+              <td style="padding:8px 0;color:#334155;
+                         text-align:right;font-size:13px">
+                ${hostelName || propertyName}</td>
+            </tr>
+            <tr style="border-top:1px solid #E2E8F0">
+              <td style="padding:8px 0;color:#64748B;font-size:13px">
+                Room</td>
+              <td style="padding:8px 0;color:#334155;
+                         text-align:right;font-size:13px">
+                ${roomNumber}</td>
+            </tr>
+          </table>
+        </div>
+        <div style="text-align:center;margin:24px 0">
+          <a href="${payNowLink}"
+             style="background:#0A3D2E;color:#fff;padding:14px 36px;
+                    border-radius:10px;text-decoration:none;
+                    font-weight:900;font-size:15px;display:inline-block">
+            Pay Rent Now →
+          </a>
+        </div>
+        <p style="color:#94A3B8;font-size:12px;text-align:center;
+                  margin-top:20px;border-top:1px solid #E2E8F0;
+                  padding-top:16px">
+          This reminder was sent automatically by ProTech Notification Engine.<br>
+          You are receiving this because you have an active lease on ProTech.
+        </p>
+      </div>
+      <div style="background:#0A3D2E;padding:16px 28px;text-align:center">
+        <p style="color:#94A3B8;font-size:11px;margin:0">
+          ProTech Automated Rent Tracking System<br>
+          SQI College of ICT, Ogbomoso, Oyo State, Nigeria
+        </p>
+      </div>
+    </div>
+  `
+
+  await transporter.sendMail({
+    from:    process.env.EMAIL_FROM,
+    to:      toEmail,
+    subject,
+    html,
+    text: `${subject}\n\nDear ${tenantName},\n\n`
+      + `Your rent of ₦${parseFloat(amountRemaining).toLocaleString()} `
+      + `is due on ${dueDate}.\n\nPay now: ${payNowLink}`
+  })
+}
+
+const sendLandlordRentAlert = async (toEmail, landlordName, opts) => {
+  const {
+    subject, tenantName, roomNumber,
+    amountRemaining, dueDate, urgencyLabel, days
+  } = opts
+
+  const isOverdue = days < 0
+  const headerColor = isOverdue ? '#B91C1C' : '#D97706'
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:540px;
+                margin:0 auto;background:#F8FFFE">
+      <div style="background:#0A3D2E;padding:24px 28px;
+                  border-bottom:4px solid #D97706">
+        <h1 style="color:#fff;margin:0;font-size:22px;
+                   font-weight:900">ProTech</h1>
+        <p style="color:#D97706;margin:4px 0 0;font-size:12px">
+          Landlord Rent Alert</p>
+      </div>
+      <div style="background:${headerColor};padding:14px 28px">
+        <h2 style="color:#fff;margin:0;font-size:16px;
+                   font-weight:900">${subject}</h2>
+      </div>
+      <div style="background:#fff;padding:28px">
+        <p style="color:#334155;font-size:15px">
+          Dear <strong>${landlordName}</strong>,</p>
+        <p style="color:#475569;font-size:14px">
+          The following tenant has a rent alert:</p>
+        <div style="background:#F8FAFC;border:1px solid #E2E8F0;
+                    border-radius:12px;padding:20px;margin:16px 0">
+          <table style="width:100%;border-collapse:collapse">
+            <tr>
+              <td style="padding:7px 0;color:#64748B;font-size:13px">
+                Tenant</td>
+              <td style="padding:7px 0;font-weight:700;
+                         text-align:right;color:#0A3D2E">
+                ${tenantName}</td>
+            </tr>
+            <tr style="border-top:1px solid #E2E8F0">
+              <td style="padding:7px 0;color:#64748B;font-size:13px">
+                Room</td>
+              <td style="padding:7px 0;text-align:right;
+                         color:#334155">${roomNumber}</td>
+            </tr>
+            <tr style="border-top:1px solid #E2E8F0">
+              <td style="padding:7px 0;color:#64748B;font-size:13px">
+                Status</td>
+              <td style="padding:7px 0;text-align:right;
+                         font-weight:900;color:${headerColor}">
+                ${urgencyLabel}</td>
+            </tr>
+            <tr style="border-top:1px solid #E2E8F0">
+              <td style="padding:7px 0;color:#64748B;font-size:13px">
+                Outstanding</td>
+              <td style="padding:7px 0;text-align:right;
+                         font-weight:900;color:#B91C1C;font-size:15px">
+                ₦${parseFloat(amountRemaining).toLocaleString()}</td>
+            </tr>
+            <tr style="border-top:1px solid #E2E8F0">
+              <td style="padding:7px 0;color:#64748B;font-size:13px">
+                Due Date</td>
+              <td style="padding:7px 0;text-align:right;
+                         color:#334155">${dueDate}</td>
+            </tr>
+          </table>
+        </div>
+        <p style="color:#94A3B8;font-size:12px;text-align:center;
+                  border-top:1px solid #E2E8F0;padding-top:16px">
+          This alert was sent automatically by ProTech.
+        </p>
+      </div>
+    </div>
+  `
+
+  await transporter.sendMail({
+    from:    process.env.EMAIL_FROM,
+    to:      toEmail,
+    subject,
+    html,
+    text: `${subject}\n\nDear ${landlordName},\n\n`
+      + `Tenant: ${tenantName}\nRoom: ${roomNumber}\n`
+      + `Status: ${urgencyLabel}\n`
+      + `Outstanding: ₦${parseFloat(amountRemaining).toLocaleString()}\n`
+      + `Due: ${dueDate}`
+  })
+}
+
 module.exports = {
   sendOTPEmail,
   sendPasswordChangedEmail,
@@ -832,6 +969,7 @@ module.exports = {
   sendLandlordTenantRegistrationNotificationEmail,
   sendTenantRentReminderEmail,
   sendLandlordRentAlertEmail,
+  sendLandlordRentAlert,
   sendPaymentReceiptEmail,
   sendLandlordPaymentAlert,
   sendPaymentReceiptToBoth,
