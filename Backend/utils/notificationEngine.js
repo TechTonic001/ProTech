@@ -5,6 +5,62 @@ const {
   sendLandlordRentAlert,
 } = require('./email');
 
+const computeDaysUntilDue = (dueDate, referenceDate = new Date()) => {
+  if (!dueDate) return 0;
+
+  const now = new Date(referenceDate);
+  const due = new Date(`${dueDate}T00:00:00`);
+  const today = new Date(
+    now.toLocaleString('en-US', { timeZone: 'Africa/Lagos' })
+  );
+
+  const todayStart = new Date(
+    `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}T00:00:00`
+  );
+
+  const diffMs = due.getTime() - todayStart.getTime();
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+};
+
+const determineShouldNotify = (daysRemaining, settings = {}) => {
+  const s = settings || {};
+
+  if (daysRemaining === 30 && s.remind_30_days !== false) {
+    return { shouldNotify: true, notifyType: '30_day_reminder' };
+  }
+  if (daysRemaining === 14 && s.remind_14_days === true) {
+    return { shouldNotify: true, notifyType: '14_day_reminder' };
+  }
+  if (daysRemaining === 7 && s.remind_7_days !== false) {
+    return { shouldNotify: true, notifyType: '7_day_reminder' };
+  }
+  if (daysRemaining === 3 && s.remind_3_days === true) {
+    return { shouldNotify: true, notifyType: '3_day_reminder' };
+  }
+  if (daysRemaining === 1 && s.remind_1_day !== false) {
+    return { shouldNotify: true, notifyType: '1_day_reminder' };
+  }
+  if (daysRemaining === 0 && s.remind_on_due !== false) {
+    return { shouldNotify: true, notifyType: 'due_today' };
+  }
+  if (daysRemaining < 0) {
+    const frequency = s.frequency_overdue || 'daily';
+    const daysPast = Math.abs(daysRemaining);
+
+    if (frequency === 'daily') {
+      return { shouldNotify: true, notifyType: 'overdue' };
+    }
+    if (frequency === 'every_2_days' && daysPast % 2 === 0) {
+      return { shouldNotify: true, notifyType: 'overdue' };
+    }
+    if (frequency === 'weekly' && daysPast % 7 === 0) {
+      return { shouldNotify: true, notifyType: 'overdue' };
+    }
+  }
+
+  return { shouldNotify: false, notifyType: null };
+};
+
 const runNotificationEngine = async (currentHour) => {
   console.log(`
     [CRON] Notification engine running — WAT hour: ${currentHour}
@@ -225,5 +281,8 @@ const runNotificationEngine = async (currentHour) => {
   }
 }
 
-module.exports = { runNotificationEngine }
-  
+module.exports = {
+  runNotificationEngine,
+  computeDaysUntilDue,
+  determineShouldNotify,
+};

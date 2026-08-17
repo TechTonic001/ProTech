@@ -29,7 +29,7 @@ const BankSetup = () => {
     business_name: '',
     settlement_bank: '',
     account_number: '',
-    percentage_charge: 1.0, // Default 1% split or fee sharing
+    percentage_charge: 1.0,
   });
 
   const [formError, setFormError] = useState('');
@@ -96,6 +96,11 @@ const BankSetup = () => {
       const profileData = res.data.user;
       setProfile(profileData);
       if (profileData) {
+        const nextBusinessName = profileData.hostel_name || profileData.full_name || '';
+        setForm((prev) => ({
+          ...prev,
+          business_name: prev.business_name || nextBusinessName,
+        }));
         setUser((prevUser) => ({
           ...prevUser,
           ...profileData,
@@ -142,7 +147,12 @@ const BankSetup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.business_name || !form.settlement_bank || !form.account_number) {
+    if (!form.business_name?.trim()) {
+      setFormError('Please enter your hostel or business name.');
+      toast.error('Please enter your hostel or business name.');
+      return;
+    }
+    if (!form.settlement_bank || !form.account_number) {
       setFormError('All bank settlement fields are required.');
       return;
     }

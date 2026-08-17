@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   propertyAPI,
@@ -295,7 +295,10 @@ const AssignedRoomCard = ({ room, onRemoved }) => {
 
 const Rooms = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('Available Rooms');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(
+    searchParams.get('tab') === 'assigned' ? 'Assigned Rooms' : 'Available Rooms'
+  );
   const [rooms, setRooms] = useState([]);
   const [properties, setProperties] = useState([]);
   const [approvedTenants, setApprovedTenants] = useState([]);

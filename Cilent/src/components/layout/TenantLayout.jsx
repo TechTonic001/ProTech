@@ -178,7 +178,7 @@ const TenantLayout = () => {
               </div>
               <div className="hidden sm:block text-left">
                 <div className="text-xs font-bold text-slate-800 leading-none truncate w-24">@{user?.username}</div>
-                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Approved</div>
+                {/* <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Approved</div> */}
               </div>
             </div>
           </div>

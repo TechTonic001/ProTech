@@ -115,6 +115,14 @@ const runMigrations = async () => {
     `);
     console.log('[MIGRATE] ✅  leases.amount_paid_this_cycle column ready');
 
+    // ── MIGRATION 8b: carried-forward balance on leases ────────────────────
+    await db.query(`
+      ALTER TABLE leases
+        ADD COLUMN IF NOT EXISTS carried_forward_balance
+        NUMERIC(12,2) DEFAULT 0
+    `);
+    console.log('[MIGRATE] ✅  leases.carried_forward_balance ready');
+
     // ── MIGRATION 9: service_fee on payments — platform transaction revenue
     await db.query(`
       ALTER TABLE payments

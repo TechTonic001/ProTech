@@ -12,6 +12,7 @@ const getLandlordDashboard = asyncHandler(async (req, res) => {
         l.tenant_id,
         l.rent_amount,
         COALESCE(l.amount_paid_this_cycle, 0) AS amount_paid_this_cycle,
+        COALESCE(l.carried_forward_balance, 0) AS carried_forward_balance,
         l.payment_frequency,
         TO_CHAR(l.start_date, 'YYYY-MM-DD') AS start_date,
         TO_CHAR(l.end_date,   'YYYY-MM-DD') AS end_date,
@@ -23,6 +24,14 @@ const getLandlordDashboard = asyncHandler(async (req, res) => {
           THEN TRUE ELSE FALSE
         END AS is_overdue,
         (l.end_date::DATE - (NOW() AT TIME ZONE 'Africa/Lagos')::DATE) AS days_remaining,
+        (l.rent_amount - COALESCE(l.amount_paid_this_cycle, 0)) AS current_cycle_remaining,
+        ((l.rent_amount - COALESCE(l.amount_paid_this_cycle, 0)) + COALESCE(l.carried_forward_balance, 0)) AS total_owed,
+        CASE
+          WHEN COALESCE(l.amount_paid_this_cycle, 0) >= l.rent_amount THEN 'Paid'
+          WHEN (l.end_date::DATE - (NOW() AT TIME ZONE 'Africa/Lagos')::DATE) >= 0
+            THEN CONCAT((l.end_date::DATE - (NOW() AT TIME ZONE 'Africa/Lagos')::DATE)::TEXT, ' days remaining')
+          ELSE CONCAT(ABS(l.end_date::DATE - (NOW() AT TIME ZONE 'Africa/Lagos')::DATE)::TEXT, ' days overdue')
+        END AS due_status_label,
         u.full_name   AS tenant_name,
         u.username    AS tenant_username,
         u.email       AS tenant_email,
@@ -89,12 +98,18 @@ const getLandlordDashboard = asyncHandler(async (req, res) => {
             'room_number', room_number,
             'property_name', property_name,
             'rent_amount', rent_amount,
-            'amount_paid', amount_paid_this_cycle,
-            'remaining', rent_amount - COALESCE(amount_paid_this_cycle, 0),
+            'amount_paid_this_cycle', amount_paid_this_cycle,
+            'carried_forward_balance', COALESCE(carried_forward_balance, 0),
+            'current_cycle_remaining', COALESCE(current_cycle_remaining, 0),
+            'total_owed', COALESCE(total_owed, 0),
+            'remaining', COALESCE(total_owed, 0),
             'due_date', due_date,
+            'days_remaining', days_remaining,
+            'due_status_label', due_status_label,
             'is_overdue', is_overdue,
             'start_date', start_date,
-            'end_date', end_date
+            'end_date', end_date,
+            'is_fully_paid', COALESCE(amount_paid_this_cycle, 0) >= rent_amount
           ) ORDER BY is_overdue DESC, tenant_name ASC
         ), '[]'::json) AS recent_leases
       FROM lease_stats

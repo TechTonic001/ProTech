@@ -122,6 +122,46 @@ const LandlordDashboard = () => {
   const currentMonth = now.getMonth();
   const currentYear  = now.getFullYear();
 
+  const getDueStatusStyle = (daysRemaining, isFullyPaid) => {
+    if (isFullyPaid) return {
+      bg: 'bg-green-100',
+      text: 'text-green-700',
+      label: 'Paid ✓',
+    };
+
+    const d = parseInt(daysRemaining ?? 0, 10);
+    if (d < 0) return {
+      bg: 'bg-red-100',
+      text: 'text-red-700',
+      label: `${Math.abs(d)} day${Math.abs(d) === 1 ? '' : 's'} OVERDUE`,
+      pulse: true,
+    };
+    if (d === 0) return {
+      bg: 'bg-red-100',
+      text: 'text-red-700',
+      label: 'Due TODAY',
+      pulse: true,
+    };
+    if (d <= 7) return {
+      bg: 'bg-amber-100',
+      text: 'text-amber-700',
+      label: `${d} day${d === 1 ? '' : 's'} left`,
+    };
+    if (d <= 20) return {
+      bg: 'bg-orange-50',
+      text: 'text-orange-600',
+      label: `${d} days left`,
+    };
+    return {
+      bg: 'bg-green-50',
+      text: 'text-green-600',
+      label: `${d} days left`,
+    };
+  };
+
+  const leases = dashboard.recent_leases || recentLeasesState || [];
+  const [expandedLease, setExpandedLease] = useState(null);
+
   const stats = useMemo(
     () => ({
       properties:     parseInt(dashboard.total_properties, 10) || 0,
@@ -343,15 +383,21 @@ const LandlordDashboard = () => {
           label="Total Properties"
           value={stats.properties}
           icon={Building2}
-          iconColor="text-blue-600"
-          iconBg="bg-blue-50"
+          iconColor="text-green-600"
+          iconBg="bg-green-50"
+          onClick={() => navigate('/landlord/properties')}
+          className="ring-2 ring-green-400 shadow-lg hover:ring-green-400"
+          subtext={`${dashboard.occupied_rooms || 0} rooms occupied`}
         />
         <StatCard
           label="Active Tenants"
           value={stats.activeTenants}
           icon={Users}
-          iconColor="text-green-600"
-          iconBg="bg-green-50"
+          iconColor="text-blue-600"
+          iconBg="bg-blue-50"
+          onClick={() => navigate('/landlord/rooms?tab=assigned')}
+          className="ring-2 ring-blue-400 shadow-lg hover:ring-blue-400"
+          subtext={`${dashboard.vacant_rooms || 0} rooms vacant`}
         />
         <StatCard
           label="Revenue This Month"
@@ -359,6 +405,9 @@ const LandlordDashboard = () => {
           icon={TrendingUp}
           iconColor="text-amber-600"
           iconBg="bg-amber-50"
+          onClick={() => navigate('/landlord/payments')}
+          className="ring-2 ring-amber-400 shadow-lg hover:ring-amber-400"
+          subtext="Verified Paystack payments"
         />
         <StatCard
           label="Overdue Rent"
@@ -366,23 +415,18 @@ const LandlordDashboard = () => {
           icon={AlertTriangle}
           iconColor="text-red-500"
           iconBg="bg-red-50"
-          trendValue={
-            stats.overdueTenants > 0
-              ? `${stats.overdueTenants} tenants late`
-              : null
-          }
+          onClick={() => document.getElementById('overdue-section')?.scrollIntoView({ behavior: 'smooth' })}
+          className={`ring-2 ${stats.overdueTenants > 0 ? 'ring-red-400 shadow-lg hover:ring-red-400' : 'ring-green-300'}`}
+          pulse={stats.overdueTenants > 0}
+          subtext={stats.overdueTenants > 0 ? 'Requires attention' : 'All tenants current'}
+          trendValue={stats.overdueTenants > 0 ? `${stats.overdueTenants} tenants late` : null}
           trendDirection="down"
-          extraBadge={
-            stats.overdueTenants > 0 ? (
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-            ) : null
-          }
         />
       </div>
 
       {/* ── Overdue Tenants Section (Issue 1C) ─────────────────────────────── */}
       {uniqueOverdueTenants.length > 0 && (
-        <div className="space-y-3">
+        <div id="overdue-section" className="space-y-3">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-red-500" />
             <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">Overdue Tenants</h3>
@@ -396,7 +440,6 @@ const LandlordDashboard = () => {
                 key={lease.tenant_id}
                 className="bg-white border-2 border-red-200 rounded-2xl p-4 shadow-sm shadow-red-50 hover:shadow-red-100 transition"
               >
-                {/* Tenant header */}
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center text-sm font-black text-red-600">
                     {lease.tenant_name?.charAt(0).toUpperCase() || 'T'}
@@ -404,27 +447,96 @@ const LandlordDashboard = () => {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-black text-slate-900 truncate">{lease.tenant_name}</p>
                     <p className="text-[10px] text-slate-500 font-semibold truncate">
-                      {lease.property_name} — Room {lease.room_number}
+                      @{lease.tenant_username} · {lease.property_name} — Room {lease.room_number}
                     </p>
                   </div>
-                  <span className="flex-shrink-0 text-[10px] font-black text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
-                    {lease.remaining != null
-                      ? `₦${parseFloat(lease.remaining).toLocaleString('en-NG')} due`
-                      : 'Overdue'}
-                  </span>
                 </div>
-                {/* Balance */}
-                <div className="flex justify-between items-center pt-2 border-t border-red-100">
-                  <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Balance Due</span>
-                  <span className="text-sm font-black text-red-600">
-                    ₦{parseFloat(lease.remaining ?? lease.balance_due ?? lease.rent_amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
-                  </span>
+                <div className="text-right">
+                  <p className="text-red-700 font-black text-sm animate-pulse">
+                    {Math.abs(parseInt(lease.days_remaining ?? 0, 10))} day{Math.abs(parseInt(lease.days_remaining ?? 0, 10)) === 1 ? '' : 's'} OVERDUE
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    ₦{parseFloat(lease.remaining || 0).toLocaleString('en-NG')} owed
+                  </p>
                 </div>
               </div>
             ))}
           </div>
         </div>
       )}
+
+      <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs overflow-x-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-sm font-bold text-slate-900">Lease Status</h3>
+          <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Active tenants</span>
+        </div>
+        {leases.length === 0 ? (
+          <div className="py-12 text-center text-slate-400 text-sm">No active lease rows available.</div>
+        ) : (
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
+                <th className="pb-3">Tenant</th>
+                <th className="pb-3">Room</th>
+                <th className="pb-3">Balance</th>
+                <th className="pb-3">Status</th>
+                <th className="pb-3">Details</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50 font-medium">
+              {leases.map((lease) => {
+                const status = getDueStatusStyle(lease.days_remaining, lease.is_fully_paid);
+                const debt = {
+                  carried: parseFloat(lease.carried_forward_balance || 0),
+                  currentRemaining: parseFloat(lease.remaining || 0),
+                  total: parseFloat(lease.total_owed || lease.remaining || 0),
+                };
+                const isExpanded = expandedLease === lease.lease_id;
+                return (
+                  <React.Fragment key={lease.lease_id}>
+                    <tr className="hover:bg-slate-50 transition duration-150 cursor-pointer" onClick={() => setExpandedLease(isExpanded ? null : lease.lease_id)}>
+                      <td className="py-3 text-slate-800 font-bold">{lease.tenant_name}</td>
+                      <td className="py-3 text-slate-500">{lease.room_number}</td>
+                      <td className="py-3 text-red-700 font-black">₦{debt.total.toLocaleString()}</td>
+                      <td className="py-3">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${status.bg} ${status.text} ${status.pulse ? 'animate-pulse' : ''}`}>
+                          {status.label}
+                        </span>
+                      </td>
+                      <td className="py-3 text-slate-400 text-[11px] font-bold">{isExpanded ? '▲ Hide' : '▼ Details'}</td>
+                    </tr>
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={5} className="px-4 pb-4 bg-slate-50">
+                          <div className="grid grid-cols-3 gap-3 mt-2">
+                            {debt.carried > 0 && (
+                              <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Previous balance</p>
+                                <p className="text-base font-black text-red-700 mt-1">₦{debt.carried.toLocaleString()}</p>
+                              </div>
+                            )}
+                            <div className="bg-slate-100 border border-slate-200 rounded-xl p-3">
+                              <p className="text-[10px] text-slate-500 uppercase tracking-wider">Current cycle</p>
+                              <p className="text-base font-black text-slate-800 mt-1">₦{debt.currentRemaining.toLocaleString()}</p>
+                            </div>
+                            <div className="bg-red-700 rounded-xl p-3">
+                              <p className="text-[10px] text-red-200 uppercase tracking-wider">Total owed</p>
+                              <p className="text-base font-black text-white mt-1">₦{debt.total.toLocaleString()}</p>
+                              {debt.carried > 0 && (
+                                <p className="text-[10px] text-red-200 mt-1">₦{debt.carried.toLocaleString()} + ₦{debt.currentRemaining.toLocaleString()}</p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

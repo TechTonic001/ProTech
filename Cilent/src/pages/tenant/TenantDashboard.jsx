@@ -115,6 +115,13 @@ const TenantDashboard = () => {
     lease?.amount_paid_this_cycle >= lease?.rent_amount
   );
 
+  const currentRent = parseFloat(lease?.rent_amount || 0);
+  const amountPaidCycle = parseFloat(lease?.amount_paid_this_cycle || 0);
+  const carriedForward = parseFloat(lease?.carried_forward_balance || 0);
+  const currentRemaining = currentRent - amountPaidCycle;
+  const totalOwed = currentRemaining + carriedForward;
+  const hasCarriedBalance = carriedForward > 0;
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Welcome Banner */}
@@ -247,6 +254,73 @@ const TenantDashboard = () => {
         </div>
         <StatCard label="Reminders Logged" value={notifications.length} icon={Bell} iconColor="text-purple-600" iconBg="bg-purple-50" />
       </div>
+
+      {lease && (
+        <div className="bg-white rounded-2xl border-2 border-red-200 p-5 shadow-sm">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Amount Owed</p>
+              <p className="text-4xl font-black text-red-700 mt-1">₦{totalOwed.toLocaleString()}</p>
+            </div>
+            <span className={`px-3 py-1.5 rounded-full text-xs font-black ${totalOwed <= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+              {totalOwed <= 0 ? 'Fully Paid ✓' : 'Balance Due'}
+            </span>
+          </div>
+
+          <div className="space-y-2 border-t border-slate-100 pt-3">
+            {hasCarriedBalance && (
+              <div className="flex justify-between items-center bg-red-50 rounded-xl px-3 py-2.5">
+                <div>
+                  <p className="text-sm font-bold text-red-700">Previous Unpaid Balance</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Carried forward from last period</p>
+                </div>
+                <p className="text-sm font-black text-red-700">₦{carriedForward.toLocaleString()}</p>
+              </div>
+            )}
+
+            <div className="flex justify-between items-center bg-slate-50 rounded-xl px-3 py-2.5">
+              <div>
+                <p className="text-sm font-bold text-slate-700">Current Cycle Rent</p>
+                <p className="text-xs text-slate-500 mt-0.5">{formatDate(lease?.start_date)} → {formatDate(lease?.end_date)}</p>
+              </div>
+              <p className="text-sm font-black text-slate-800">₦{currentRent.toLocaleString()}</p>
+            </div>
+
+            <div className="flex justify-between items-center bg-green-50 rounded-xl px-3 py-2.5">
+              <div>
+                <p className="text-sm font-bold text-green-700">Amount Paid (This Cycle)</p>
+                <p className="text-xs text-slate-500 mt-0.5">Verified Paystack payments</p>
+              </div>
+              <p className="text-sm font-black text-green-700">− ₦{amountPaidCycle.toLocaleString()}</p>
+            </div>
+
+            <div className="border-t-2 border-dashed border-slate-200 my-2" />
+
+            <div className="flex justify-between items-center bg-red-700 rounded-xl px-3 py-2.5">
+              <div>
+                <p className="text-sm font-black text-white">Total Balance Remaining</p>
+                {hasCarriedBalance && (
+                  <p className="text-xs text-red-200 mt-0.5">₦{carriedForward.toLocaleString()} previous + ₦{currentRemaining.toLocaleString()} current</p>
+                )}
+              </div>
+              <p className="text-xl font-black text-white">₦{totalOwed.toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <div className="flex justify-between text-xs text-slate-500 mb-1">
+              <span>Payment Progress</span>
+              <span>{currentRent > 0 ? Math.round((amountPaidCycle / currentRent) * 100) : 0}% paid this cycle</span>
+            </div>
+            <div className="h-2.5 bg-slate-100 rounded-full">
+              <div
+                className="h-2.5 rounded-full bg-green-500 transition-all duration-500"
+                style={{ width: currentRent > 0 ? `${Math.min(100, (amountPaidCycle / currentRent) * 100)}%` : '0%' }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Lease Details + Activity log */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

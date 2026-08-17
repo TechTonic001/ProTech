@@ -13,7 +13,10 @@ const LEASE_DATE_FIELDS = `
     THEN TRUE
     ELSE FALSE
   END AS is_overdue,
-  (l.end_date::DATE - (NOW() AT TIME ZONE 'Africa/Lagos')::DATE) AS days_remaining
+  (l.end_date::DATE - (NOW() AT TIME ZONE 'Africa/Lagos')::DATE) AS days_remaining,
+  COALESCE(l.carried_forward_balance, 0) AS carried_forward_balance,
+  (l.rent_amount - COALESCE(l.amount_paid_this_cycle, 0)) AS current_cycle_remaining,
+  ((l.rent_amount - COALESCE(l.amount_paid_this_cycle, 0)) + COALESCE(l.carried_forward_balance, 0)) AS total_owed
 `;
 
 const createLease = asyncHandler(async (req, res) => {
@@ -45,6 +48,32 @@ const createLease = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'This tenant already has an active room assignment' });
   }
 
+  const previousLease = await pool.query(
+    `SELECT
+       lease_id,
+       rent_amount,
+       amount_paid_this_cycle,
+       COALESCE(carried_forward_balance, 0) AS carried_forward_balance,
+       (rent_amount - COALESCE(amount_paid_this_cycle, 0)) AS unpaid
+     FROM leases
+     WHERE tenant_id = $1
+       AND landlord_id = $2
+       AND lease_status <> 'active'
+     ORDER BY end_date DESC
+     LIMIT 1`,
+    [tenant_id, landlord_id]
+  );
+
+  let carriedForward = 0;
+  if (previousLease.rows.length > 0) {
+    const prev = previousLease.rows[0];
+    const unpaid = Number(prev.unpaid || 0);
+    const carried = Number(prev.carried_forward_balance || 0);
+    if (unpaid > 0) {
+      carriedForward = unpaid + carried;
+    }
+  }
+
   const roomsResult = await pool.query(
     'SELECT r.room_id, r.is_occupied, p.landlord_id FROM rooms r JOIN properties p ON r.property_id = p.property_id WHERE r.room_id = $1',
     [room_id]
@@ -62,8 +91,8 @@ const createLease = asyncHandler(async (req, res) => {
 
   const result = await pool.query(
     `INSERT INTO leases
-      (tenant_id, room_id, landlord_id, start_date, end_date, rent_amount, amount_paid_this_cycle, payment_frequency, lease_status)
-     VALUES ($1, $2, $3, $4::DATE, $5::DATE, $6, 0, $7, 'active')
+      (tenant_id, room_id, landlord_id, start_date, end_date, rent_amount, amount_paid_this_cycle, carried_forward_balance, payment_frequency, lease_status)
+     VALUES ($1, $2, $3, $4::DATE, $5::DATE, $6, 0, $7, $8, 'active')
      RETURNING
        lease_id,
        TO_CHAR(start_date, 'YYYY-MM-DD') AS start_date,
@@ -71,8 +100,9 @@ const createLease = asyncHandler(async (req, res) => {
        TO_CHAR(end_date,   'YYYY-MM-DD') AS due_date,
        rent_amount,
        amount_paid_this_cycle,
+       carried_forward_balance,
        payment_frequency`,
-    [tenant_id, room_id, landlord_id, start_date, end_date, finalRent, payment_frequency || 'monthly']
+    [tenant_id, room_id, landlord_id, start_date, end_date, finalRent, carriedForward, payment_frequency || 'monthly']
   );
 
   await pool.query('UPDATE rooms SET is_occupied = 1 WHERE room_id = $1', [room_id]);
