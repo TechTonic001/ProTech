@@ -75,7 +75,7 @@ const finalizePaymentSuccess = async (transaction) => {
     ? parseFloat(updatedLease.amount_paid_this_cycle || 0) >=
       parseFloat(updatedLease.rent_amount || 0)
     : true;
-  const paymentStatus = isFullPayment ? "success" : "pending";
+  const paymentStatus = "success";
 
   // Upsert payment record
   if (existing.rows.length > 0) {
