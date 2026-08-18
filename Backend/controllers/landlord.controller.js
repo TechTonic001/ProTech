@@ -220,7 +220,7 @@ const unassignTenant = async (req, res, next) => {
     // Terminate active leases and free up rooms
     for (const row of leasesRes.rows) {
       await db.query(
-        `UPDATE leases SET lease_status = 'terminated', updated_at = NOW() WHERE lease_id = $1`,
+        `UPDATE leases SET lease_status = 'terminated' WHERE lease_id = $1`,
         [row.lease_id]
       );
       if (row.room_id) {
@@ -230,7 +230,7 @@ const unassignTenant = async (req, res, next) => {
 
     // Mark tenant account as inactive/removed (soft state change) but do NOT delete records
     await db.query(
-      `UPDATE users SET account_status = 'removed', updated_at = NOW() WHERE user_id = $1 AND role = 'tenant'`,
+      `UPDATE users SET account_status = 'removed' WHERE user_id = $1 AND role = 'tenant'`,
       [tenant_id]
     );
 
