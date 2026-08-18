@@ -537,57 +537,76 @@ const LandlordDashboard = () => {
                     </tr>
                     {isExpanded && (
                       <tr>
-                        <td colSpan={6} className="px-4 pb-4 bg-slate-50">
-                          {/* Payment progress bar */}
-                          <div className="mt-3 mb-3">
-                            <div className="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
-                              <span>Payment Progress (this cycle)</span>
-                              <span>{paidPct}% paid</span>
+                        <td colSpan={6} className="px-4 pb-5 bg-slate-50">
+                          {/* ── Receipt-style deduction ledger ── */}
+                          <div className="mt-3 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+
+                            {/* Header */}
+                            <div className="bg-slate-50 border-b border-slate-100 px-4 py-2.5 flex justify-between items-center">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Rent Breakdown</span>
+                              <span className="text-[10px] font-bold text-slate-400">{lease.room_number} · {lease.property_name}</span>
                             </div>
-                            <div className="h-2 bg-slate-200 rounded-full">
-                              <div
-                                className="h-2 rounded-full bg-green-500 transition-all duration-500"
-                                style={{ width: `${paidPct}%` }}
-                              />
-                            </div>
-                          </div>
-                          <div className="grid gap-3 mt-2" style={{ gridTemplateColumns: `repeat(${2 + (debt.carried > 0 ? 1 : 0)}, 1fr)` }}>
-                            {/* Green — Amount paid this cycle */}
-                            <div className="bg-green-50 border border-green-200 rounded-xl p-3">
-                              <p className="text-[10px] text-slate-500 uppercase tracking-wider">Paid This Cycle</p>
-                              <p className="text-base font-black text-green-700 mt-1">₦{amtPaid.toLocaleString()}</p>
-                              <p className="text-[10px] text-slate-400 mt-0.5">
-                                {paidPct}% of ₦{rentAmt.toLocaleString()}
-                              </p>
-                            </div>
-                            {/* Red — Current cycle still owed */}
-                            <div className="bg-slate-100 border border-slate-200 rounded-xl p-3">
-                              <p className="text-[10px] text-slate-500 uppercase tracking-wider">Cycle Remaining</p>
-                              <p className="text-base font-black text-slate-800 mt-1">₦{debt.currentRemaining.toLocaleString()}</p>
-                              <p className="text-[10px] text-slate-400 mt-0.5">
-                                After ₦{amtPaid.toLocaleString()} paid
-                              </p>
-                            </div>
-                            {/* Carried forward — only shows when > 0 */}
-                            {debt.carried > 0 && (
-                              <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-                                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Previous Debt</p>
-                                <p className="text-base font-black text-red-700 mt-1">₦{debt.carried.toLocaleString()}</p>
-                                <p className="text-[10px] text-slate-400 mt-0.5">Carried forward</p>
+
+                            <div className="px-4 py-3 space-y-1">
+                              {/* Rent Amount */}
+                              <div className="flex justify-between items-center py-2">
+                                <span className="text-xs font-bold text-slate-600">Rent (this cycle)</span>
+                                <span className="text-sm font-black text-slate-800">₦{rentAmt.toLocaleString()}</span>
                               </div>
-                            )}
-                          </div>
-                          {/* Total owed banner */}
-                          <div className="mt-3 bg-red-700 rounded-xl px-4 py-3 flex justify-between items-center">
-                            <div>
-                              <p className="text-[10px] text-red-200 uppercase tracking-wider font-bold">Total Balance Due</p>
+
+                              {/* Minus: Amount Paid */}
+                              <div className="flex justify-between items-center py-2 bg-green-50 rounded-xl px-3 -mx-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg font-black text-green-600 leading-none">−</span>
+                                  <span className="text-xs font-bold text-green-700">Amount Paid</span>
+                                </div>
+                                <span className="text-sm font-black text-green-700">₦{amtPaid.toLocaleString()}</span>
+                              </div>
+
+                              {/* Payment progress bar */}
+                              <div className="pt-1 pb-2">
+                                <div className="flex justify-between text-[9px] text-slate-400 mb-1">
+                                  <span>{paidPct}% paid this cycle</span>
+                                  <span>₦{debt.currentRemaining.toLocaleString()} left</span>
+                                </div>
+                                <div className="h-1.5 bg-slate-100 rounded-full">
+                                  <div className="h-1.5 rounded-full bg-green-500 transition-all duration-500" style={{ width: `${paidPct}%` }} />
+                                </div>
+                              </div>
+
+                              {/* Divider */}
+                              <div className="border-t border-dashed border-slate-200" />
+
+                              {/* Cycle remaining */}
+                              <div className="flex justify-between items-center py-2">
+                                <span className="text-xs font-bold text-slate-500">Cycle Remaining</span>
+                                <span className={`text-sm font-black ${debt.currentRemaining <= 0 ? 'text-green-600' : 'text-slate-800'}`}>
+                                  {debt.currentRemaining <= 0 ? 'Cleared ✓' : `₦${debt.currentRemaining.toLocaleString()}`}
+                                </span>
+                              </div>
+
+                              {/* Plus: Carried forward — only when > 0 */}
                               {debt.carried > 0 && (
-                                <p className="text-[10px] text-red-300 mt-0.5">
-                                  ₦{debt.currentRemaining.toLocaleString()} cycle + ₦{debt.carried.toLocaleString()} previous
-                                </p>
+                                <div className="flex justify-between items-center py-2 bg-red-50 rounded-xl px-3 -mx-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-lg font-black text-red-500 leading-none">+</span>
+                                    <div>
+                                      <span className="text-xs font-bold text-red-700">Previous Unpaid Balance</span>
+                                      <p className="text-[9px] text-slate-400">Carried forward from last period</p>
+                                    </div>
+                                  </div>
+                                  <span className="text-sm font-black text-red-700">₦{debt.carried.toLocaleString()}</span>
+                                </div>
                               )}
+
+                              {/* Total */}
+                              <div className="flex justify-between items-center mt-1 pt-2 border-t-2 border-slate-200">
+                                <span className="text-xs font-black text-slate-700 uppercase tracking-wide">= Total Due</span>
+                                <span className={`text-base font-black ${debt.total <= 0 ? 'text-green-600' : 'text-red-700'}`}>
+                                  {debt.total <= 0 ? 'Fully Paid ✓' : `₦${debt.total.toLocaleString()}`}
+                                </span>
+                              </div>
                             </div>
-                            <p className="text-xl font-black text-white">₦{debt.total.toLocaleString()}</p>
                           </div>
                         </td>
                       </tr>

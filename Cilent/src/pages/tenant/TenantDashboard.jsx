@@ -279,67 +279,88 @@ const TenantDashboard = () => {
       </div>
 
       {lease && (
-        <div className="bg-white rounded-2xl border-2 border-red-200 p-5 shadow-sm">
-          <div className="flex items-start justify-between mb-4">
+        <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-sm overflow-hidden">
+          {/* Header: total owed prominent */}
+          <div className={`px-5 pt-5 pb-4 flex items-start justify-between ${totalOwed <= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Amount Owed</p>
-              <p className="text-4xl font-black text-red-700 mt-1">₦{totalOwed.toLocaleString()}</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Your Balance</p>
+              <p className={`text-4xl font-black mt-1 ${totalOwed <= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                ₦{(totalOwed > 0 ? totalOwed : 0).toLocaleString()}
+              </p>
             </div>
-            <span className={`px-3 py-1.5 rounded-full text-xs font-black ${totalOwed <= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+            <span className={`px-3 py-1.5 rounded-full text-xs font-black ${totalOwed <= 0 ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
               {totalOwed <= 0 ? 'Fully Paid ✓' : 'Balance Due'}
             </span>
           </div>
 
-          <div className="space-y-2 border-t border-slate-100 pt-3">
-            {hasCarriedBalance && (
-              <div className="flex justify-between items-center bg-red-50 rounded-xl px-3 py-2.5">
+          {/* Receipt ledger */}
+          <div className="px-5 py-4 space-y-1 border-t border-slate-100">
+
+            {/* Rent this cycle */}
+            <div className="flex justify-between items-center py-2.5">
+              <div>
+                <p className="text-xs font-bold text-slate-700">Rent (this cycle)</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">{formatDate(lease?.start_date)} → {formatDate(lease?.end_date)}</p>
+              </div>
+              <span className="text-sm font-black text-slate-800">₦{currentRent.toLocaleString()}</span>
+            </div>
+
+            {/* Minus: Amount Paid */}
+            <div className="flex justify-between items-center py-2.5 bg-green-50 rounded-xl px-3 -mx-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-black text-green-600 leading-none">−</span>
                 <div>
-                  <p className="text-sm font-bold text-red-700">Previous Unpaid Balance</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Carried forward from last period</p>
+                  <p className="text-xs font-bold text-green-700">Amount Paid This Cycle</p>
+                  <p className="text-[10px] text-slate-400">Verified Paystack payments</p>
                 </div>
-                <p className="text-sm font-black text-red-700">₦{carriedForward.toLocaleString()}</p>
+              </div>
+              <span className="text-sm font-black text-green-700">₦{amountPaidCycle.toLocaleString()}</span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="pt-1 pb-2">
+              <div className="flex justify-between text-[9px] text-slate-400 mb-1">
+                <span>{currentRent > 0 ? Math.round((amountPaidCycle / currentRent) * 100) : 0}% paid this cycle</span>
+                <span>₦{currentRemaining.toLocaleString()} cycle remaining</span>
+              </div>
+              <div className="h-2 bg-slate-100 rounded-full">
+                <div
+                  className="h-2 rounded-full bg-green-500 transition-all duration-500"
+                  style={{ width: currentRent > 0 ? `${Math.min(100, (amountPaidCycle / currentRent) * 100)}%` : '0%' }}
+                />
+              </div>
+            </div>
+
+            <div className="border-t border-dashed border-slate-200" />
+
+            {/* Cycle remaining */}
+            <div className="flex justify-between items-center py-2.5">
+              <span className="text-xs font-bold text-slate-500">Cycle Remaining</span>
+              <span className={`text-sm font-black ${currentRemaining <= 0 ? 'text-green-600' : 'text-slate-800'}`}>
+                {currentRemaining <= 0 ? 'Cleared ✓' : `₦${currentRemaining.toLocaleString()}`}
+              </span>
+            </div>
+
+            {/* Plus: Carried forward — only when > 0 */}
+            {hasCarriedBalance && (
+              <div className="flex justify-between items-center py-2.5 bg-red-50 rounded-xl px-3 -mx-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-black text-red-500 leading-none">+</span>
+                  <div>
+                    <p className="text-xs font-bold text-red-700">Previous Unpaid Balance</p>
+                    <p className="text-[10px] text-slate-400">Carried forward from last period</p>
+                  </div>
+                </div>
+                <span className="text-sm font-black text-red-700">₦{carriedForward.toLocaleString()}</span>
               </div>
             )}
 
-            <div className="flex justify-between items-center bg-slate-50 rounded-xl px-3 py-2.5">
-              <div>
-                <p className="text-sm font-bold text-slate-700">Current Cycle Rent</p>
-                <p className="text-xs text-slate-500 mt-0.5">{formatDate(lease?.start_date)} → {formatDate(lease?.end_date)}</p>
-              </div>
-              <p className="text-sm font-black text-slate-800">₦{currentRent.toLocaleString()}</p>
-            </div>
-
-            <div className="flex justify-between items-center bg-green-50 rounded-xl px-3 py-2.5">
-              <div>
-                <p className="text-sm font-bold text-green-700">Amount Paid (This Cycle)</p>
-                <p className="text-xs text-slate-500 mt-0.5">Verified Paystack payments</p>
-              </div>
-              <p className="text-sm font-black text-green-700">− ₦{amountPaidCycle.toLocaleString()}</p>
-            </div>
-
-            <div className="border-t-2 border-dashed border-slate-200 my-2" />
-
-            <div className="flex justify-between items-center bg-red-700 rounded-xl px-3 py-2.5">
-              <div>
-                <p className="text-sm font-black text-white">Total Balance Remaining</p>
-                {hasCarriedBalance && (
-                  <p className="text-xs text-red-200 mt-0.5">₦{carriedForward.toLocaleString()} previous + ₦{currentRemaining.toLocaleString()} current</p>
-                )}
-              </div>
-              <p className="text-xl font-black text-white">₦{totalOwed.toLocaleString()}</p>
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <div className="flex justify-between text-xs text-slate-500 mb-1">
-              <span>Payment Progress</span>
-              <span>{currentRent > 0 ? Math.round((amountPaidCycle / currentRent) * 100) : 0}% paid this cycle</span>
-            </div>
-            <div className="h-2.5 bg-slate-100 rounded-full">
-              <div
-                className="h-2.5 rounded-full bg-green-500 transition-all duration-500"
-                style={{ width: currentRent > 0 ? `${Math.min(100, (amountPaidCycle / currentRent) * 100)}%` : '0%' }}
-              />
+            {/* = Total due */}
+            <div className="flex justify-between items-center mt-2 pt-3 border-t-2 border-slate-200">
+              <span className="text-sm font-black text-slate-700 uppercase tracking-wide">= Total Balance Due</span>
+              <span className={`text-xl font-black ${totalOwed <= 0 ? 'text-green-600' : 'text-red-700'}`}>
+                {totalOwed <= 0 ? 'Fully Paid ✓' : `₦${totalOwed.toLocaleString()}`}
+              </span>
             </div>
           </div>
         </div>
