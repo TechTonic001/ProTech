@@ -128,7 +128,7 @@ const TenantDashboard = () => {
       <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-700 rounded-2xl p-6 text-white shadow-md shadow-indigo-500/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="flex-1 min-w-0">
           <RealTimeGreeting
-            name={lease?.tenant_name || 'Tenant'}
+            name={user?.full_name || user?.username || 'Tenant'}
             subtitle={lease ? `${lease.property_name} • Room ${lease.room_number}` : 'Awaiting Landlord Room Assignment'}
           />
         </div>

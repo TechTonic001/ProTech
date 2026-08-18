@@ -435,32 +435,38 @@ const LandlordDashboard = () => {
             </span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-            {uniqueOverdueTenants.map((lease) => (
-              <div
-                key={lease.tenant_id}
-                className="bg-white border-2 border-red-200 rounded-2xl p-4 shadow-sm shadow-red-50 hover:shadow-red-100 transition"
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center text-sm font-black text-red-600">
-                    {lease.tenant_name?.charAt(0).toUpperCase() || 'T'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black text-slate-900 truncate">{lease.tenant_name}</p>
-                    <p className="text-[10px] text-slate-500 font-semibold truncate">
-                      @{lease.tenant_username} · {lease.property_name} — Room {lease.room_number}
-                    </p>
+            {uniqueOverdueTenants.map((lease) => {
+              const overdueDays = Math.abs(parseInt(lease.days_remaining ?? 0, 10));
+              const totalOwedAmt = parseFloat(lease.total_owed || lease.remaining || 0);
+              return (
+                <div
+                  key={lease.lease_id}
+                  className="bg-white border-2 border-red-200 rounded-2xl p-4 shadow-sm shadow-red-50 hover:shadow-red-100 transition"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center text-sm font-black text-red-600 shrink-0">
+                        {lease.tenant_name?.charAt(0).toUpperCase() || 'T'}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-slate-900 truncate">{lease.tenant_name}</p>
+                        <p className="text-[10px] text-slate-500 font-semibold truncate">
+                          @{lease.tenant_username} · {lease.property_name} — Room {lease.room_number}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-red-700 font-black text-sm animate-pulse">
+                        {overdueDays} day{overdueDays === 1 ? '' : 's'} OVERDUE
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        ₦{totalOwedAmt.toLocaleString('en-NG')} owed
+                      </p>
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-red-700 font-black text-sm animate-pulse">
-                    {Math.abs(parseInt(lease.days_remaining ?? 0, 10))} day{Math.abs(parseInt(lease.days_remaining ?? 0, 10)) === 1 ? '' : 's'} OVERDUE
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    ₦{parseFloat(lease.remaining || 0).toLocaleString('en-NG')} owed
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -488,7 +494,8 @@ const LandlordDashboard = () => {
                 const status = getDueStatusStyle(lease.days_remaining, lease.is_fully_paid);
                 const debt = {
                   carried: parseFloat(lease.carried_forward_balance || 0),
-                  currentRemaining: parseFloat(lease.remaining || 0),
+                  // current_cycle_remaining = rent_amount - amount_paid_this_cycle (no carried debt)
+                  currentRemaining: parseFloat(lease.current_cycle_remaining ?? lease.remaining ?? 0),
                   total: parseFloat(lease.total_owed || lease.remaining || 0),
                 };
                 const isExpanded = expandedLease === lease.lease_id;

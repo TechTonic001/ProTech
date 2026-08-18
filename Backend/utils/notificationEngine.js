@@ -107,7 +107,7 @@ const runNotificationEngine = async (currentHour) => {
       JOIN properties p ON r.property_id = p.property_id
       LEFT JOIN notification_settings ns
         ON ns.landlord_id = l.landlord_id
-      WHERE l.is_active = TRUE
+      WHERE l.deleted_at IS NULL
         AND l.amount_paid_this_cycle < l.rent_amount
         AND u_t.deleted_at IS NULL
         AND r.deleted_at IS NULL
