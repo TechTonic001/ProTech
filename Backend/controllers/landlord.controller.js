@@ -224,7 +224,7 @@ const unassignTenant = async (req, res, next) => {
         [row.lease_id]
       );
       if (row.room_id) {
-        await db.query(`UPDATE rooms SET is_occupied = 0 WHERE room_id = $1`, [row.room_id]);
+        await db.query(`UPDATE rooms SET is_occupied = FALSE WHERE room_id = $1`, [row.room_id]);
       }
     }
 
