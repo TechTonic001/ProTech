@@ -178,10 +178,33 @@ const TenantDashboard = () => {
             <div>
               <CreditCard className="w-8 h-8 text-white/80 mb-3" />
               <h3 className="text-lg font-bold">Pay Rent</h3>
-              <p className="text-xs text-white/60 mt-1">Verify payment breakdown and launch secure Paystack checkout.</p>
+              <p className="text-xs text-white/60 mt-1">Secure Paystack checkout — pay the outstanding balance.</p>
             </div>
-            <div className="flex justify-between items-baseline mt-6 pt-2 border-t border-white/15">
-              <span className="text-2xl font-black">{formatCurrency(nextRentAmount)}</span>
+
+            {/* Paid / Remaining mini-breakdown */}
+            <div className="mt-4 space-y-1.5">
+              <div className="flex justify-between text-xs text-white/70">
+                <span>Paid this cycle</span>
+                <span className="font-bold text-green-300">₦{amountPaidCycle.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-xs text-white/70">
+                <span>Remaining balance</span>
+                <span className="font-bold text-red-300">₦{totalOwed.toLocaleString()}</span>
+              </div>
+              {/* Mini progress bar */}
+              <div className="h-1.5 bg-white/20 rounded-full mt-2">
+                <div
+                  className="h-1.5 rounded-full bg-green-400 transition-all duration-500"
+                  style={{ width: currentRent > 0 ? `${Math.min(100, (amountPaidCycle / currentRent) * 100)}%` : '0%' }}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-between items-baseline mt-4 pt-3 border-t border-white/15">
+              <div>
+                <p className="text-[10px] text-white/50 uppercase tracking-wider">Balance Due</p>
+                <span className="text-2xl font-black">{formatCurrency(totalOwed > 0 ? totalOwed : 0)}</span>
+              </div>
               <span className="text-xs text-white/70 font-semibold flex items-center gap-1">
                 Pay Now <ArrowRight className="w-3.5 h-3.5" />
               </span>

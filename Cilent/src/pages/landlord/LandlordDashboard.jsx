@@ -459,8 +459,11 @@ const LandlordDashboard = () => {
                       <p className="text-red-700 font-black text-sm animate-pulse">
                         {overdueDays} day{overdueDays === 1 ? '' : 's'} OVERDUE
                       </p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        ₦{totalOwedAmt.toLocaleString('en-NG')} owed
+                      <p className="text-xs text-green-600 font-bold mt-1">
+                        Paid: ₦{parseFloat(lease.amount_paid_this_cycle || 0).toLocaleString('en-NG')}
+                      </p>
+                      <p className="text-xs text-red-700 font-black">
+                        Balance: ₦{totalOwedAmt.toLocaleString('en-NG')}
                       </p>
                     </div>
                   </div>
@@ -484,7 +487,8 @@ const LandlordDashboard = () => {
               <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
                 <th className="pb-3">Tenant</th>
                 <th className="pb-3">Room</th>
-                <th className="pb-3">Balance</th>
+                <th className="pb-3 text-green-600">Paid</th>
+                <th className="pb-3 text-red-500">Balance Due</th>
                 <th className="pb-3">Status</th>
                 <th className="pb-3">Details</th>
               </tr>
@@ -492,19 +496,38 @@ const LandlordDashboard = () => {
             <tbody className="divide-y divide-slate-50 font-medium">
               {leases.map((lease) => {
                 const status = getDueStatusStyle(lease.days_remaining, lease.is_fully_paid);
+                const amtPaid = parseFloat(lease.amount_paid_this_cycle || 0);
                 const debt = {
                   carried: parseFloat(lease.carried_forward_balance || 0),
                   // current_cycle_remaining = rent_amount - amount_paid_this_cycle (no carried debt)
                   currentRemaining: parseFloat(lease.current_cycle_remaining ?? lease.remaining ?? 0),
                   total: parseFloat(lease.total_owed || lease.remaining || 0),
                 };
+                const rentAmt = parseFloat(lease.rent_amount || 0);
+                const paidPct = rentAmt > 0 ? Math.min(100, Math.round((amtPaid / rentAmt) * 100)) : 0;
                 const isExpanded = expandedLease === lease.lease_id;
                 return (
                   <React.Fragment key={lease.lease_id}>
                     <tr className="hover:bg-slate-50 transition duration-150 cursor-pointer" onClick={() => setExpandedLease(isExpanded ? null : lease.lease_id)}>
                       <td className="py-3 text-slate-800 font-bold">{lease.tenant_name}</td>
                       <td className="py-3 text-slate-500">{lease.room_number}</td>
-                      <td className="py-3 text-red-700 font-black">₦{debt.total.toLocaleString()}</td>
+                      {/* Paid this cycle */}
+                      <td className="py-3">
+                        <span className="text-green-700 font-black text-xs">₦{amtPaid.toLocaleString()}</span>
+                        {amtPaid > 0 && rentAmt > 0 && (
+                          <div className="w-16 h-1 bg-slate-100 rounded-full mt-1">
+                            <div className="h-1 bg-green-500 rounded-full" style={{ width: `${paidPct}%` }} />
+                          </div>
+                        )}
+                      </td>
+                      {/* Balance remaining */}
+                      <td className="py-3">
+                        {debt.total <= 0 ? (
+                          <span className="text-green-600 font-black text-xs">Cleared ✓</span>
+                        ) : (
+                          <span className="text-red-700 font-black text-xs">₦{debt.total.toLocaleString()}</span>
+                        )}
+                      </td>
                       <td className="py-3">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${status.bg} ${status.text} ${status.pulse ? 'animate-pulse' : ''}`}>
                           {status.label}
@@ -514,25 +537,57 @@ const LandlordDashboard = () => {
                     </tr>
                     {isExpanded && (
                       <tr>
-                        <td colSpan={5} className="px-4 pb-4 bg-slate-50">
-                          <div className="grid grid-cols-3 gap-3 mt-2">
+                        <td colSpan={6} className="px-4 pb-4 bg-slate-50">
+                          {/* Payment progress bar */}
+                          <div className="mt-3 mb-3">
+                            <div className="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
+                              <span>Payment Progress (this cycle)</span>
+                              <span>{paidPct}% paid</span>
+                            </div>
+                            <div className="h-2 bg-slate-200 rounded-full">
+                              <div
+                                className="h-2 rounded-full bg-green-500 transition-all duration-500"
+                                style={{ width: `${paidPct}%` }}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid gap-3 mt-2" style={{ gridTemplateColumns: `repeat(${2 + (debt.carried > 0 ? 1 : 0)}, 1fr)` }}>
+                            {/* Green — Amount paid this cycle */}
+                            <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+                              <p className="text-[10px] text-slate-500 uppercase tracking-wider">Paid This Cycle</p>
+                              <p className="text-base font-black text-green-700 mt-1">₦{amtPaid.toLocaleString()}</p>
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                {paidPct}% of ₦{rentAmt.toLocaleString()}
+                              </p>
+                            </div>
+                            {/* Red — Current cycle still owed */}
+                            <div className="bg-slate-100 border border-slate-200 rounded-xl p-3">
+                              <p className="text-[10px] text-slate-500 uppercase tracking-wider">Cycle Remaining</p>
+                              <p className="text-base font-black text-slate-800 mt-1">₦{debt.currentRemaining.toLocaleString()}</p>
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                After ₦{amtPaid.toLocaleString()} paid
+                              </p>
+                            </div>
+                            {/* Carried forward — only shows when > 0 */}
                             {debt.carried > 0 && (
                               <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-                                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Previous balance</p>
+                                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Previous Debt</p>
                                 <p className="text-base font-black text-red-700 mt-1">₦{debt.carried.toLocaleString()}</p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">Carried forward</p>
                               </div>
                             )}
-                            <div className="bg-slate-100 border border-slate-200 rounded-xl p-3">
-                              <p className="text-[10px] text-slate-500 uppercase tracking-wider">Current cycle</p>
-                              <p className="text-base font-black text-slate-800 mt-1">₦{debt.currentRemaining.toLocaleString()}</p>
-                            </div>
-                            <div className="bg-red-700 rounded-xl p-3">
-                              <p className="text-[10px] text-red-200 uppercase tracking-wider">Total owed</p>
-                              <p className="text-base font-black text-white mt-1">₦{debt.total.toLocaleString()}</p>
+                          </div>
+                          {/* Total owed banner */}
+                          <div className="mt-3 bg-red-700 rounded-xl px-4 py-3 flex justify-between items-center">
+                            <div>
+                              <p className="text-[10px] text-red-200 uppercase tracking-wider font-bold">Total Balance Due</p>
                               {debt.carried > 0 && (
-                                <p className="text-[10px] text-red-200 mt-1">₦{debt.carried.toLocaleString()} + ₦{debt.currentRemaining.toLocaleString()}</p>
+                                <p className="text-[10px] text-red-300 mt-0.5">
+                                  ₦{debt.currentRemaining.toLocaleString()} cycle + ₦{debt.carried.toLocaleString()} previous
+                                </p>
                               )}
                             </div>
+                            <p className="text-xl font-black text-white">₦{debt.total.toLocaleString()}</p>
                           </div>
                         </td>
                       </tr>
